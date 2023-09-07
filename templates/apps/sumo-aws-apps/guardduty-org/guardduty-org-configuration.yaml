@@ -1,0 +1,434 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Organization GuardDuty delegated admin template for to setup the Amazon GuardDuty, Global Intelligence for Amazon GuardDuty with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu9l)
+
+Metadata:
+   cfn-lint:
+      config:
+        ignore_checks:
+          - W9001 # Resource names should be PascalCase
+          - W9003 # Parameter is not in a ParameterGroup
+          - W9002 # Parameter is missing ParameterLabe
+   AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Sumo Logic Deployment Configuration"
+        Parameters:
+          - SumoDeployment
+          - SumoAccessID
+          - SumoAccessKey
+          - RemoveSumoResourcesOnDeleteStack
+      - Label:
+          default: "App Details - Collector Configuration"
+        Parameters:
+          - InstallSumoGlobalGuardDutyApp
+          - InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp
+          - CollectorID
+
+      - Label:
+          default: "App Details - HTTP Logs Source Configuration"
+        Parameters:
+          - CreateHttpLogsSource
+          - HttpLogsSourceName
+          - HttpLogsSourceCategoryName
+          - EnableForwardDataToCloudSIEM
+
+      - Label:
+          default: AWS GuardDuty Attributes
+        Parameters:
+          - AutoEnableS3Logs
+          - ConfigurationRoleName
+          - DelegatedAdminAccountId
+          - EnabledRegions
+          - FindingPublishingFrequency
+      - Label:
+          default: AWS StackSet Attributes
+        Parameters:
+          - AdministrationRoleArn
+          - ExecutionRoleRuleName
+          - OrganizationRootID
+      - Label:
+          default: "AWS Quick Start configuration"
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+
+      - Label:
+          default: "Local Parameters. Do Not Edit the values."
+        Parameters:
+          - ParentHelperFunctionArn
+          - ParentStackName
+
+    ParameterLabels:
+      EnableForwardDataToCloudSIEM:
+        default: "Forward Data To CloudSIEM"
+      SumoDeployment:
+        default: "Sumo Logic Deployment Name"
+      SumoAccessID:
+        default: "Sumo Logic Access ID"
+      SumoAccessKey:
+        default: "Sumo Logic Access Key"
+      RemoveSumoResourcesOnDeleteStack:
+        default: "Delete Sumo Logic Resources when stack is deleted"
+      InstallSumoGlobalGuardDutyApp:
+        default: "Install Sumo Logic Global Intelligence for Amazon GuardDuty"
+      InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp:
+        default: "Install Sumo Logic Cloud Security Monitoring and Analytics for Amazon GuardDuty"
+      CollectorID:
+        default: "ID of Hosted Collector"
+      CreateHttpLogsSource:
+        default: "Create Sumo Logic HTTP Logs Source"
+      HttpLogsSourceName:
+        default: "Sumo Logic HTTP Logs Source Name"
+      HttpLogsSourceCategoryName:
+        default: "Sumo Logic HTTP Logs Source Category Name"
+
+      AutoEnableS3Logs:
+        default: Auto Enable S3 Logs
+      ConfigurationRoleName:
+        default: Configuration Role Name
+      DelegatedAdminAccountId:
+        default: Delegated Admin Account ID
+      EnabledRegions:
+        default: Enabled Regions
+      FindingPublishingFrequency:
+        default: Finding Publishing Frequency
+
+      AdministrationRoleArn:
+        default: Arn of Administration Role
+      ExecutionRoleRuleName:
+        default: Execution Role Name
+      OrganizationRootID:
+        default: "AWS Organization root ID"
+
+      QSS3BucketName:
+        default: "Quick Start S3 bucket name"
+      QSS3KeyPrefix:
+        default: "Quick Start S3 key prefix"
+      ParentHelperFunctionArn:
+        default: "If Any, Arn of parent Helper Function"
+      ParentStackName:
+        default: "If Any, Name of parent Stack"
+
+Parameters:
+
+  EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "Yes -> Enabled forward data to CloudSIEM.
+                  No -> Skip enable forward."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  SumoDeployment:
+    Type: String
+    AllowedValues:
+      - au
+      - ca
+      - de
+      - eu
+      - jp
+      - us2
+      - us1
+      - in
+      - fed
+    Description: "Enter au, ca, de, eu, jp, us2, in, fed or us1."
+    AllowedPattern: ".+"
+    Default: "us2"
+  SumoAccessID:
+    Type: String
+    Description: "The Sumo Logic Access ID. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access ID can not be empty."
+  SumoAccessKey:
+    Type: String
+    Description: "The Sumo Logic Access Key. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access Key can not be empty."
+    NoEcho: true
+  RemoveSumoResourcesOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description: "To delete collector, sources and app when stack is deleted, set this parameter to true. Default is false.
+                  Deletes the resources created by the stack. Deletion of updated resources will be skipped."
+    Type: String
+
+  InstallSumoGlobalGuardDutyApp:
+    Type: String
+    Description: "Yes -> To Install Global Intelligence for Amazon GuardDuty in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp:
+    Type: String
+    Description: "Yes -> To Install Cloud Security Monitoring and Analytics for Amazon GuardDuty in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  CollectorID:
+    Type: String
+    Description: Change the collector id of Sumo Hosted Collector
+
+
+  CreateHttpLogsSource:
+    Type: String
+    Description: "Choose Yes to create Sumo Logic HTTP logs source. Choose No if HTTP Logs source already exist."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  HttpLogsSourceName:
+    Type: String
+    Description: Change the HTTP Source name to be created else default name will be used.
+    Default: AWS-GuardDuty-Source
+  HttpLogsSourceCategoryName:
+    Type: String
+    Description: "Existing - Change to an existing Source Category from Sumo Logic if HTTP Source is not created.\n
+                  New - Change the source category else Default will be used if HTTP Source is Created"
+    Default: AWS/GuardDuty/logs
+
+  AutoEnableS3Logs:
+    AllowedValues: ['true', 'false']
+    Default: 'false'
+    Description: Auto enable S3 logs
+    Type: String
+
+  ConfigurationRoleName:
+    AllowedPattern: '^[\w+=,.@-]{1,64}$'
+    ConstraintDescription: Max 64 alphanumeric characters. Also special characters supported [+, =, ., @, -]
+    Description: Configuration role to assume in the delegated administrator account
+    Type: String
+
+  DelegatedAdminAccountId:
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: Must be 12 digits
+    Description: Delegated administrator account ID
+    Type: String
+
+  EnabledRegions:
+    Description: Comma delimited list of regions to enable GuardDuty. Leave blank to enable all regions.
+    Type: String
+    Default: "us-east-1, us-east-2"
+
+  FindingPublishingFrequency:
+    AllowedValues: [FIFTEEN_MINUTES, ONE_HOUR, SIX_HOURS]
+    Default: FIFTEEN_MINUTES
+    Description: Finding publishing frequency
+    Type: String
+
+  AdministrationRoleArn:
+    Description: Arn of AWS Administration Role name to enable use of AWS CloudFormation StackSets.
+    Type: String
+
+  ExecutionRoleRuleName:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
+    Type: String
+    Default: AWSCloudFormationStackSetExecutionRole
+
+  OrganizationRootID:
+    AllowedPattern: '^r-[0-9a-z]{4,32}$'
+    Description: >
+      The Root ID string requires r- followed by from 4 to 32 lowercase letters or digits.
+    MaxLength: 34
+    Type: String
+
+  QSS3BucketName:
+    AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
+    ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Default: "aws-quickstart"
+    Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Type: "String"
+  QSS3KeyPrefix:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    ConstraintDescription: "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Default: "quickstart-sumo-logic-cloudsiem/"
+    Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Type: "String"
+
+  QSVersion:
+    Type: String
+    Description: "Version of Quick Start"
+    Default: "1.0"
+
+  ParentHelperFunctionArn:
+    Type: String
+    Default: "ParentHelperFunctionArn"
+    Description: Parent Stack Name. Do Not Edit the value.
+
+  ParentStackName:
+    Type: String
+    Description: Parent Stack Name. Do Not Edit the value.
+
+
+Conditions:
+
+  install_sumo_global_guardduty_app: !Equals [!Ref InstallSumoGlobalGuardDutyApp, 'Yes']
+  install_http_logs_source: !Equals [!Ref CreateHttpLogsSource, 'Yes']
+  install_sumo_cloud_security_monitoring_and_analytics_app: !Equals [!Ref InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp, 'Yes']
+  enable_forward_data_to_cloudsiem: !And
+    - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
+    - !Condition install_http_logs_source
+
+Resources:
+
+  GuardDutyDeleteDetectorRoleStackset:
+    Condition: install_http_logs_source
+    Type: 'AWS::CloudFormation::StackSet'
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub "GuardDuty-Delete-Detector-Role-${AWS::StackName}"
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions:
+            -  !Select [0, !Split [",", !Ref EnabledRegions]]
+          DeploymentTargets:
+              OrganizationalUnitIds:
+                - !Ref OrganizationRootID
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-delete-detector-role.yaml'
+        - S3Region: !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      Parameters:
+        - ParameterKey: 'DeleteDetectorRoleName'
+          ParameterValue: !Sub "ddr-${ParentStackName}"
+        - ParameterKey: 'OrgPrimaryAccountId'
+          ParameterValue: !Ref "AWS::AccountId"
+
+  OrgSumoCloudWatchEventFunctionStackset:
+    Condition: install_http_logs_source
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'GuardDutyOrgCloudWatchEventFunction-${AWS::StackName}'
+      AdministrationRoleARN: !Ref AdministrationRoleArn
+      ExecutionRoleName: !Ref ExecutionRoleRuleName
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions: !Split [",", !Ref EnabledRegions]
+          DeploymentTargets:
+            Accounts:
+              - !Ref DelegatedAdminAccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-cloudwatch-event.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        - ParameterKey: 'SumoEndpoint'
+          ParameterValue: !GetAtt SumoHTTPSource.SUMO_ENDPOINT
+
+  rAWSGuardDutyCustomResource:
+    Type: Custom::GuardDuty
+    DependsOn:
+      - "GuardDutyDeleteDetectorRoleStackset"
+    Condition: install_http_logs_source
+    Version: "1.0.1"
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AUTO_ENABLE_S3_LOGS: !Ref AutoEnableS3Logs
+      AWS_PARTITION: !Sub ${AWS::Partition}
+      CONFIGURATION_ROLE_NAME: !Ref ConfigurationRoleName
+      DELEGATED_ADMIN_ACCOUNT_ID: !Ref DelegatedAdminAccountId
+      DELETE_DETECTOR_ROLE_NAME: !Sub
+        - "DeleteDetectorRole-${StackName}"
+        - StackName: !Select [0, !Split ["-", !Ref "AWS::StackName"]]
+      ENABLED_REGIONS: !Ref EnabledRegions
+      FINDING_PUBLISHING_FREQUENCY: !Ref FindingPublishingFrequency
+
+  SumoHTTPSource:
+    Condition: install_http_logs_source
+    Type: Custom::HTTPSource
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      SourceName: !Ref HttpLogsSourceName
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      SourceCategory: !Ref HttpLogsSourceCategoryName
+      CollectorId: !Ref CollectorID
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      DateFormat: "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+      DateLocatorRegex: '.*"updatedAt":"(.*)".*'
+
+  SumoUpdateFields:
+    DependsOn:
+        - SumoHTTPSource
+    Type: Custom::SumoLogicUpdateFields
+    Condition: enable_forward_data_to_cloudsiem
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      CollectorId: !Ref CollectorID
+      SourceName: !Ref HttpLogsSourceName
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      Fields: {'_siemForward':'True'}
+
+  SumoGlobalGuardDutyApp:
+    Type: Custom::App
+    Condition: install_sumo_global_guardduty_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AppName: "Amazon QuickStart - Global Intelligence for Amazon GuardDuty"
+      AppId: "8e7efcb3-040a-4a92-9f8d-922fafb24afb"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        gdbenchmark: !Sub "_sourceCategory=${HttpLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  SumoGuardDutyCloudSecurityMonitoringandAnalyticsApp:
+    Type: Custom::App
+    Condition: install_sumo_cloud_security_monitoring_and_analytics_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AppName: "Amazon QuickStart - Cloud Security Monitoring and Analytics for Amazon GuardDuty"
+      AppId: "9a2b2aa3-b747-45c6-896e-4b3bec3d2e9e"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        gdlogsrc: !Sub "_sourceCategory=${HttpLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+Outputs:
+
+  SumoEndpoint:
+    Description: GuardDuty HTTP Endpoint
+    Condition: install_http_logs_source
+    Value: !GetAtt SumoHTTPSource.SUMO_ENDPOINT
+
+  GlobalGuardDutyAppFolder:
+    Description: "Folder Name"
+    Condition: install_sumo_global_guardduty_app
+    Value: !GetAtt SumoGlobalGuardDutyApp.APP_FOLDER_NAME
+
+
+  GuardDutyCloudSecurityMonitoringandAnalyticsFolder:
+    Description: "Folder Name"
+    Condition: install_sumo_cloud_security_monitoring_and_analytics_app
+    Value: !GetAtt SumoGuardDutyCloudSecurityMonitoringandAnalyticsApp.APP_FOLDER_NAME

@@ -1,0 +1,1026 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "This CloudFormation template sets up AWS apps. (qs-1sfibuu48)"
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9006 # Parameter is not sentence case
+  QuickStartDocumentation:
+    EntrypointName: "Parameters for deploying the Quick Start"
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Sumo Logic configuration"
+        Parameters:
+          - Section1SumoLogicDeployment
+          - Section1SumoLogicAccessID
+          - Section1SumoLogicAccessKey
+          - Section1SumoLogicOrganizationId
+          - Section1SumoLogicResourceRemoveOnDeleteStack
+      - Label:
+          default: "AWS Organizations configuration"
+        Parameters:
+          - Section1SecurityToolingAccountId
+          - Section1LogArchivingAccountId
+          - Section1ToolingAndLoggingRegion
+          - Section1OrganizationRootID
+
+      - Label:
+          default: "GuardDuty app configuration"
+        Parameters:
+          - Section2InstallSumoGlobalGuardDutyApp
+          - Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp
+
+      - Label:
+          default: "GuardDuty service configuration"
+        Parameters:
+          - Section2FindingPublishingFrequency
+          - Section2GuardDutyRegions
+
+      - Label:
+          default: "GuardDuty Sumo log source configuration"
+        Parameters:
+          - Section2GuardDutyCreateHttpLogsSource
+          - Section2EnableForwardDataToCloudSIEM
+          - Section2GuardDutyHttpLogsSourceCategoryName
+
+      # CloudTrail parameters
+      - Label:
+          default: "CloudTrail service configuration"
+        Parameters:
+          - Section3CloudTrailRegions
+          - Section3InstallAWSCloudTrail
+
+      - Label:
+          default: "CloudTrail app configuration"
+        Parameters:
+          - Section3InstallPCICloudTrailApp
+          - Section3InstallCISFoundationApp
+          - Section3InstallCloudTrailMonitoringAnalyticsApp
+          - Section3InstallCloudTrailSecOpsApp
+
+      - Label:
+          default: "CloudTrail Sumo log source configuration"
+        Parameters:
+          - Section3CloudTrailCreateS3LogsSource
+          - Section3CloudTrailBucketPathExpression
+          - Section3CloudTrailLogsSourceCategoryName
+          - Section3EnableForwardDataToCloudSIEM
+
+      - Label:
+          default: "CloudTrail S3 bucket configuration"
+        Parameters:
+          - Section3CreateCloudTrailS3Bucket
+          - Section3CloudTrailExistsS3BucketName
+          - Section1DeliveryBucketPrefix
+
+      - Label:
+          default: "4.1 Security Hub configuration"
+        Parameters:
+          - Section4SecurityHubEnableSecurityHub
+          - Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp
+      - Label:
+          default: "4.2 Security Hub Service Configuration"
+        Parameters:
+          - Section4SecurityHubRegionsToEnable
+          - Section4SecurityHubEnableCISStandard
+          - Section4SecurityHubEnablePCIStandard
+          - Section4SecurityHubEnableSBPStandard
+      - Label:
+          default: "4.3 Security Hub Sumo log source configuration"
+        Parameters:
+          - Section4SecurityHubCreateHttpLogsSource
+          - Section4EnableForwardDataToCloudSIEM
+          - Section4SecurityHubHttpLogsSourceCategoryName
+
+      # Firewall Manager parameters
+      - Label:
+          default: "6.1 Firewall Manager configuration"
+        Parameters:
+          - Section6EnableFirewallManager
+          - Section6DisassociateAdminAccountOnDeleteStack
+          - Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp
+          - Section6InstallSumoAWSNetworkFirewallApp
+      - Label:
+          default: "6.2 Firewall Manager policy Regions configuration"
+        Parameters:
+          - Section6FirewallManagerPolicyRegions
+      - Label:
+          default: "6.3 Firewall Manager security group policy attributes"
+        Parameters:
+          - Section6InternalNetCIDR
+      - Label:
+          default: 6.4 Firewall Manager VPC attributes
+        Parameters:
+          - Section6CreateVpcForSG
+          - Section6VPCCidrBlock
+          - Section6VpcId
+      - Label:
+          default: "6.5 Firewall Manager details - Kinesis Firehose delivery stream source WAF configuration"
+        Parameters:
+          - Section6CreateDeliveryStreamSource
+          - Section6DeliveryStreamSourceCategoryName
+          - Section6DeliveryStreamName
+      - Label:
+          default: "6.6 Firewall Manager details - S3 source network firewall configuration"
+        Parameters:
+          - Section6CreateS3Source
+          - Section6S3SourceCategoryName
+      - Label:
+          default: "6.7 Firewall Manager - S3 bucket configuration"
+        Parameters:
+          - Section6CreateS3Bucket
+          - Section6DeliveryBucketPrefix
+          - Section6NetworkFirewallExistsS3BucketName
+      - Label:
+          default: "6.8 Firewall Manager details - CloudSIEM configuration"
+        Parameters:
+          - Section6EnableForwardDataToCloudSIEM
+
+      - Label:
+          default: "AWS Quick Start configuration"
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+          - QSVersion
+
+    ParameterLabels:
+      Section1SumoLogicDeployment:
+        default: "Sumo Logic deployment location"
+      Section1SumoLogicAccessID:
+        default: "Sumo Logic access ID"
+      Section1SumoLogicAccessKey:
+        default: "Sumo Logic access key"
+      Section1SumoLogicOrganizationId:
+        default: "Sumo Logic organization ID"
+      Section1SumoLogicResourceRemoveOnDeleteStack:
+        default: "Delete Sumo Logic resources when stack is deleted"
+      Section1SecurityToolingAccountId:
+        default: "Security-tooling account ID"
+      Section1ToolingAndLoggingRegion:
+        default: "Security-tooling and log-archiving account Region"
+      Section1LogArchivingAccountId:
+        default: "Log-archiving account ID"
+      Section1OrganizationRootID:
+        default: "AWS Organization root ID"
+      Section1DeliveryBucketPrefix:
+        default: "Delivery bucket prefix"
+
+      # GuardDuty apps parameters
+      Section2InstallSumoGlobalGuardDutyApp:
+        default: "Install Sumo Logic Global Intelligence for Amazon GuardDuty"
+      Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp:
+        default: "Install Sumo Logic Cloud Security Monitoring and Analytics for Amazon GuardDuty"
+      Section2GuardDutyCreateHttpLogsSource:
+        default: "Create Sumo Logic HTTP logs source"
+      Section2GuardDutyHttpLogsSourceCategoryName:
+        default: "Sumo Logic HTTP logs source category name"
+      Section2FindingPublishingFrequency:
+        default: "Finding publishing frequency"
+      Section2GuardDutyRegions:
+        default: "GuardDuty Regions"
+      Section2EnableForwardDataToCloudSIEM:
+        default: "Forward Data To CloudSIEM"
+
+      # CloudTrail parameters
+      Section3CloudTrailRegions:
+        default: "CloudTrail Region in management account"
+      Section3InstallPCICloudTrailApp:
+        default: "Install Sumo Logic PCI compliance for AWS CloudTrail app"
+      Section3InstallCISFoundationApp:
+        default: "Install Sumo Logic CIS AWS Foundations Benchmark app"
+      Section3InstallCloudTrailMonitoringAnalyticsApp:
+        default: "Install AWS CloudTrail - Sumo Cloud Security Monitoring and Analytics app"
+      Section3InstallCloudTrailSecOpsApp:
+        default: "Install Sumo Global Intelligence for AWS CloudTrail SecOps app"
+      Section3CloudTrailBucketPathExpression:
+        default: "Path expression for logs"
+      Section3CloudTrailLogsSourceCategoryName:
+        default: "Sumo Logic CloudTrail logs source category name"
+      Section3CloudTrailCreateS3LogsSource:
+        default: "Create Sumo Logic S3 logs source for CloudTrail"
+      Section3CreateCloudTrailS3Bucket:
+        default: "Create an S3 bucket for CloudTrail logs"
+      Section3CloudTrailExistsS3BucketName:
+        default: "Name of existing S3 bucket that contains the CloudTrail logs"
+      Section3InstallAWSCloudTrail:
+        default: "Install CloudTrail Service in AWS"
+      Section3EnableForwardDataToCloudSIEM:
+        default: "Forward Data To CloudSIEM"
+
+      # Security Hub parameters
+      Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp:
+        default: "Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics"
+      Section4SecurityHubEnableSecurityHub:
+        default: Enable Security Hub for the Regions
+      Section4SecurityHubEnableCISStandard:
+        default: Enable CIS AWS Foundations Benchmark v1.2.0
+      Section4SecurityHubEnablePCIStandard:
+        default: Enable PCI DSS v3.2.1
+      Section4SecurityHubEnableSBPStandard:
+        default: Enable AWS Foundational Security Best Practices v1.0.0
+      Section4SecurityHubRegionsToEnable:
+        default: Regions to enable
+      Section4SecurityHubCreateHttpLogsSource:
+        default: "Create Sumo Logic HTTP logs source"
+      Section4SecurityHubHttpLogsSourceCategoryName:
+        default: "Sumo Logic HTTP logs source category name"
+      Section4EnableForwardDataToCloudSIEM:
+        default: "Forward data to CloudSIEM"
+
+      # Firewall Manager parameters
+      Section6DisassociateAdminAccountOnDeleteStack:
+        default: "Disassociate administrator account in Firewall Manager when stack is deleted"
+      Section6EnableFirewallManager:
+        default: Enable Firewall Manager for the Regions
+      Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp:
+        default: Install Sumo AWS WAF - Cloud Security Monitoring and Analytics app
+      Section6InstallSumoAWSNetworkFirewallApp:
+        default: "Install Sumo AWS Network Firewall"
+      Section6InternalNetCIDR:
+        default: Internal network CIDR
+      Section6CreateVpcForSG:
+        default: Create VPC For security group
+      Section6VPCCidrBlock:
+        default: New VPC CIDR block
+      Section6VpcId:
+        default: Existing VPC ID
+      Section6FirewallManagerPolicyRegions:
+        default: "Firewall Manager policy Regions"
+      Section6CreateS3Bucket:
+        default: "Create AWS S3 bucket"
+      Section6NetworkFirewallExistsS3BucketName:
+        default: "Name of existing S3 bucket that contains the Network Firewall logs"
+      Section6CreateS3Source:
+        default: Create Sumo Logic S3 logs source for Network Firewall
+      Section6S3SourceCategoryName:
+        default: Sumo Logic S3 logs source category name for Network Firewall
+      Section6CreateDeliveryStreamSource:
+        default: "Create a Kinesis Firehose delivery stream source for WAF"
+      Section6DeliveryStreamSourceCategoryName:
+        default: "Sumo Logic AWS Kinesis Firehose logs WAF source category name"
+      Section6DeliveryStreamName:
+        default: "Amazon Kinesis Data Firehose delivery stream name"
+      Section6EnableForwardDataToCloudSIEM:
+        default: "Forward data to CloudSIEM"
+      Section6DeliveryBucketPrefix:
+        default: "Network Firewall delivery S3 bucket prefix"
+
+
+    # QuickStart Bucket Configuration
+      QSS3BucketName:
+        default: "Quick Start S3 bucket name"
+      QSS3KeyPrefix:
+        default: "Quick Start S3 key prefix"
+      QSVersion:
+        default: "Quick Start version"
+
+Parameters:
+  Section1SumoLogicDeployment:
+    Type: String
+    AllowedValues:
+      - au
+      - ca
+      - de
+      - eu
+      - jp
+      - us2
+      - us1
+      - in
+      - fed
+    Description: "Choose the geographic location for the Sumo Logic apps deployment: au, ca, de, eu, jp, us2, us1, in, or fed."
+    Default: 'us2'
+  Section1SumoLogicAccessID:
+    Type: String
+    Description: "Enter the Sumo Logic console access ID, which you receive when you create the access key."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic access ID cannot be empty."
+
+  Section1SumoLogicAccessKey:
+    Type: String
+    Description: "Enter your Sumo Logic access key. Retrieve this from your Sumo Logic account."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic access key cannot be empty."
+    NoEcho: true
+
+  Section1SumoLogicOrganizationId:
+    Description: "Enter your Sumo Logic organization ID, which you can find in the Sumo Logic console under Account."
+    Type: String
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic organization ID cannot be empty."
+
+  Section1SumoLogicResourceRemoveOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description: 'Choose "false" if you do not want to remove the collector, sources, and Sumo Logic apps when the stack is deleted.'
+    Type: String
+
+  Section1SecurityToolingAccountId:
+    Description: "Enter your security-tooling account ID."
+    Type: String
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: "Security-tooling account ID cannot be empty. Must be 12 digits."
+
+  Section1ToolingAndLoggingRegion:
+    Description: "Enter your security-tooling and log-archiving account Region."
+    Type: String
+    Default: us-east-1
+    AllowedValues:
+      - 'us-east-1'
+      - 'us-east-2'
+      - 'us-west-1'
+      - 'us-west-2'
+      - 'af-south-1'
+      - 'ap-east-1'
+      - 'ap-south-1'
+      - 'ap-northeast-3'
+      - 'ap-northeast-2'
+      - 'ap-southeast-1'
+      - 'ap-southeast-2'
+      - 'ap-northeast-1'
+      - 'ca-central-1'
+      - 'eu-central-1'
+      - 'eu-west-1'
+      - 'eu-west-2'
+      - 'eu-south-1'
+      - 'eu-west-3'
+      - 'eu-north-1'
+      - 'me-south-1'
+      - 'sa-east-1'
+
+  Section1LogArchivingAccountId:
+    Description: "Enter your log-archiving account ID."
+    Type: String
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: "Log-archiving account ID cannot be empty. Must be 12 digits."
+
+  Section1OrganizationRootID:
+    AllowedPattern: '^r-[0-9a-z]{4,32}$'
+    Description: >
+      Enter the ID for your organization root. This string requires r- followed by 4–32 lowercase letters or digits.
+    MaxLength: 34
+    Type: String
+
+  Section1DeliveryBucketPrefix:
+    AllowedPattern: "^$|^[0-9a-z]+([0-9a-z-]*[0-9a-z])*$"
+    ConstraintDescription:
+      The S3 bucket name can include numbers, lowercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Default: 'logs-delivery'
+    Description: >
+      Log delivery S3 bucket prefix.
+    Type: String
+
+  # GuardDuty apps parameters
+  Section2EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "By default, data forwarding to CloudSIEM is enabled. Choose No if you don't want to enable data forwarding to CloudSIEM."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section2InstallSumoGlobalGuardDutyApp:
+    Type: String
+    Description: "Choose No to skip installation of the Global Intelligence for Amazon GuardDuty app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp:
+    Type: String
+    Description: "Choose No to skip installation of the Cloud Security Monitoring and Analytics for Amazon GuardDuty app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section2GuardDutyCreateHttpLogsSource:
+    Type: String
+    Description: "Choose No to skip creation of the Sumo Logic HTTP log source to collect GuardDuty logs."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section2GuardDutyHttpLogsSourceCategoryName:
+    Type: String
+    Description: "Required when Section2GuardDutyCreateHttpLogsSource is set to No. Provide an existing source category name from the GuardDuty logs. This is used for app installation."
+    Default: "aws/quickstart/guardduty/logs"
+
+  Section2FindingPublishingFrequency:
+    AllowedValues: ['FIFTEEN_MINUTES', 'ONE_HOUR', 'SIX_HOURS']
+    Default: 'FIFTEEN_MINUTES'
+    Description: Frequency for exporting updated active findings to CloudWatch Events.
+    Type: String
+  Section2GuardDutyRegions:
+    Description: Comma-delimited list of AWS Regions to enable GuardDuty.
+    Default: 'us-east-1,us-east-2'
+    Type: String
+
+  # CloudTrail parameters
+
+  Section3EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "By default, data forwarding to CloudSIEM is enabled. Choose No if you don't want to enable data forwarding to CloudSIEM."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3InstallAWSCloudTrail:
+    Type: String
+    Description: "Choose No to skip installation of the CloudTrail."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3CloudTrailRegions:
+    Type: String
+    Description: "Enter the management account Region where CloudTrail logs are created."
+    Default: us-east-1
+    AllowedValues:
+      - 'us-east-1'
+      - 'us-east-2'
+      - 'us-west-1'
+      - 'us-west-2'
+      - 'af-south-1'
+      - 'ap-east-1'
+      - 'ap-south-1'
+      - 'ap-northeast-3'
+      - 'ap-northeast-2'
+      - 'ap-southeast-1'
+      - 'ap-southeast-2'
+      - 'ap-northeast-1'
+      - 'ca-central-1'
+      - 'eu-central-1'
+      - 'eu-west-1'
+      - 'eu-west-2'
+      - 'eu-south-1'
+      - 'eu-west-3'
+      - 'eu-north-1'
+      - 'me-south-1'
+      - 'sa-east-1'
+
+  Section3InstallPCICloudTrailApp:
+    Type: String
+    Description: "Choose No to skip installation of the app PCI Compliance for AWS CloudTrail."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3InstallCISFoundationApp:
+    Type: String
+    Description: "Choose No to skip installation of the app CIS AWS Foundations Benchmark."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3InstallCloudTrailMonitoringAnalyticsApp:
+    Type: String
+    Description: "Choose No to skip installation of the app AWS CloudTrail - Sumo Cloud Security Monitoring and Analytics."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3InstallCloudTrailSecOpsApp:
+    Type: String
+    Description: "Choose No to skip installation of the app Sumo Global Intelligence for AWS CloudTrail SecOps."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3CloudTrailBucketPathExpression:
+    Type: String
+    Description: "The path expression must match the folder structure for CloudTrail logs (for example, AWSLogs/*/CloudTrail/*)."
+    Default: "CloudTrail/AWSLogs/*/CloudTrail/*"
+  Section3CreateCloudTrailS3Bucket:
+    Type: String
+    Description: "Choose Yes to create an S3 bucket for CloudTrail logs."
+    Default: 'No'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3CloudTrailExistsS3BucketName:
+    Type: String
+    Description: "Provide the name of an existing S3 bucket that contains CloudTrail logs. The existing bucket must be in same AWS Region as the log-archiving account. Required when the flag is set to No. "
+    Default: ""
+  Section3CloudTrailCreateS3LogsSource:
+    Type: String
+    Description: "Choose No to skip creation of the Sumo Logic S3 log source to collect CloudTrail logs."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section3CloudTrailLogsSourceCategoryName:
+    Type: String
+    Description: "Name of an existing Sumo Logic source category that collects CloudTrail logs. This is also used for the Threat Intel for AWS app installation. Required when the flag is set to No."
+    Default: "AWS/Cloudtrail/Logs"
+
+
+# Security Hub parameters
+  Section4EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "By default, data forwarding to CloudSIEM is enabled. Choose No if you don't want to enable data forwarding to CloudSIEM."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp:
+    Type: String
+    Description: "Choose No to skip the installation of Cloud Security Monitoring and Analytics in Sumo Logic."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section4SecurityHubEnableSecurityHub:
+    Type: String
+    Description: "Yes -> Security Hub must be enabled in AWS for AWS Quick Start Solution.
+                  No -> Skip enable of the app."
+    Default: 'No'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section4SecurityHubEnableCISStandard:
+    Type: String
+    Description: CIS AWS Foundations standard.
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Section4SecurityHubEnablePCIStandard:
+    Type: String
+    Description: Payment Card Industry Data Security standard (PCI DSS).
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Section4SecurityHubEnableSBPStandard:
+    Type: String
+    Description: Security Best Practices standard.
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Section4SecurityHubRegionsToEnable:
+    Type: String
+    Description: Comma-delimited list of Regions to enable Security Hub.
+    Default: us-east-1,us-east-2
+
+  Section4SecurityHubCreateHttpLogsSource:
+    Type: String
+    Description: "Choose No to skip the creation of Sumo Logic HTTP log source to collect Security Hub logs."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section4SecurityHubHttpLogsSourceCategoryName:
+    Type: String
+    Description: "Provide an existing source category name from the Security Hub logs. This is used for app installation. Required when Security Hub HTTP LogSource is set to No."
+    Default: "aws/quickstart/securityhub/logs"
+
+  # Firewall Manager parameters
+  Section6DisassociateAdminAccountOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: "Choose true to disassociate the administrator account in Firewall Manager when the stack is deleted."
+    Type: String
+  Section6EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "By default, data forwarding to CloudSIEM is enabled. Choose No if you don't want to enable data forwarding to CloudSIEM."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section6EnableFirewallManager:
+    Type: String
+    Description: "Choose No if Firewall Manager is already enabled."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp:
+    Type: String
+    Description: "Choose No to skip the installation of the Sumo AWS WAF - Cloud Security Monitoring and Analytics app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  Section6InstallSumoAWSNetworkFirewallApp:
+    Type: String
+    Description: "Choose No to skip the installation of the Sumo AWS Network Firewall app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section6InternalNetCIDR:
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28.
+    Description: CIDR block for the internal network, in the form x.x.x.x/16-28. Include both VPCs and on-premises if using VPN/DirectConnect. This is used to detect rules that don't align with the IP space.
+    Type: String
+    Default: "192.168.1.0/24"
+
+  Section6CreateVpcForSG:
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+    Description: Choose false to not create a new VPC for the Firewall Manager security groups.
+    Type: String
+
+  Section6VPCCidrBlock:
+    AllowedPattern: '^$|^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$'
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/28
+    Description: CIDR block to use for the new VPC, if created.
+    Type: String
+
+  Section6VpcId:
+    AllowedPattern: '^$|^vpc-[0-9a-f]{17}$'
+    ConstraintDescription: Must have a prefix of "vpc-". Followed by 17 characters (numbers, letters "a-f")
+    Description: Existing VPC ID for the Firewall Manager security groups.
+    Type: String
+    Default: ""
+
+  Section6FirewallManagerPolicyRegions:
+    Type: String
+    Description: Comma-delimited list of Regions for Firewall Manager policy.
+    Default: us-east-1
+
+  Section6CreateS3Source:
+    Type: String
+    Description: "Choose No to skip the creation of the Sumo Logic S3 log source."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section6S3SourceCategoryName:
+    Type: String
+    Description: "Existing - Change to an existing Source Category from Sumo Logic if Amazon S3 Source is not created.
+                  New - Default will be used if Amazon S3 Source is Created."
+    Default: AWS/NFW/Logs
+
+  Section6CreateS3Bucket:
+    Type: String
+    Description: "Choose No to use and existing S3 bucket to store Network Firewall logs."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section6NetworkFirewallExistsS3BucketName:
+    Type: String
+    Description: "Name of an existing S3 bucket that contains Network Firewall logs. Not required if you choose to created a new S3 bucket."
+    Default: ""
+
+  Section6CreateDeliveryStreamSource:
+    Type: String
+    Description: "Choose No to skip the creation of a Kinesis Delivery stream source for WAF."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  Section6DeliveryStreamSourceCategoryName:
+    Type: String
+    Description: "Choose Existing to change to an existing source category from Sumo Logic if AWS Kinesis Firehose source is not created. Choose New to use the default if AWS Kinesis Firehose source is created."
+    Default: AWS/WAF/Logs
+
+  Section6DeliveryStreamName:
+    Type: String
+    Description: "Amazon Kinesis Data Firehose delivery stream name."
+
+  Section6DeliveryBucketPrefix:
+    AllowedPattern: "^$|^[0-9a-z]+([0-9a-z-]*[0-9a-z])*$"
+    ConstraintDescription:
+      S3 bucket name can include numbers, lowercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Default: 'network-firewall-logs-delivery'
+    Description: >
+      Network Firewall Log Delivery S3 bucket prefix.
+    Type: String
+
+  # QuickStart parameters
+  QSS3BucketName:
+    AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
+    ConstraintDescription: "The Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a
+      hyphen (-)."
+    Default: "aws-quickstart"
+    Description: "Name of the S3 bucket for your copy of the Quick Start assets.
+      Keep the default name unless you are customizing the template.
+      Changing the name updates code references to point to a new Quick
+      Start location. This name can include numbers, lowercase letters,
+      uppercase letters, and hyphens, but do not start or end with a hyphen (-).
+      See https://aws-quickstart.github.io/option1.html."
+
+    Type: "String"
+  QSS3KeyPrefix:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    ConstraintDescription: "The Quick Start S3 key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slashes (/). The prefix should
+      end with a forward slash (/)."
+    Default: "quickstart-sumo-logic-cloudsiem/"
+    Description: "S3 key prefix that is used to simulate a directory for your copy of the
+      Quick Start assets. Keep the default prefix unless you are customizing
+      the template. Changing this prefix updates code references to point to
+      a new Quick Start location. This prefix can include numbers, lowercase
+      letters, uppercase letters, hyphens (-), and forward slashes (/). End with
+      a forward slash. See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html
+      and https://aws-quickstart.github.io/option1.html."
+    Type: "String"
+  QSVersion:
+    Type: String
+    Description: "Version of the Quick Start. Do not change."
+    Default: "1.0"
+
+Conditions:
+
+  # Conditions for calling child stack of each app if any resource create condition is true.
+  call_guardduty_stack: !Or
+    - !Equals [ !Ref Section2InstallSumoGlobalGuardDutyApp, 'Yes' ]
+    - !Equals [ !Ref Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp, 'Yes' ]
+    - !Equals [ !Ref Section2GuardDutyCreateHttpLogsSource, 'Yes' ]
+
+  call_cloudtrail_stack: !Or
+    - !Equals [ !Ref Section3InstallPCICloudTrailApp, 'Yes' ]
+    - !Equals [ !Ref Section3InstallCISFoundationApp, 'Yes' ]
+    - !Equals [ !Ref Section3InstallCloudTrailMonitoringAnalyticsApp, 'Yes' ]
+    - !Equals [ !Ref Section3InstallCloudTrailSecOpsApp, 'Yes' ]
+    - !Equals [ !Ref Section3CloudTrailCreateS3LogsSource, 'Yes' ]
+    - !Equals [ !Ref Section3InstallAWSCloudTrail, 'Yes' ]
+
+  call_security_hub_stack: !Or
+    - !Equals [ !Ref Section4SecurityHubEnableSecurityHub, 'Yes']
+    - !Equals [ !Ref Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp,'Yes']
+    - !Equals [ !Ref Section4SecurityHubCreateHttpLogsSource,'Yes']
+
+  call_firewall_manager_stack: !Or
+    - !Equals [ !Ref Section6EnableFirewallManager, 'Yes']
+    - !Equals [ !Ref Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp, 'Yes']
+    - !Equals [ !Ref Section6InstallSumoAWSNetworkFirewallApp, 'Yes']
+    - !Equals [ !Ref Section6CreateS3Source, 'Yes']
+
+
+  #condition for create bucket
+  create_bucket: !Equals [ !Ref Section3CreateCloudTrailS3Bucket, 'Yes' ]
+
+Resources:
+  WaitHandle:
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+
+  CommonOrgManagement:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-management.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        ParentStackName: !Ref AWS::StackName
+        QSVersion: !Ref QSVersion
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        SumoDeployment: !Ref Section1SumoLogicDeployment
+        SumoAccessID: !Ref Section1SumoLogicAccessID
+        SumoAccessKey: !Ref Section1SumoLogicAccessKey
+        SumoOrganizationId: !Ref Section1SumoLogicOrganizationId
+        RemoveSumoResourcesOnDeleteStack: !Ref Section1SumoLogicResourceRemoveOnDeleteStack
+        CollectorName: !Sub "awsorgs-quickstart-collector-${AWS::StackName}"
+        CreateS3Bucket: !If [ create_bucket, 'Yes','No' ]
+        CloudTrailExistsS3BucketName: !Ref Section3CloudTrailExistsS3BucketName
+        SecurityToolingAccountId: !Ref Section1SecurityToolingAccountId
+        LoggingAccountId: !Ref Section1LogArchivingAccountId
+        DeliveryBucketPrefix: !Ref Section1DeliveryBucketPrefix
+        SecurityToolingAccountRegion: !Ref Section1ToolingAndLoggingRegion
+        LogArchivingAccountRegion: !Ref Section1ToolingAndLoggingRegion
+        OrganizationRootID: !Ref Section1OrganizationRootID
+  SumoFirewallManagerStackWaitHandle:
+    Condition: call_security_hub_stack
+    DependsOn: SecurityHubStack
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+
+  SumoFirewallManagerStackWaitCondition:
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !If [call_security_hub_stack, !Ref SumoFirewallManagerStackWaitHandle, !Ref WaitHandle]
+      Timeout: "5"
+      Count: 0
+      
+#Stack for Firewall Manager
+  FirewallManagerStack:
+    Condition: call_firewall_manager_stack
+    DependsOn: SumoFirewallManagerStackWaitCondition    
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-master.yaml'
+        - S3Region: !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        QSVersion: !Ref QSVersion
+        SumoDeployment: !Ref Section1SumoLogicDeployment
+        SumoAccessID: !Ref Section1SumoLogicAccessID
+        SumoAccessKey: !Ref Section1SumoLogicAccessKey
+        SumoOrganizationId: !Ref Section1SumoLogicOrganizationId
+        RemoveSumoResourcesOnDeleteStack: !Ref Section1SumoLogicResourceRemoveOnDeleteStack
+        EnableFirewallManager: !Ref Section6EnableFirewallManager
+        InstallSumoAWSWAF: 'No'
+        InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp: !Ref Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp
+        InstallSumoAWSNetworkFirewall: !Ref Section6InstallSumoAWSNetworkFirewallApp
+        CollectorID: !GetAtt CommonOrgManagement.Outputs.SumoCollectorID
+        FirewallManagerPolicyRegions: !Ref Section6FirewallManagerPolicyRegions
+        InternalNetCIDR: !Ref Section6InternalNetCIDR
+        CreateVpcForSG: !Ref Section6CreateVpcForSG
+        VPCCidrBlock: !Ref Section6VPCCidrBlock
+        VpcId: !Ref Section6VpcId
+        CreateS3Bucket: !Ref Section6CreateS3Bucket
+        DeliveryBucketPrefix: !Ref Section6DeliveryBucketPrefix
+        NetworkFirewallExistsS3BucketName: !Ref Section6NetworkFirewallExistsS3BucketName
+        CreateDeliveryStreamSource: !Ref Section6CreateDeliveryStreamSource
+        DeliveryStreamName: !Ref Section6DeliveryStreamName
+        DeliveryStreamSourceName: !Sub "AWS-WAF-Source"
+        DeliveryStreamSourceCategoryName: !Ref Section6DeliveryStreamSourceCategoryName
+        SecurityAccountRegion: !Ref Section1ToolingAndLoggingRegion
+        CreateS3Source: !Ref Section6CreateS3Source
+        S3SourceName: !Sub "AWS-NFW-Source"
+        S3SourceCategoryName: !Ref Section6S3SourceCategoryName
+        SecurityAccountId: !Ref Section1SecurityToolingAccountId
+        AdministrationRoleArn: !GetAtt CommonOrgManagement.Outputs.AdministrationRoleArn
+        ExecutionRoleRuleName: !GetAtt CommonOrgManagement.Outputs.ExecutionRoleRuleName
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
+        SumoLogicHelperRoleARN: !GetAtt CommonOrgManagement.Outputs.SumoLogicHelperRoleARN
+        ParentStackName: !Ref AWS::StackName
+        EnableForwardDataToCloudSIEM: !Ref Section6EnableForwardDataToCloudSIEM
+        DisassociateAdminAccountOnDeleteStack: !Ref Section6DisassociateAdminAccountOnDeleteStack
+
+  SumoSecurityHubStackWaitHandle:
+    Condition: call_cloudtrail_stack
+    DependsOn: CloudtrailStack
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+
+  SumoSecurityHubStackWaitCondition:
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !If [call_cloudtrail_stack, !Ref SumoSecurityHubStackWaitHandle, !Ref WaitHandle]
+      Timeout: "5"
+      Count: 0
+
+#Stack for Security Hub
+  SecurityHubStack:
+    Condition: call_security_hub_stack
+    DependsOn: SumoSecurityHubStackWaitCondition    
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-enabler-acct.yaml'
+        - S3Region: !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        QSVersion: !Ref QSVersion
+        ParentStackName: !Ref AWS::StackName
+        AdministrationRoleArn: !GetAtt CommonOrgManagement.Outputs.AdministrationRoleArn
+        ExecutionRoleRuleName: !GetAtt CommonOrgManagement.Outputs.ExecutionRoleRuleName
+        OrganizationRootID: !Ref Section1OrganizationRootID
+        SumoDeployment: !Ref Section1SumoLogicDeployment
+        SumoAccessID: !Ref Section1SumoLogicAccessID
+        SumoAccessKey: !Ref Section1SumoLogicAccessKey
+        RemoveSumoResourcesOnDeleteStack: !Ref Section1SumoLogicResourceRemoveOnDeleteStack
+        InstallAWSSecurityHubApp: !Ref Section4SecurityHubEnableSecurityHub
+        InstallSumoSecurityHubApp: 'No'
+        InstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp: !Ref Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp
+        RegionsToEnable: !Ref Section4SecurityHubRegionsToEnable
+        SecurityAccountId: !Ref Section1SecurityToolingAccountId
+        EnableCISStandard: !Ref Section4SecurityHubEnableCISStandard
+        CISStandardVersion: '1.2.0'
+        EnablePCIStandard: !Ref Section4SecurityHubEnablePCIStandard
+        PCIStandardVersion: '3.2.1'
+        EnableSBPStandard: !Ref Section4SecurityHubEnableSBPStandard
+        SBPStandardVersion: '1.0.0'
+        ControlTowerRegionsOnly: 'false'
+        EnableProwlerIntegration: 'false'
+        ComplianceFrequency: 15
+        SumoLogicHelperRoleARN: !GetAtt CommonOrgManagement.Outputs.SumoLogicHelperRoleARN
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
+        ConnectionName: !Sub "SecurityHubOrgConnection-${Section1SecurityToolingAccountId}"
+        CollectorID: !GetAtt CommonOrgManagement.Outputs.SumoCollectorID
+        CreateHttpLogsSource: !Ref Section4SecurityHubCreateHttpLogsSource
+        HttpLogsSourceName: !Sub
+          - "aws-quickstart-securityhub-${Region}"
+          - Region: !Select [0, !Split [",", !Ref Section4SecurityHubRegionsToEnable]]
+        HttpLogsSourceCategoryName: !Ref Section4SecurityHubHttpLogsSourceCategoryName
+        EnableForwardDataToCloudSIEM: !Ref Section4EnableForwardDataToCloudSIEM
+
+
+#Stack for GuardDuty Configuration
+  GuardDutyConfigurationStack:
+    Condition: call_guardduty_stack
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-configuration.yaml'
+        - S3Region: !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        QSVersion: !Ref QSVersion
+        ParentStackName: !Ref AWS::StackName
+        AdministrationRoleArn: !GetAtt CommonOrgManagement.Outputs.AdministrationRoleArn
+        ExecutionRoleRuleName: !GetAtt CommonOrgManagement.Outputs.ExecutionRoleRuleName
+        OrganizationRootID: !Ref Section1OrganizationRootID
+        SumoDeployment: !Ref Section1SumoLogicDeployment
+        SumoAccessID: !Ref Section1SumoLogicAccessID
+        SumoAccessKey: !Ref Section1SumoLogicAccessKey
+        RemoveSumoResourcesOnDeleteStack: !Ref Section1SumoLogicResourceRemoveOnDeleteStack
+        InstallSumoGlobalGuardDutyApp: !Ref Section2InstallSumoGlobalGuardDutyApp
+        InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp: !Ref Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp
+        CollectorID: !GetAtt CommonOrgManagement.Outputs.SumoCollectorID
+        CreateHttpLogsSource: !Ref Section2GuardDutyCreateHttpLogsSource
+        HttpLogsSourceName: !Sub "aws-quickstart-guardduty"
+        HttpLogsSourceCategoryName: !Ref Section2GuardDutyHttpLogsSourceCategoryName
+        AutoEnableS3Logs: 'false'
+        ConfigurationRoleName: !GetAtt CommonOrgManagement.Outputs.OrgConfigurationRoleName
+        DelegatedAdminAccountId: !Ref Section1SecurityToolingAccountId
+        EnabledRegions: !Ref Section2GuardDutyRegions
+        FindingPublishingFrequency: !Ref Section2FindingPublishingFrequency
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
+        EnableForwardDataToCloudSIEM: !Ref Section2EnableForwardDataToCloudSIEM
+
+  SumoCloudtrailStackWaitHandle:
+    Condition: call_guardduty_stack
+    DependsOn: GuardDutyConfigurationStack
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+
+  SumoCloudtrailStackWaitCondition:
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !If [call_guardduty_stack, !Ref SumoCloudtrailStackWaitHandle, !Ref WaitHandle]
+      Timeout: "5"
+      Count: 0
+
+# Stack for Cloudtrail
+  CloudtrailStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: call_cloudtrail_stack
+    DependsOn: SumoCloudtrailStackWaitCondition    
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/cloudtrail-org/cloudtrail-main.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        QSVersion: !Ref QSVersion
+        SumoLogicDeployment: !Ref Section1SumoLogicDeployment
+        SumoLogicAccessID: !Ref Section1SumoLogicAccessID
+        SumoLogicAccessKey: !Ref Section1SumoLogicAccessKey
+        SumoLogicResourceRemoveOnDeleteStack: !Ref Section1SumoLogicResourceRemoveOnDeleteStack
+        CollectorID: !GetAtt CommonOrgManagement.Outputs.SumoCollectorID
+        ExecutionRoleRuleName: !GetAtt CommonOrgManagement.Outputs.ExecutionRoleRuleName
+        InstallAWSCloudTrail: !Ref Section3InstallAWSCloudTrail
+        CloudTrailRegions: !Ref Section3CloudTrailRegions
+        InstallCloudTrailApp: 'No'
+        InstallPCICloudTrailApp: !Ref Section3InstallPCICloudTrailApp
+        InstallCISFoundationApp: !Ref Section3InstallCISFoundationApp
+        InstallCloudTrailMonitoringAnalyticsApp: !Ref Section3InstallCloudTrailMonitoringAnalyticsApp
+        InstallCloudTrailSecOpsApp: !Ref Section3InstallCloudTrailSecOpsApp
+        CloudTrailBucketPathExpression: !Ref Section3CloudTrailBucketPathExpression
+        CloudTrailCreateS3LogsSource: !Ref Section3CloudTrailCreateS3LogsSource
+        CloudTrailLogsSourceCategoryName: !Ref Section3CloudTrailLogsSourceCategoryName
+        SNSTopicArn: !GetAtt CommonOrgManagement.Outputs.SNSTopicArn
+        CloudTrailLogsBucketName: !If [ create_bucket, !GetAtt CommonOrgManagement.Outputs.OrgDeliveryS3BucketArn, !Ref Section3CloudTrailExistsS3BucketName ]
+        KMSArn: !GetAtt CommonOrgManagement.Outputs.OrgDeliveryKMSKeyArn
+        SumoRoleArn: !GetAtt CommonOrgManagement.Outputs.SumoRoleArn
+        CloudTrailS3Region: !Ref Section1ToolingAndLoggingRegion
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        ParentStackName: !Ref AWS::StackName
+        ResourcePrefix: !Ref "AWS::StackName"
+        ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
+        EnableForwardDataToCloudSIEM: !Ref Section3EnableForwardDataToCloudSIEM

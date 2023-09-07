@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: A template to create a subscription with the endpoint of the Sumo Logic source. (qs-1t29c971h)
+Parameters:
+
+  SumoSNSTopicArn:
+    Type: String
+    Description: "Arn of SNS Topic"
+  SumoEndpoint:
+    Description: "The endpoint URL that you obtained from the S3 source created with Sumo Logic eg. https://sumo-endpoint-events.sumolog...r/v1/event/xyz"
+    Type: "String"
+
+Resources:    
+
+  SumoSNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      TopicArn: !Ref SumoSNSTopicArn
+      Endpoint: !Ref SumoEndpoint
+      Protocol: https
+      DeliveryPolicy:
+        healthyRetryPolicy:
+          numRetries: 40
+          minDelayTarget: 10
+          maxDelayTarget: 300
+          numMinDelayRetries: 3
+          numMaxDelayRetries: 5
+          numNoDelayRetries: 0
+          backoffFunction: exponential

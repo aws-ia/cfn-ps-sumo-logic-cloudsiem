@@ -1,0 +1,168 @@
+
+.Sumo Logic configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Sumo Logic deployment location
+(`Section1SumoLogicDeployment`)|`us2`|Choose the geographic location of the deployment of the Sumo Logic apps: au, ca, de, eu, jp, us2, us1, in, or fed.|Sumo Logic access ID
+(`Section1SumoLogicAccessID`)|`**__Requires input__**`|Enter the Sumo Logic console access ID, which you received when you created the access key.|Sumo Logic access key
+(`Section1SumoLogicAccessKey`)|`**__Requires input__**`|Enter your Sumo Logic access key. Retrieve this from your Sumo Logic account.|Sumo Logic organization ID
+(`Section1SumoLogicOrganizationId`)|`**__Requires input__**`|Enter your Sumo Logic organization ID, which you can find in the Sumo Logic console, under Account.|Delete Sumo Logic resources when stack is deleted
+(`Section1SumoLogicResourceRemoveOnDeleteStack`)|`true`|Choose "false" if you do not want to remove the collector, sources, and Sumo Logic apps when the stack is deleted.
+|===
+.AWS Organizations configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Security-tooling account ID
+(`Section1SecurityToolingAccountId`)|`**__Requires input__**`|Enter your security-tooling account ID.|Log-archiving account ID
+(`Section1LogArchivingAccountId`)|`**__Requires input__**`|Enter your log-archiving account ID.|Security-tooling and log-archiving account Region
+(`Section1ToolingAndLoggingRegion`)|`us-east-1`|Enter your security-tooling and log-archiving account Region if it's different from the default.|AWS Organization root ID
+(`Section1OrganizationRootID`)|`**__Requires input__**`|Enter the ID for your organization root. This string requires r- followed by from 4 to 32 lowercase letters or digits.
+
+|===
+.GuardDuty app configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Install Sumo Logic Global Intelligence for Amazon GuardDuty
+(`Section2InstallSumoGlobalGuardDutyApp`)|`Yes`|Choose No to skip installation of the app Global Intelligence for Amazon GuardDuty in the Sumo Logic for AWS Quick Start.|Install Sumo Logic Cloud Security Monitoring and Analytics for Amazon GuardDuty
+(`Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp`)|`Yes`|Choose No to skip installation of the app Cloud Security Monitoring and Analytics for Amazon GuardDuty in Sumo Logic for AWS Quick Start.
+|===
+.GuardDuty service configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Finding publishing frequency
+(`Section2FindingPublishingFrequency`)|`FIFTEEN_MINUTES`|Frequency for exporting updated active findings to CloudWatch Events.|GuardDuty Regions
+(`Section2GuardDutyRegions`)|`us-east-1,us-east-2`|Comma-delimited list of AWS Regions to enable GuardDuty.
+|===
+.GuardDuty Sumo log source configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create Sumo Logic HTTP logs source
+(`Section2GuardDutyCreateHttpLogsSource`)|`Yes`|Choose No to skip creation of the Sumo Logic HTTP log source to collect GuardDuty logs.|Forward Data To CloudSIEM
+(`Section2EnableForwardDataToCloudSIEM`)|`Yes`|Yes -> Enabled forward data to CloudSIEM. No -> Skip enable forward.|Sumo Logic HTTP logs source category name
+(`Section2GuardDutyHttpLogsSourceCategoryName`)|`aws/quickstart/guardduty/logs`|Required when Section2GuardDutyCreateHttpLogsSource is set to No. Provide an existing source category name from the GuardDuty logs. This is used for app installation.
+|===
+.CloudTrail service configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|CloudTrail Region in management account
+(`Section3CloudTrailRegions`)|`us-east-1`|Enter the management account Region where organization trails will be created.|Install CloudTrail Service in AWS
+(`Section3InstallAWSCloudTrail`)|`Yes`|Choose No to skip installation of the CloudTrail service on AWS.
+|===
+.CloudTrail app configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Install Sumo Logic PCI compliance for AWS CloudTrail app
+(`Section3InstallPCICloudTrailApp`)|`Yes`|Choose No to skip installation of the app PCI Compliance for AWS CloudTrail.|Install Sumo Logic CIS AWS Foundations Benchmark app
+(`Section3InstallCISFoundationApp`)|`Yes`|Choose No to skip installation of the app CIS AWS Foundations Benchmark.|Install AWS CloudTrail - Sumo Cloud Security Monitoring and Analytics app
+(`Section3InstallCloudTrailMonitoringAnalyticsApp`)|`Yes`|Choose No to skip installation of the app AWS CloudTrail - Sumo Cloud Security Monitoring and Analytics.|Install Sumo Global Intelligence for AWS CloudTrail SecOps app
+(`Section3InstallCloudTrailSecOpsApp`)|`Yes`|Choose No to skip installation of the app Sumo Global Intelligence for AWS CloudTrail SecOps.
+|===
+.CloudTrail Sumo log source configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create Sumo Logic S3 logs source for CloudTrail
+(`Section3CloudTrailCreateS3LogsSource`)|`Yes`|Choose No to skip creation of the Sumo Logic S3 log source to collect CloudTrail logs.|Path expression for logs
+(`Section3CloudTrailBucketPathExpression`)|`CloudTrail/AWSLogs/\*/CloudTrail/*`|The path expression must match the folder structure for CloudTrail logs (e.g., AWSLogs/\*/CloudTrail/*).|Sumo Logic CloudTrail logs source category name
+(`Section3CloudTrailLogsSourceCategoryName`)|`AWS/Cloudtrail/Logs`|Required when the flag is set to No. Provide the name of an existing Sumo Logic source category that's collecting CloudTrail logs. This is also used for Threat Intel for AWS app installation.|Forward Data To CloudSIEM
+(`Section3EnableForwardDataToCloudSIEM`)|`Yes`|Yes -> Enabled forward data to CloudSIEM. No -> Skip enable forward.
+|===
+.CloudTrail S3 bucket configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create an S3 bucket for CloudTrail logs
+(`Section3CreateCloudTrailS3Bucket`)|`No`|Choose Yes to create an S3 bucket for CloudTrail logs.|Name of existing S3 bucket that contains the CloudTrail logs
+(`Section3CloudTrailExistsS3BucketName`)|`**__Blank string__**`|Required when the flag is set to No. Provide the name of an existing S3 bucket that contains CloudTrail logs. The existing bucket must be in same AWS Region as the log-archiving account.|Delivery bucket prefix
+(`Section1DeliveryBucketPrefix`)|`logs-delivery`|Log delivery S3 bucket prefix.
+
+|===
+.4.1 Security Hub Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Enable Security Hub for the Regions
+(`Section4SecurityHubEnableSecurityHub`)|`No`|Yes -> Security Hub must be enabled in AWS for AWS Quick Start Solution. No -> Skip enable of the app.|Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics
+(`Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp`)|`Yes`|Yes -> To Install AWS Security Hub - Cloud Security Monitoring and Analytics in Sumo Logic for AWS Quick Start Solution. No -> Skip Installation of the app.
+|===
+.4.2 Security Hub Service Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Regions to Enable
+(`Section4SecurityHubRegionsToEnable`)|`us-east-1,us-east-2`|Comma delimited list of regions to enable Security Hub.|Enable CIS AWS Foundations Benchmark v1.2.0
+(`Section4SecurityHubEnableCISStandard`)|`True`|CIS AWS Foundations Standard|Enable PCI DSS v3.2.1
+(`Section4SecurityHubEnablePCIStandard`)|`True`|Payment Card Industry Data Security Standard (PCI DSS)|Enable AWS Foundational Security Best Practices v1.0.0
+(`Section4SecurityHubEnableSBPStandard`)|`True`|Security Best Practices Standard
+|===
+.4.3 Security Hub Sumo Log Source configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create Sumo Logic HTTP logs source
+(`Section4SecurityHubCreateHttpLogsSource`)|`Yes`|Yes: Create Sumo Logic HTTP log source to collect Security Hub logs. No: Skip creation of the Sumo Logic HTTP log source.|Forward Data To CloudSIEM
+(`Section4EnableForwardDataToCloudSIEM`)|`Yes`|Yes -> Enabled forward data to CloudSIEM. No -> Skip enable forward.|Sumo Logic HTTP logs source category name
+(`Section4SecurityHubHttpLogsSourceCategoryName`)|`aws/quickstart/securityhub/logs`|Required when Security Hub HTTP LogSource is set to No. Provide an existing source category name from the Security Hub logs. This is used for app installation.
+|===
+.6.1 Firewall Manager Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Enable Firewall Manager for the regions
+(`Section6EnableFirewallManager`)|`Yes`|Choose Yes to enable Firewal Manager for the regions. Choose No if Firewall Manager is already enabled.|Disassociate admin account in Firewall Manager when stack is deleted
+(`Section6DisassociateAdminAccountOnDeleteStack`)|`false`|To disassociate admin account in Firewall Manager when stack is deleted, set this parameter to true. Default is false. Disassociate admin account in Firewall Manager will be skipped.|Install Sumo AWS WAF - Cloud Security Monitoring and Analytics App
+(`Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp`)|`Yes`|Yes -> To Install App in Sumo AWS WAF - Cloud Security Monitoring and Analytics for AWS Quick Start Solution. No -> Skip Installation of the app.|Install Sumo AWS Network Firewall
+(`Section6InstallSumoAWSNetworkFirewallApp`)|`Yes`|Yes -> To Install App in Sumo AWS Network Firewall for AWS Quick Start Solution. No -> Skip Installation of the app.
+|===
+.6.2 Firewall Manager Policy Regions Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Firewall Manager Policy Regions
+(`Section6FirewallManagerPolicyRegions`)|`us-east-1`|Comma delimited list of regions for Firewall Manager Policy.
+|===
+.6.3 Firewall Manager Security Group Policy Attributes
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Internal Network CIDR
+(`Section6InternalNetCIDR`)|`192.168.1.0/24`|The CIDR block for the Internal Network (include both VPCs and On-Prem if using VPN/DirectConnet) - This is used to detect rules that don't align with the IP Space. Use CIDR Format. Example 192.168.1.0/24
+|===
+.6.4 Firewall Manager VPC Attributes
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create VPC For Security Group
+(`Section6CreateVpcForSG`)|`true`|Create a new VPC for the Firewall Manager Security Groups|New VPC CIDR Block
+(`Section6VPCCidrBlock`)|`10.0.0.0/28`|VPC CIDR Block to use for the new VPC. Only used if Create VPC is true.|Existing VPC ID
+(`Section6VpcId`)|`**__Blank string__**`|Existing VPC ID for the Firewall Manager Security Groups
+|===
+.6.5 Firewall Manager Details - Kinesis Firehose Delivery Stream Source WAF Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create a Kinesis Firehose Delivery Stream Source for WAF
+(`Section6CreateDeliveryStreamSource`)|`Yes`|Yes - to create Kinesis Delivery Stream Source for WAF No - to skip creation Kinesis Delivery Stream.|Sumo Logic AWS Kinesis Firehose Logs WAF Source Category Name
+(`Section6DeliveryStreamSourceCategoryName`)|`AWS/WAF/Logs`|Existing - Change to an existing Source Category from Sumo Logic if AWS Kinesis Firehose Source is not created. New - Default will be used if AWS Kinesis Firehose Source is Created.|Amazon Kinesis Data Firehose delivery stream name
+(`Section6DeliveryStreamName`)|`**__Requires input__**`|Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name
+|===
+.6.6 Firewall Manager Details - S3 Source Network Firewall Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create Sumo Logic Amazon S3 Logs Source for Network Firewall
+(`Section6CreateS3Source`)|`Yes`|Yes - to create Sumo Logic Amazon S3 Log Source with provided bucket Name. No - to skip creation of the Sumo Logic Amazon S3 Log Source.|Sumo Logic Amazon S3 Logs Source Category Name for Network Firewall
+(`Section6S3SourceCategoryName`)|`AWS/NFW/Logs`|Existing - Change to an existing Source Category from Sumo Logic if Amazon S3 Source is not created. New - Default will be used if Amazon S3 Source is Created.
+|===
+.6.7 Firewall Manager - S3 Bucket Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Create AWS S3 Bucket
+(`Section6CreateS3Bucket`)|`Yes`|Yes - Create a new S3 bucket in AWS S3. No - Use an existing S3 bucket from AWS S3 which has Network Firewall Logs.|Network Firewall Delivery Bucket Prefix
+(`Section6DeliveryBucketPrefix`)|`network-firewall-logs-delivery`|Network Firewall Log Delivery S3 bucket prefix.
+|Name of existing S3 Bucket which contains the Network Firewall Logs
+(`Section6NetworkFirewallExistsS3BucketName`)|`**__Blank string__**`|Required when flag is set to No. Provide an existing S3 Bucket name which contains Network Firewall Logs.
+|===
+.6.8 Firewall Manager Details - Cloud SIEM Configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Forward Data To CloudSIEM
+(`Section6EnableForwardDataToCloudSIEM`)|`Yes`|Yes -> Enabled forward data to CloudSIEM. No -> Skip enable forward.
+|===
+.AWS Quick Start configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Quick Start S3 bucket name
+(`QSS3BucketName`)|`aws-quickstart`|Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See https://aws-quickstart.github.io/option1.html.|Quick Start S3 key prefix
+(`QSS3KeyPrefix`)|`quickstart-sumo-logic-cloudsiem/`|S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). End with a forward slash. See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html and https://aws-quickstart.github.io/option1.html.|Quick Start Version
+(`QSVersion`)|`1.0`|Version of the Quick Start. Do not change.
+|===

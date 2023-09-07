@@ -1,0 +1,39 @@
+
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Create an Lambda the GuardDuty Cloudwatch Event. (qs-1t29c9737)
+
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9001 # Resource names should be PascalCase
+        - W9003 # Parameter is not in a ParameterGroup
+        - W9002 # Parameter is missing ParameterLabe
+        - E9007
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: SumoLogic Attributes
+        Parameters:
+          - SumoEndpoint
+
+    ParameterLabels:
+      SumoEndpoint:
+        default: SumoLogic Endpoint to post logs
+
+Parameters:
+  SumoEndpoint:
+    Description: "SumoLogic Endpoint to post logs"
+    Type: "String"
+
+Resources:
+
+  SumoLogicGuarddutyEventsProcessor:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:956882708938:applications/sumologic-guardduty-events-processor
+        SemanticVersion: 1.0.3
+      Parameters:
+        SumoEndpointUrl: !Ref SumoEndpoint

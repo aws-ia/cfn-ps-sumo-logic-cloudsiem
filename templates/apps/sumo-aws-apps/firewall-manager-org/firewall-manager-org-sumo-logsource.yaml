@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: A template to create a topic and a S3 bucket for Network Firewall Log collection, create a role for authenticating with Sumo’s AWS integrations. (qs-1t29c9717)
+Parameters:
+
+  CreateS3Bucket:
+    Type: String
+    Description: "Yes - Create a new S3 bucket in AWS S3.
+                  No - Use an existing S3 bucket from AWS S3 which has Network Firewall Logs."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  LogsS3BucketName:
+    Type: String
+    Description: "Logs S3 Bucket Name"
+
+  SumoAWSAccountID:
+    Description: "The AWS Account ID of Sumo Logic to collect logs from customer"
+    Type: String
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: "Log archiving account ID cannot be empty. Must be 12 digits"
+    Default: "926226587429"
+
+  SumoDeployment:
+    Type: String
+    AllowedValues:
+      - au
+      - ca
+      - de
+      - eu
+      - jp
+      - us2
+      - us1
+      - in
+      - fed
+    Description: "Enter au, ca, de, eu, jp, us2, in, fed or us1."
+
+  SumoOrganizationId:
+    Description: "The Account Overview page displays information about your Sumo Logic organization. Used for IAM Role in Sumo Logic AWS Sources."
+    Type: String
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Organization Id can not be empty."
+Conditions:
+  create_target_s3_bucket: !Equals [!Ref CreateS3Bucket, 'Yes'] 
+     
+Resources:
+
+  SumoRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${SumoAWSAccountID}:root"
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Sub "${SumoDeployment}:${SumoOrganizationId}"
+      Path: "/"
+      Policies:
+        - PolicyName: SumoPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:ListBucketVersions
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${LogsS3BucketName}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${LogsS3BucketName}"
+  SumoSNSTopic:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W47
+            reason: SNS Topic should specify KmsMasterKeyId property
+    Type: "AWS::SNS::Topic"
+
+  SumoSNSpolicy:
+    Type: "AWS::SNS::TopicPolicy"
+    Properties:
+      PolicyDocument:
+        Id: SumoTopicPolicy
+        Statement:
+          - Action:
+              - sns:Publish
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref "AWS::AccountId"
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:s3:::${LogsS3BucketName}"
+            Effect: Allow
+            Principal:
+              Service: "s3.amazonaws.com" 
+            Resource:
+              - !Ref SumoSNSTopic
+      Topics:
+        - Ref: SumoSNSTopic
+
+  TargetS3Bucket:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: S3 bucket should likely have a bucket policy
+          - id: W35
+            reason: S3 Bucket should have access logging configured
+          - id: W41
+            reason: S3 Bucket should have encryption option set
+    Condition: create_target_s3_bucket
+    DependsOn:
+      - SumoSNSpolicy
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref LogsS3BucketName
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Topic: !Ref SumoSNSTopic
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+Outputs:
+  SumoSNSTopicArn:
+    Description: Arn of SNS Topic
+    Value: !Ref SumoSNSTopic
+  SumoRoleArn:
+    Description: Arn of Sumo Role
+    Value: !GetAtt SumoRole.Arn  

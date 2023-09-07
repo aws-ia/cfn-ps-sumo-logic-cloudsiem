@@ -1,0 +1,429 @@
+########################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+########################################################################
+AWSTemplateFormatVersion: 2010-09-09
+Description: Builds a Firewall Manager WAF v2, Network Firewall policy and deploys it . (qs-1t29c971t)
+
+Parameters:
+  CreateDeliveryStream:
+    Type: String
+    Description: "Yes - to create Kinesis Delivery Stream with provided Logs Source URL.
+                  No - to skip creation Kinesis Delivery Stream."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  ParentStackName:
+    Type: String
+    Description: Parent Stack Name. Do Not Edit the value.
+
+  DeliveryStreamName:
+    Type: String
+    Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
+
+  SumoLogicKinesisLogsURL:
+    Type: String
+    Description: "Provide HTTP Source Address from AWS Kinesis Firehose for Logs source created on your Sumo Logic account."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic AWS Kinesis Firehose for Logs Source URL can not be empty."
+
+  LogsS3BucketName:
+    Type: String
+    Description: "S3 Bucket for Network Firewall Logs source and failed deliveries will be saved"
+
+Conditions:
+  cCreateCFRuleGroup: !Equals [!Ref "AWS::Region", "us-east-1"]
+  create_delivery_stream: !Equals [!Ref CreateDeliveryStream, 'Yes']
+
+Resources:
+
+  KinesisRole:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Resource found with an explicit name, this disallows updates that require replacement of this resource. 
+    Condition: create_delivery_stream
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'ws-waf-logs-${AWS::Region}-${DeliveryStreamName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref AWS::AccountId
+      Path: "/"
+      Policies:
+        - PolicyName: "S3BucketPermissionPolicy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                  - s3:PutObject
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${LogsS3BucketName}'
+        - PolicyName: KinesisKinesisRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kinesis:DescribeStream
+                  - kinesis:GetShardIterator
+                  - kinesis:GetRecords
+                  - kinesis:ListShards
+                  - firehose:PutRecord
+                  - firehose:PutRecordBatch
+                  - kinesis:PutRecord
+                  - kinesis:PutRecordBatch
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:kinesis:${AWS::Region}:${AWS::AccountId}:stream/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%'
+        - PolicyName: KinesisLogsRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/aws-waf-logs-${AWS::Region}-${DeliveryStreamName}:log-stream:*'
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%:log-stream:*'
+
+
+  KinesisFirehoseDeliveryStream:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W88
+            reason: Kinesis Firehose DeliveryStream of type DirectPut should specify SSE. 
+    Condition: create_delivery_stream
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: !Sub "aws-waf-logs-${DeliveryStreamName}"
+      DeliveryStreamType: "DirectPut"
+      HttpEndpointDestinationConfiguration:
+        RoleARN: !GetAtt KinesisRole.Arn
+        EndpointConfiguration:
+          Url: !Ref SumoLogicKinesisLogsURL
+          Name: !Sub "sumologic-logs-endpoint-${ParentStackName}"
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 4
+        RetryOptions:
+          DurationInSeconds: 60
+        RequestConfiguration:
+          ContentEncoding: NONE
+        S3BackupMode: FailedDataOnly
+        S3Configuration:
+          BucketARN: !Sub 'arn:aws:s3:::${LogsS3BucketName}'
+          CompressionFormat: UNCOMPRESSED
+          ErrorOutputPrefix: "SumoLogic-Kinesis-Failed-Logs/"
+          RoleARN: !GetAtt KinesisRole.Arn
+
+  rFmsRegionalWafDefaultPolicy:
+    Type: AWS::FMS::Policy
+    Properties:
+      PolicyName: !Sub 'fms-sumo-regional-waf-${ParentStackName}-policy'
+      DeleteAllPolicyResources: true
+      RemediationEnabled: false
+      ExcludeResourceTags: false
+      ResourceTags:
+        - Key: sumo-awsqs-default-policy
+          Value: "true"
+      ResourceType: ResourceTypeList
+      ResourceTypeList:
+        - "AWS::ElasticLoadBalancingV2::LoadBalancer"
+        - "AWS::ApiGateway::Stage"
+      SecurityServicePolicyData:
+        Type: WAFV2
+        ManagedServiceData: !Sub
+            - '{
+              "type":"WAFV2",
+              "defaultAction":{ "type":"ALLOW" },
+              "preProcessRuleGroups": [
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesCommonRuleSet",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              },
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesSQLiRuleSet",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              },
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesAmazonIpReputationList",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              }
+              ],
+              "postProcessRuleGroups": [],
+              "overrideCustomerWebACLAssociation":true${LoggingConfiguration}
+              }'
+            - LoggingConfiguration: !If 
+                - create_delivery_stream
+                - !Sub 
+                    - ', "loggingConfiguration": { "logDestinationConfigs":[ "${KinesisFirehoseDeliveryStreamArn}" ], "redactedFields": [{"redactedFieldType":"SingleHeader", "redactedFieldValue":"Cookies" },{ "redactedFieldType":"Method"}]}'
+                    - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
+                - ''
+            
+
+  rFmsCloudFrontDefaultPolicy:
+    Type: AWS::FMS::Policy
+    Condition: cCreateCFRuleGroup
+    Properties:
+      PolicyName: !Sub 'fms-sumo-cloud-front-${ParentStackName}-policy'
+      DeleteAllPolicyResources: true
+      RemediationEnabled: false
+      ExcludeResourceTags: false
+      ResourceTags:
+        - Key: sumo-awsqs-default-policy
+          Value: "true"
+      ResourceType: AWS::CloudFront::Distribution
+      SecurityServicePolicyData:
+        Type: WAFV2
+        ManagedServiceData: !Sub
+            - '{
+              "type":"WAFV2",
+              "defaultAction":{ "type":"ALLOW" },
+              "preProcessRuleGroups": [
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesCommonRuleSet",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              },
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesSQLiRuleSet",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              },
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesAmazonIpReputationList",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              }
+              ],
+              "postProcessRuleGroups": [],
+              "overrideCustomerWebACLAssociation":true${LoggingConfiguration}
+              }'
+            - LoggingConfiguration: !If 
+                - create_delivery_stream
+                - !Sub 
+                    - ', "loggingConfiguration": { "logDestinationConfigs":[ "${KinesisFirehoseDeliveryStreamArn}" ], "redactedFields": [{"redactedFieldType":"SingleHeader", "redactedFieldValue":"Cookies" },{ "redactedFieldType":"Method"}]}'
+                    - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
+                - ''
+          
+  rFmsRegionalWafWindowsPolicy:
+    Type: AWS::FMS::Policy
+    Properties:
+      PolicyName: !Sub 'fms-sumo-regional-waf-windows-${ParentStackName}-policy'
+      DeleteAllPolicyResources: true
+      RemediationEnabled: false
+      ExcludeResourceTags: false
+      ResourceTags:
+        - Key: sumo-awsqs-windows-policy
+          Value: windows
+      ResourceType: ResourceTypeList
+      ResourceTypeList:
+        - "AWS::ElasticLoadBalancingV2::LoadBalancer"
+        - "AWS::ApiGateway::Stage"
+      SecurityServicePolicyData:
+        Type: WAFV2
+        ManagedServiceData: !Sub
+            - '{
+              "type":"WAFV2",
+              "defaultAction":{ "type":"ALLOW" },
+              "preProcessRuleGroups": [
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesWindowsRuleSet",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              }
+              ],
+              "postProcessRuleGroups": [],
+              "overrideCustomerWebACLAssociation":true${LoggingConfiguration}
+              }'
+            - LoggingConfiguration: !If 
+                - create_delivery_stream
+                - !Sub 
+                    - ', "loggingConfiguration": { "logDestinationConfigs":[ "${KinesisFirehoseDeliveryStreamArn}" ], "redactedFields": [{"redactedFieldType":"SingleHeader", "redactedFieldValue":"Cookies" },{ "redactedFieldType":"Method"}]}'
+                    - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
+                - ''
+ 
+  rFmsRegionalWafLinuxPolicy:
+    Type: AWS::FMS::Policy
+    Properties:
+      PolicyName: !Sub 'fms-sumo-regional-waf-linux-${ParentStackName}-policy'
+      DeleteAllPolicyResources: true
+      RemediationEnabled: false
+      ExcludeResourceTags: false
+      ResourceTags:
+        - Key: sumo-awsqs-linux-policy
+          Value: linux
+      ResourceType: ResourceTypeList
+      ResourceTypeList:
+        - "AWS::ElasticLoadBalancingV2::LoadBalancer"
+        - "AWS::ApiGateway::Stage"
+      SecurityServicePolicyData:
+        Type: WAFV2
+        ManagedServiceData: !Sub
+            - '{
+              "type":"WAFV2",
+              "defaultAction":{ "type":"ALLOW" },
+              "preProcessRuleGroups": [
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesLinuxRuleSet",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              }
+              ],
+              "postProcessRuleGroups": [],
+              "overrideCustomerWebACLAssociation":true${LoggingConfiguration}
+              }'
+            - LoggingConfiguration: !If 
+                - create_delivery_stream
+                - !Sub 
+                    - ', "loggingConfiguration": { "logDestinationConfigs":[ "${KinesisFirehoseDeliveryStreamArn}" ], "redactedFields": [{"redactedFieldType":"SingleHeader", "redactedFieldValue":"Cookies" },{ "redactedFieldType":"Method"}]}'
+                    - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
+                - ''
+  
+  rFmsRegionalWafPosixPolicy:
+    Type: AWS::FMS::Policy
+    Properties:
+      PolicyName: !Sub 'fms-sumo-regional-waf-posix-${ParentStackName}-policy'
+      DeleteAllPolicyResources: true
+      RemediationEnabled: false
+      ExcludeResourceTags: false
+      ResourceTags:
+        - Key: sumo-awsqs-posix-policy
+          Value: posix
+      ResourceType: ResourceTypeList
+      ResourceTypeList:
+        - "AWS::ElasticLoadBalancingV2::LoadBalancer"
+        - "AWS::ApiGateway::Stage"
+      SecurityServicePolicyData:
+        Type: WAFV2
+        ManagedServiceData: !Sub
+            - '{
+              "type":"WAFV2",
+              "defaultAction":{ "type":"ALLOW" },
+              "preProcessRuleGroups": [
+              {
+              "managedRuleGroupIdentifier": {
+              "vendorName": "AWS",
+              "managedRuleGroupName": "AWSManagedRulesUnixRuleSet",
+              "version": null
+              },
+              "overrideAction": { "type": "NONE" },
+              "ruleGroupArn": null,
+              "excludeRules": [],
+              "ruleGroupType": "ManagedRuleGroup"
+              }
+              ],
+              "postProcessRuleGroups": [],
+              "overrideCustomerWebACLAssociation":true${LoggingConfiguration}
+              }'
+            - LoggingConfiguration: !If 
+                - create_delivery_stream
+                - !Sub 
+                    - ', "loggingConfiguration": { "logDestinationConfigs":[ "${KinesisFirehoseDeliveryStreamArn}" ], "redactedFields": [{"redactedFieldType":"SingleHeader", "redactedFieldValue":"Cookies" },{ "redactedFieldType":"Method"}]}'
+                    - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,'']
+                - ''
+
+  # Remediation option must be enabled for AWS Firewall policy
+  FmsNetworkFirewallPolicy:
+    Type: AWS::FMS::Policy
+    Properties:
+      PolicyName: !Sub 'nfw-${ParentStackName}-policy'
+      DeleteAllPolicyResources: true
+      RemediationEnabled: true
+      ExcludeResourceTags: false
+      ResourceTags:
+        - Key: sumo-awsqs-nf-policy
+          Value: nework-firewall
+      ResourceType: AWS::EC2::VPC
+      SecurityServicePolicyData:
+        Type: NETWORK_FIREWALL
+        ManagedServiceData: !Sub '{"type":"NETWORK_FIREWALL","networkFirewallStatelessRuleGroupReferences":[ ],"networkFirewallStatelessDefaultActions":["aws:pass"],"networkFirewallStatelessFragmentDefaultActions":["aws:pass"],"networkFirewallStatelessCustomActions":[ ], "networkFirewallStatefulRuleGroupReferences":[ ], "networkFirewallOrchestrationConfig":{ "singleFirewallEndpointPerVPC":false, "allowedIPV4CidrList":[ ], "routeManagementAction":"MONITOR", "routeManagementTargetTypes":[ "InternetGateway" ] }, "networkFirewallLoggingConfiguration":{ "logDestinationConfigs":[ { "logDestinationType":"S3", "logType":"ALERT", "logDestination":{ "bucketName":"${LogsS3BucketName}"}},{"logDestinationType":"S3","logType":"FLOW","logDestination":{"bucketName":"${LogsS3BucketName}"}}], "overrideExistingConfig":false }}'
+
+Outputs:
+  oFMSDefaultWafPolicy:
+    Description: FMS WAF Policy Default Policy
+    Value: !Ref rFmsRegionalWafDefaultPolicy
+  
+  oFMSRegionalWafWindowsPolicy:
+    Description: FMS WAF Policy for Windows Workloads
+    Value: !Ref rFmsRegionalWafWindowsPolicy
+
+  oFMSRegionalWafLinuxPolicy:
+    Description: FMS WAF Policy for Linux Workloads
+    Value: !Ref rFmsRegionalWafLinuxPolicy
+
+  oFMSRegionalWafPosixPolicy:
+    Description: FMS WAF Policy for Unix Workloads
+    Value: !Ref rFmsRegionalWafPosixPolicy
+    
+  oFmsNetworkFirewallPolicy:
+    Description: FMS Network Firewall Policy
+    Value: !Ref FmsNetworkFirewallPolicy
