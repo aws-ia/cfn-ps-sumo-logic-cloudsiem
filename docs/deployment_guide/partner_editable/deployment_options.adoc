@@ -1,8 +1,18 @@
-// Edit this placeholder text as necessary to describe the deployment options.
+// Edit this placeholder text to accurately describe your architecture.
 
-This Partner Solution provides the following deployment options:
+This Quick Start provides one deployment option: 
 
-* https://qs_launch_permalink[Deploy {partner-product-short-name} into a new VPC^]. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys {partner-product-short-name} into this new VPC.
-* https://qs_launch_permalink[Deploy {partner-product-short-name} into an existing VPC^]. This option provisions {partner-product-short-name} in your existing AWS infrastructure.
+* https://fwd.aws/eW8wV?[Deploy Sumo Logic for AWS Organizations]
 
-This Partner Solution provides separate templates for these options. It also lets you configure Classless Inter-Domain Routing (CIDR) blocks, instance types, and {partner-product-short-name} settings.
+This option builds new AWS environment that consists of the infrastructure resources required to provision applications to your Sumo Logic account and the necessary resources to your AWS account. During the deployment, you can choose which applications to install.
+
+=== Scenarios supported by this Quick Start
+
+This Quick Start supports the following scenarios: 
+
+* *Scenario 1: You do not use AWS security services or Sumo Logic.* You did not configure AWS to use AWS security services covered by this Quick Start, but you want to use Sumo Logic apps to collect and analyze data. For this scenario, use this Quick Start to set up AWS security services and configure Sumo Logic. This scenario creates a new Sumo Logic hosted collector called `awsorgs-quickstart-collector` installs sources for each app under it.
+
+* *Scenario 2: You use AWS security services but not Sumo Logic.* You use the AWS security services covered by this Quick Start but have not configured Sumo Logic to collect data from AWS or installed the corresponding Sumo Logic apps. For this scenario, configure the auxiliary AWS services and resources to send data to Sumo Logic. This scenario also installs the corresponding Sumo Logic apps. You can reuse existing sources, and this scenario creates a new Sumo Logic hosted collector called `awsorgs-quickstart-collector` installs new sources for each app under it. 
+
+* *Scenario 3: You use AWS security services and Sumo Logic.* You use the AWS security services covered by this Quick Start and you collect and analyze data from one or more of them in Sumo Logic. For this scenario, configure the auxiliary AWS services and resources to send data to Sumo Logic. This scenario is intended only for AWS security services that are not configured and their corresponding Sumo Logic apps. You can reuse existing sources, and this scenario creates a new Sumo Logic hosted collector called `awsorgs-quickstart-collector` installs new sources for each app under it.
+

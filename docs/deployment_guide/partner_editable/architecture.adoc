@@ -1,28 +1,32 @@
 :xrefstyle: short
 
-Deploying this Partner Solution with default parameters builds the following {partner-product-short-name} environment in the
-AWS Cloud.
-
-// Replace this example diagram with your own. Follow our wiki guidelines: https://w.amazon.com/bin/view/AWS_Quick_Starts/Process_for_PSAs/#HPrepareyourarchitecturediagram. Upload your source PowerPoint file to the GitHub {deployment name}/docs/images/ directory in its repository.
+Deploying this Quick Start with default parameters builds the following architecture.
 
 [#architecture1]
-.Partner Solution architecture for {partner-product-short-name} on AWS
-image::../docs/deployment_guide/images/architecture_diagram.png[Architecture]
+.Quick Start architecture for {partner-product-short-name}
+// [link=images/sumo-logic-aws-organizations-architecture-diagram.png]
+image::../docs/deployment_guide/images/sumo-logic-aws-organizations-architecture-diagram.png[architecture1, 80%]
 
-As shown in <<architecture1>>, this Partner Solution sets up the following:
+As shown in <<architecture1>>, the Quick Start sets up the following:
 
-* A highly available architecture that spans two Availability Zones.*
-* A virtual private cloud (VPC) configured with public and private subnets, according to AWS
-best practices, to provide you with your own virtual network on AWS.*
-* In the public subnets:
-** Managed network address translation (NAT) gateways to allow outbound
-internet access for resources in the private subnets.*
-** A Linux bastion host in an Auto Scaling group to allow inbound Secure
-Shell (SSH) access to Amazon Elastic Compute Cloud (Amazon EC2) instances in public and private subnets.*
-* In the private subnets:
-** <item>.
-** <item>.
-// Add bullet points for any additional components that are included in the deployment. Ensure that the additional components are shown in the architecture diagram. End each bullet with a period.
-* <describe any additional components>.
+* In all current and new AWS accounts in your AWS organization:
+** Amazon GuardDuty to help protect AWS accounts and workloads from malicious activity and report security events to Amazon CloudWatch.
+** AWS Security Hub to assess security alerts and security posture across AWS accounts. Security Hub relays security events to CloudWatch.
+** AWS WAF for a web application firewall to help protect the resources in your organization from common web exploits.
+** AWS Network Firewall to deploy essential network protections for all your Amazon virtual private clouds (VPCs).
+** AWS Firewall Manager to deploy AWS WAF and AWS Network Firewall rules across the VPCs in your organization, to control traffic leaving and entering your network.
 
-[.small]#* The template that deploys this Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+* In your security tooling account:
+** Amazon CloudWatch to relay security events to AWS Lambda integration functions.
+** Lambda integration functions to do two things. First, to create a Sumo collector and multiple sources. A collector is an agent that receives logs from a source before encrypting and forwarding them to a Sumo service. A source is a configuration that collects logs from your AWS services. Second, to install the security apps you select during deployment to your Sumo logic account.
+** Amazon Kinesis Data Firehose to forward AWS WAF logs to Sumo Logic.
+** An Amazon Simple Storage Service (Amazon S3) bucket to store AWS Network Firewall logs.
+** An Amazon Simple Notification Service (Amazon SNS) topic to publish logs to Sumo Logic when Network Firewall saves logs to the S3 bucket.
+
+* In your organization management account, AWS CloudTrail to track user activity and API usage in the organization.
+
+* In your log archive account:
+** An Amazon Simple Storage Service (Amazon S3) bucket to store CloudTrail logs.
+** An Amazon Simple Notification Service (Amazon SNS) topic to publish logs to Sumo Logic when CloudTrail saves logs to the S3 bucket.
+
+NOTE: This Quick Start deploys Amazon GuardDuty and AWS CloudTrail across all accounts in your organization, incurring costs for these services in each account. 

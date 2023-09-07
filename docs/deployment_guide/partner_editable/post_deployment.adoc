@@ -1,3 +1,80 @@
 // Include any postdeployment steps here, such as steps necessary to test that the deployment was successful. If there are no postdeployment steps, leave this file empty.
 
 == Postdeployment steps
+
+=== If using an existing S3 bucket
+
+If you use an existing S3 bucket with logs, create an SNS topic (SumoSNSTopic-{StackName}) that subscribes to the Sumo Logic sources. After the deployment completes, add that SNS topic to the S3 bucket events. For more information, refer to https://docs.aws.amazon.com/AmazonS3/latest/user-guide/enable-event-notifications.html[Enabling and configuring event notifications using the Amazon S3 console^].
+
+=== View the Sumo Logic dashboards
+
+After the deployment completes, the Sumo Logic apps are added to your Sumo Logic personal-account library in a folder named `SumoLogic Amazon QuickStart Apps for AWS Orgs <date>`, as shown in <<qsappfolder>>.
+
+[#qsappfolder]
+.Top-level Quick Start apps folder
+[link=images/SRAQSAppFolder.png]
+image::../docs/deployment_guide/images/SRAQSAppFolder.png[Sumo Logic Apps Folder, 80%]
+
+Under the SumoLogic Amazon QuickStart Apps <date> folder, there are subfolders that represent each app along with the date and timestamp.
+
+[#servicefolder]
+.Individual service folders
+[link=images/SRAQSApps.png]
+image::../docs/deployment_guide/images/SRAQSApps.png[Sumo Logic Apps, 80%]
+
+To open the services dashboard, choose its folder in the Sumo Logic console. For instance, under the Amazon GuardDuty folder, open the Amazon GuardDuty – Overview dashboard to see detected threats.
+
+[#dashboard]
+.Amazon GuardDuty dashboard
+[link=images/dashboard.jpg]
+image::../docs/deployment_guide/images/dashboard.jpg[dashboard^]
+
+=== Firewall Manager security group
+
+The deployment creates a security group that is used by Firewall Manager only as a comparison reference for the security groups that are in scope of the policy. Firewall Manager doesn't associate it with any resources in your organization. You can update the security group for your use case. For more information, refer to https://docs.aws.amazon.com/waf/latest/developerguide/security-group-policies.html[Security group policies].
+
+Firewall Manager creates a web ACL in each account that's managed by Firewall Manager.
+
+=== Kinesis Data Firehose delivery stream
+
+Monitor your delivery stream to ensure that it has enough throughput to accommodate your organization's WAF logs.
+
+== Test the deployment
+
+=== AWS account
+
+After the deployment completes, you see the main stack, QuickStartApps, in addition to multiple nested stacks.
+
+[#output1]
+.Example output of created resources
+[link=images/SRAQSCFStack.png]
+image::../docs/deployment_guide/images/SRAQSCFStack.png[Cloudformation Stack, 80%]
+
+=== Sumo Logic account
+
+Confirm that the AWS CloudFormation template installed the collectors and sources for your Sumo Logic apps.
+
+[#output2]
+.Example output of collectors and sources
+[link=images/SRAQSCollector.png]
+image::../docs/deployment_guide/images/SRAQSCollector.png[Sumo Logic Hosted Collector, 80%]
+
+
+== Additional resources
+
+=== Sumo Logic documentation
+* https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS[Sumo Logic Amazon and AWS apps^]
+* https://www.sumologic.com/solutions/cloud-siem-enterprise/[Sumo Logic Cloud SIEM^]
+
+=== AWS services
+
+* https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html[AWS Organizations^]
+
+* https://docs.aws.amazon.com/cloudtrail/index.html[AWS CloudTrail]
+
+** https://docs.aws.amazon.com/awscloudtrail/latest/userguide/creating-trail-organization.html[Creating a trail for an organization]
+
+=== Other AWS documentation
+* https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/welcome.html[AWS Security Reference Architecture (AWS SRA)^]
+
+* https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/code-repo.html[Code repository for AWS SRA examples^]

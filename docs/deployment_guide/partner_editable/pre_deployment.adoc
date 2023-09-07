@@ -1,3 +1,58 @@
 //Include any predeployment steps here, such as signing up for a Marketplace AMI or making any changes to a partner account. If there are no predeployment steps, leave this file empty.
 
 == Predeployment steps
+
+Before deploying this Quick Start, complete the following steps:
+
+* If you don't already have a Sumo Logic enterprise account, create one at https://sumologic.com[^] by following the on-screen instructions.
+
+* If you don't already have an AWS organization, create one. For more information, refer to https://docs.aws.amazon.com/organizations/latest/userguide/orgs_tutorials_basic.html[Tutorial: Creating and configuring an organization^].
+
+* Ensure that your IAM user has sufficient permissions for the IAM user or role in your https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/org-management.html[organization management account] to create an organization trail and enable GuardDuty.
+
+* Enable trusted access with AWS Organizations. For more information, refer to https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html[Enable trusted access with AWS Organizations^]. Otherwise, since this is a multi-account deployment, AWS CloudFormation won't run.
+
+* If you don't already have them, create separate https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/security-tooling.html[security tooling^] and https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/log-archive.html[log archive accounts^] in your AWS organization.
+
+* Ensure that GuardDuty has not been enabled by the security tooling account (delegated administrator). For more information, refer to https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_organizations.html[Managing GuardDuty accounts with AWS Organizations^].
+
+* Become familiar with the <<_additional_resources,additional resources>>, later in this guide.
+
+=== Existing AWS security service configurations
+
+If you’re already sending Elastic Load Balancing (ELB) data to Sumo Logic, the Threat Intel for AWS app can report that data. 
+
+:xrefstyle: short
+
+If you’ve already configured one or more AWS services listed in <<existing_configurations_table>>, follow the steps provided for that service in the table. If you have not configured these services, this Quick Start automatically configures them when you install the Sumo Logic apps.
+
+[#existing_configurations_table]
+.Existing AWS security service configurations
+[Existing AWS security service configurations]
+[cols="1,1,3"]
+|===
+|AWS security service|If you've done the following...  | ... do this now:
+
+|AWS CloudTrail|Configured AWS CloudTrail to send logs to an S3 bucket from member accounts.| 1. Enable your member account to send logs to your organization trails. For more information, refer to https://github.com/aws-samples/aws-security-reference-architecture-examples/tree/main/aws_sra_examples/solutions/cloudtrail/cloudtrail_org#readme[Organization CloudTrail^]. 
+
+2. Confirm that your organization trails work. 
+
+3. Delete redundant Sumo Logic collector, sources, and app folder. For more information, refer to https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/log-archive.html[Security OU – Log Archive account^].
+
+|Amazon GuardDuty|Configured Amazon GuardDuty for individual member accounts with no delegated administrator account.|1. Ensure that new SumoLogic sources created by the Quick Start ingest GuardDuty events.
+
+2. Delete the redundant Sumo Logic resources, such as collector, sources, and app folder.
+
+|AWS Security Hub|Configured AWS Security Hub for individual member accounts with no delegated administrator account.|1. Ensure that new SumoLogic sources created by the Quick Start ingest Security Hub events.
+
+2. Delete the redundant SumoLogic resources, such as collector, sources, and app folder.
+
+|AWS WAF - Web Application Firewall|Configured AWS WAF to send its logs to Amazon Kinesis Data Firehose from member accounts|1. Ensure that new SumoLogic sources created by the Quick Start ingest AWS WAF logs.
+
+2. Delete the redundant SumoLogic resources, such as collector, sources, and app folder.
+
+|AWS Network Firewall|Configured AWS Network Firewall to send its logs to an S3 bucket from member accounts.|1. Ensure that new SumoLogic sources created by the Quick Start ingest Network Firewall events.
+
+2. Delete the redundant SumoLogic resources, such as collector, sources, and app folder.
+
+|===
