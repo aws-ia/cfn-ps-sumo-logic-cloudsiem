@@ -1,17 +1,13 @@
-:partner-solution-project-name: partner-solution-repo-name
-:partner-solution-github-org: aws-quickstart
-:partner-product-name: Full Product Name
-:partner-product-short-name: Product Name
-:partner-company-name: Example Company Name, Ltd.
-:doc-month: January
-:doc-year: 2023
-:partner-contributors: John Smith, {partner-company-name}
-// :other-contributors: Akua Mansa, Trek10
-:aws-contributors: Janine Singh, AWS IoT Partner team
-:aws-ia-contributors: Toni Jones, AWS Integration & Automation team
-:deployment_time: 15 minutes
+:partner-solution-project-name: cfn-ps-sumo-logic-cloudsiem
+:partner-product-name: Sumo Logic Security Integrations for AWS Organizations
+:partner-product-short-name: Sumo Logic Security Integrations
+:partner-company-name: Sumo Logic
+:doc-month: June
+:doc-year: 2022
 :default_deployment_region: us-east-1
-// :private_repo:
+:deployment_time: 60 minutes
+:aws-contributors: Dilip Rajan, Suresh Veeragoni, and Vinay Maddi, AWS Data & Analytics Partner SA team
+:partner-contributors: Arun Patyal and Himanshu Pal, {partner-company-name}
+:private_repo:
+:partner-solution-github-org: aws-ia
 
-
-// For instructions on creating this deployment guide, refer to "Build your AWS Partner Solution documentation" (https://aws-ia-us-west-2.s3.us-west-2.amazonaws.com/docs/content/index.html#/).

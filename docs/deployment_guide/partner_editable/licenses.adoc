@@ -1,3 +1,3 @@
-// Include details about any licenses and how to sign up. Provide links as appropriate.
+// Include details about any licenses and how to sign up. Provide links as appropriate. If no licenses are required, clarify that. The following paragraphs provide examples of details you can provide. Remove italics, and rephrase as appropriate.
 
-There is no cost to use this Partner Solution, but you will be billed for any AWS services or resources that this Partner Solution deploys. For more information, refer to the https://fwd.aws/rA69w?[AWS Partner Solution General Information Guide^].
+Sumo Logic provides a free tier with unlimited queries and 30-day free trials for various licensing options. For more information, refer to the https://sumologic.com/pricing/[Sumo Logic website^].

@@ -1,0 +1,205 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Template to setup the Connection on Sumo Logic resources for AWS Quick Start Solution. (qs-1t29c973j)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Sumo Logic Deployment Configuration"
+        Parameters:
+          - SumoDeployment
+          - SumoAccessID
+          - SumoAccessKey    
+      - Label:
+          default: AWS Security Hub Attributes
+        Parameters:
+          - ConnectionName 
+      - Label:
+          default: AWS StackSet Attributes
+        Parameters:
+          - ExecutionRoleRuleName
+          - SecurityAccountId
+          - StackNameGetOutput
+          - SumoLogicHelperRoleARN
+      - Label:
+          default: "AWS Quick Start configuration"
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+    ParameterLabels:
+      SumoDeployment:
+        default: "Sumo Logic Deployment Name"
+      SumoAccessID:
+        default: "Sumo Logic Access ID"
+      SumoAccessKey:
+        default: "Sumo Logic Access Key"    
+      ConnectionName:
+        default: "Webhook Lambda Connection Name"
+      ExecutionRoleRuleName:
+        default: Execution Role Name
+      StackNameGetOutput:
+        default: "If Any, Name of Stack for get output"
+      SecurityAccountId:
+        default: Security Account ID
+      SumoLogicHelperRoleARN:
+        default: "Sumo Logic Helper Role ARN"
+      QSS3BucketName:
+        default: "Quick Start S3 bucket name"
+      QSS3KeyPrefix:
+        default: "Quick Start S3 key prefix"
+
+Parameters:
+  SumoDeployment:
+    Type: String
+    AllowedValues:
+      - au
+      - ca
+      - de
+      - eu
+      - jp
+      - us2
+      - us1
+      - in
+      - fed
+    Description: "Enter au, ca, de, eu, jp, us2, in, fed or us1."
+    AllowedPattern: ".+"
+    Default: "us2"
+
+  SumoAccessID:
+    Type: String
+    Description: "The Sumo Logic Access ID. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access ID can not be empty."
+
+  SumoAccessKey:
+    Type: String
+    Description: "The Sumo Logic Access Key. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access Key can not be empty."
+    NoEcho: true
+
+
+  StackNameGetOutput:
+    Type: String
+    Description: Name of Stack for get output
+
+  ConnectionName:
+    Type: String
+    Description: "Provide a name for the Webhook Connection for Security Hub Forwarder."
+    Default: "SecurityHubConnection"
+
+  ExecutionRoleRuleName:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
+    Type: String
+
+  SecurityAccountId:
+    Type: String
+    Description: SecurityHub master AWS account ID.
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: >
+      The Security Account ID must be a 12 character string.
+    MinLength: 12
+    MaxLength: 12 
+
+  SumoLogicHelperRoleARN:
+    Description: "Sumo Logic Helper Role ARN"
+    Type: "String"
+
+  QSS3BucketName:
+    AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
+    ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Default: "aws-quickstart"
+    Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Type: "String"
+  
+  QSS3KeyPrefix:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    ConstraintDescription: "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Default: "quickstart-sumo-logic-cloudsiem/"
+    Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Type: "String"
+
+Resources:
+
+  SumoLogicLambdaHelperMulitRegions:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Lambda functions require permission to write CloudWatch Logs"
+          - id: W89
+            reason: "Lambda functions should be deployed inside a VPC"
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: main.handler
+      Runtime: python3.8
+      CodeUri:
+        Bucket: !Sub
+                - "${S3Bucket}"
+                - S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        Key: !Sub "${QSS3KeyPrefix}templates/apps/sumo-aws-apps/sumologic-app-utils/sumo_app_utils.zip"
+      MemorySize: 512
+      Timeout: 900
+      ReservedConcurrentExecutions: 100
+      Role: !Ref SumoLogicHelperRoleARN
+
+  SecurityHubSecretAccessKey:
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !GetAtt SumoLogicLambdaHelperMulitRegions.Arn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AWS::Region
+      stackName:  !Ref StackNameGetOutput
+      outputKey: 'oSecurityHubSecretAccessKey'
+
+  SecurityHubUserKey:
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !GetAtt SumoLogicLambdaHelperMulitRegions.Arn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AWS::Region
+      stackName: !Ref StackNameGetOutput
+      outputKey: 'oSecurityHubUserKey'
+
+  SecurityHubForwarderApiUrl:
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken:  !GetAtt SumoLogicLambdaHelperMulitRegions.Arn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AWS::Region
+      stackName: !Ref StackNameGetOutput
+      outputKey: 'oSecurityHubForwarderApiUrl'
+
+  Connections:
+    Type: Custom::Connections
+    Properties:
+      ServiceToken: !GetAtt SumoLogicLambdaHelperMulitRegions.Arn
+      Type: "WebhookDefinition"
+      Name: !Sub '${ConnectionName}-${AWS::Region}'
+      Description: "Webhook Lambda connection for SecurityHub"
+      URL: !GetAtt SecurityHubForwarderApiUrl.ARN
+      UserName: !GetAtt SecurityHubUserKey.ARN
+      Password: !GetAtt SecurityHubSecretAccessKey.ARN
+      Region: !Ref "AWS::Region"
+      ServiceName: 'execute-api'
+      WebhookType: 'AWSLambda'
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+Outputs:
+  oSecurityHubSecretAccessKey:
+    Description: Security Hub Secret Access Key
+    Value: !GetAtt SecurityHubSecretAccessKey.ARN 
+
+  oSecurityHubUserKey:
+    Description: Access Key of User
+    Value: !GetAtt SecurityHubUserKey.ARN
+
+  oSecurityHubForwarderApiUrl:
+    Description: Security Hub Forwarder Api Url
+    Value: !GetAtt SecurityHubForwarderApiUrl.ARN         

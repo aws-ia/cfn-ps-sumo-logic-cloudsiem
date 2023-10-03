@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Template to Configure the Execution Role to enable use of your account as a target account in AWS CloudFormation StackSets. (qs-1sfibuu95)"
+
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9001 # Resource names should be PascalCase
+        - W9003 # Parameter is not in a ParameterGroup
+        - W9002 # Parameter is missing ParameterLabe
+
+Parameters:
+  ManagementAccountID:
+    Type: String
+    Description: AWS Account Id of the administrator account (the account in which StackSets will be created).
+    MaxLength: 12
+    MinLength: 12
+  ExecutionRoleRuleName:
+    Type: String
+    Default: AWSCloudFormationStackSetExecutionRole
+    Description: Role for executing stacksets.
+Resources:
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit role name provided
+    Properties:
+      RoleName: !Ref ExecutionRoleRuleName
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Ref ManagementAccountID
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess

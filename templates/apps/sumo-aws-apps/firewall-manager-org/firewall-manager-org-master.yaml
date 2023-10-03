@@ -1,0 +1,788 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Template to setup the AWS Firewall Manager app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1t29c970a)
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Sumo Logic Deployment Configuration"
+        Parameters:
+          - SumoDeployment
+          - SumoAccessID
+          - SumoAccessKey
+          - SumoOrganizationId
+          - RemoveSumoResourcesOnDeleteStack
+      - Label:
+          default: "App Details - Collector Configuration"
+        Parameters:
+          - EnableFirewallManager
+          - DisassociateAdminAccountOnDeleteStack
+          - InstallSumoAWSWAF
+          - InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp
+          - InstallSumoAWSNetworkFirewall
+          - CollectorID
+      - Label:
+          default: "Firewall Manager Policy Regions Configuration"
+        Parameters:
+          - FirewallManagerPolicyRegions
+      - Label:
+          default: "Security Group Policy Attributes"
+        Parameters: 
+          - InternalNetCIDR
+      - Label:
+          default: VPC Attributes
+        Parameters:
+          - CreateVpcForSG       
+          - VPCCidrBlock
+          - VpcId
+      - Label:
+          default: "App Details - S3 Source Network Firewall Configuration"
+        Parameters:
+          - CreateS3Bucket
+          - NetworkFirewallExistsS3BucketName
+          - DeliveryBucketPrefix
+          - CreateS3Source
+          - S3SourceName
+          - S3SourceCategoryName
+      - Label:
+          default: "App Details - Kinesis Firehose Delivery Stream Source WAF Configuration"
+        Parameters:
+          - CreateDeliveryStreamSource
+          - DeliveryStreamSourceName
+          - DeliveryStreamSourceCategoryName          
+          - DeliveryStreamName
+      - Label:
+          default: "App Details - Cloud SIEM Configuration"
+        Parameters:
+          - EnableForwardDataToCloudSIEM
+      - Label:
+          default: AWS StackSet Attributes
+        Parameters:
+          - SecurityAccountId
+          - SecurityAccountRegion
+          - AdministrationRoleArn
+          - ExecutionRoleRuleName
+      - Label:
+          default: "AWS Quick Start configuration"
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+      - Label:
+          default: "Local Parameters. Do Not Edit the values."
+        Parameters:
+          - ParentHelperFunctionArn
+          - SumoLogicHelperRoleARN
+          - ParentStackName         
+    ParameterLabels:
+      DeliveryBucketPrefix:
+        default: "Network Firewall Delivery Bucket Prefix"        
+      CreateS3Bucket:
+        default: "Create AWS S3 Bucket" 
+      SecurityAccountRegion:
+        default: "Security account Region"
+      EnableForwardDataToCloudSIEM:
+        default: "Forward Data To CloudSIEM"
+      CreateDeliveryStreamSource:
+        default: "Create a Kinesis Firehose Delivery Stream Source for WAF"
+      DeliveryStreamName:
+        default: "Amazon Kinesis Data Firehose delivery stream name"
+      FirewallManagerPolicyRegions:
+        default: "Firewall Manager Policy Regions"      
+      NetworkFirewallExistsS3BucketName:
+        default: "AWS S3 Bucket Name"
+      InternalNetCIDR:
+        default: Internal Network CIDR
+      CreateVpcForSG:
+        default: Create VPC For Security Group
+      VpcId:
+        default: Existing VPC ID
+      VPCCidrBlock:
+        default: New VPC CIDR Block
+      SumoDeployment:
+        default: "Sumo Logic Deployment Name"
+      SumoAccessID:
+        default: "Sumo Logic Access ID"
+      SumoAccessKey:
+        default: "Sumo Logic Access Key"
+      SumoOrganizationId:
+        default: "Sumo Logic Organization Id"
+      DisassociateAdminAccountOnDeleteStack:
+        default: "Disassociate admin account in Firewall Manager when stack is deleted"  
+      RemoveSumoResourcesOnDeleteStack:
+        default: "Delete Sumo Logic Resources when stack is deleted"
+      EnableFirewallManager:
+        default: "Enable Firewall Manager for the regions"
+      InstallSumoAWSWAF:
+        default: "Install Sumo AWS WAF"      
+      InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp:
+        default: "Install Sumo AWS WAF - Cloud Security Monitoring and Analytics App"
+      InstallSumoAWSNetworkFirewall:
+        default: "Install Sumo AWS Network Firewall"
+      CollectorID:
+        default: "ID of Hosted Collector"
+      CreateS3Source:
+        default: "Create Sumo Logic Amazon S3 Logs Source"
+      S3SourceName:
+        default: "Sumo Logic Amazon S3 Logs Source Name"
+      S3SourceCategoryName:
+        default: "Sumo Logic Amazon S3 Logs Source Category Name"
+      DeliveryStreamSourceName:
+        default: "Sumo Logic AWS Kinesis Firehose for Logs Source Name"      
+      DeliveryStreamSourceCategoryName:
+        default: "Sumo Logic AWS Kinesis Firehose Logs Source Category Name"
+      SecurityAccountId:
+        default: Security Account ID          
+      AdministrationRoleArn:
+        default: Arn of Administration Role
+      ExecutionRoleRuleName:
+        default: Execution Role Name
+      QSS3BucketName:
+        default: "Quick Start S3 bucket name"
+      QSS3KeyPrefix:
+        default: "Quick Start S3 key prefix"
+      ParentStackName:
+        default: "If Any, Name of parent Stack"
+      ParentHelperFunctionArn:
+        default: "If Any, Arn of parent Helper Function"
+      SumoLogicHelperRoleARN:
+        default: "Sumo Logic Helper Role ARN"
+Parameters:
+
+  CreateS3Bucket:
+    Type: String
+    Description: "Yes - Create a new S3 bucket in AWS S3.
+                  No - Use an existing S3 bucket from AWS S3 which has WAF Logs."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  DeliveryBucketPrefix:
+    AllowedPattern: "^$|^[0-9a-z]+([0-9a-z-]*[0-9a-z])*$"
+    ConstraintDescription:
+      S3 bucket name can include numbers, lowercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Default: 'network-firewall-logs-delivery'
+    Description: >
+      Network Firewall Log Delivery S3 bucket prefix.
+    Type: String
+
+  EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "Yes -> Enabled forward data to CloudSIEM.
+                  No -> Skip enable forward."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  DeliveryStreamName:
+    Type: String
+    Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
+
+  FirewallManagerPolicyRegions:
+    Type: String
+    Description: Comma delimited list of regions for Firewall Manager Policy.
+    Default: us-east-1
+
+  CreateDeliveryStreamSource:
+    Type: String
+    Description: "Yes - to create Kinesis Delivery Stream Source for WAF.
+                  No - to skip creation Kinesis Delivery Stream."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  NetworkFirewallExistsS3BucketName:
+    Type: String
+    Description: "S3 Bucket for Network Firewall Logs source and failed deliveries will be saved"
+
+  CreateVpcForSG:
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+    Description: Create a new VPC for the Firewall Manager Security Groups
+    Type: String
+
+  InternalNetCIDR:
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Description:
+      The CIDR block for the Internal Network (include both VPCs and On-Prem if using VPN/DirectConnet)
+      - This is used to detect rules that don't align with the IP Space.
+      Use CIDR Format. Example 192.168.1.0/24
+    Type: String
+    Default: "192.168.1.0/24"
+
+  VPCCidrBlock:
+    AllowedPattern: '^$|^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$'
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/28
+    Description: VPC CIDR Block to use for the new VPC. Only used if Create VPC is true.
+    Type: String
+
+  VpcId:
+    AllowedPattern: '^$|^vpc-[0-9a-f]{17}$'
+    ConstraintDescription: Must have a prefix of "vpc-". Followed by 17 characters (numbers, letters "a-f")
+    Description: Existing VPC ID for the Firewall Manager Security Groups
+    Type: String
+
+  SumoDeployment:
+    Type: String
+    AllowedValues:
+      - au
+      - ca
+      - de
+      - eu
+      - jp
+      - us2
+      - us1
+      - in
+      - fed
+    Description: "Enter au, ca, de, eu, jp, us2, in, fed or us1."
+    AllowedPattern: ".+"
+    Default: "us2"
+
+  SumoAccessID:
+    Type: String
+    Description: "The Sumo Logic Access ID. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access ID can not be empty."
+    Default: sujAU2DYC3LC8Q
+
+  SumoAccessKey:
+    Type: String
+    Description: "The Sumo Logic Access Key. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access Key can not be empty."
+    NoEcho: true
+
+  SumoOrganizationId:
+    Description: "The Account Overview page displays information about your Sumo Logic organization. Used for IAM Role in Sumo Logic AWS Sources."
+    Type: String
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Organization Id can not be empty."
+
+  SecurityAccountRegion:
+    Description: "Enter your security account region"
+    Type: String
+    Default: us-east-1
+    AllowedValues:
+      - 'us-east-1'
+      - 'us-east-2'
+      - 'us-west-1'
+      - 'us-west-2'
+      - 'af-south-1'
+      - 'ap-east-1'
+      - 'ap-south-1'
+      - 'ap-northeast-3'
+      - 'ap-northeast-2'
+      - 'ap-southeast-1'
+      - 'ap-southeast-2'
+      - 'ap-northeast-1'
+      - 'ca-central-1'
+      - 'eu-central-1'
+      - 'eu-west-1'
+      - 'eu-west-2'
+      - 'eu-south-1'
+      - 'eu-west-3'
+      - 'eu-north-1'
+      - 'me-south-1'
+      - 'sa-east-1'
+
+  RemoveSumoResourcesOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description: "To delete collector, sources and app when stack is deleted, set this parameter to true. Default is false.
+                  Deletes the resources created by the stack. Deletion of updated resources will be skipped."
+    Type: String
+  DisassociateAdminAccountOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: "To disassociate admin account in Firewall Manager when stack is deleted, set this parameter to true. Default is false.
+                  Disassociate admin account in Firewall Manager will be skipped."
+    Type: String
+  EnableFirewallManager:
+    Type: String
+    Description: "Choose Yes to enable Firewal Manager for the regions.
+                  Choose No if Firewall Manager is already enabled."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  InstallSumoAWSWAF:
+    Type: String
+    Description: "Yes -> To Install App in Sumo AWS WAF for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  InstallSumoAWSNetworkFirewall:
+    Type: String
+    Description: "Yes -> To Install App in Sumo AWS Network Firewall for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp:
+    Type: String
+    Description: "Yes -> To Install App in Sumo AWS WAF - Cloud Security Monitoring and Analytics for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  CollectorID:
+    Type: String
+    Description: Change the collector id of Sumo Hosted Collector
+
+  SumoLogicHelperRoleARN:
+    Type: String
+    Description: "ARN of Sumo Logic Helper Role"
+
+  SecurityAccountId:
+    Type: String
+    Description: Firewall Manager master AWS account ID.
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: >
+      The Security Account ID must be a 12 character string.
+    MaxLength: 12
+    MinLength: 12
+
+  AdministrationRoleArn:
+    Description: Arn of AWS Administration Role name to enable use of AWS CloudFormation StackSets.
+    Type: String
+
+  ExecutionRoleRuleName:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
+    Type: String
+
+  CreateS3Source:
+    Type: String
+    Description: "Yes - to create Sumo Logic Amazon S3 Log Source with provided bucket Name.
+                  No - to skip creation of the Sumo Logic Amazon S3 Log Source."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  S3SourceName:
+    Type: String
+    Description: Change the Sumo Logic Amazon S3 Source name to be created else default name will be used.
+    Default: AWS-NFW-Source
+
+  S3SourceCategoryName:
+    Type: String
+    Description: "Existing - Change to an existing Source Category from Sumo Logic if Amazon S3 Source is not created.
+                  New - Default will be used if Amazon S3 Source is Created."
+    Default: AWS/NFW/Logs
+
+  DeliveryStreamSourceName:
+    Type: String
+    Description: Change the Sumo Logic AWS Kinesis Firehose Source name to be created else default name will be used.
+    Default: AWS-WAF-Source  
+
+  DeliveryStreamSourceCategoryName:
+    Type: String
+    Description: "Existing - Change to an existing Source Category from Sumo Logic if AWS Kinesis Firehose Source is not created.
+                  New - Default will be used if AWS Kinesis Firehose Source is Created."
+    Default: AWS/WAF/Logs
+
+  QSS3BucketName:
+    AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
+    ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Default: "aspinv2testing"
+    Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Type: "String"
+
+  QSS3KeyPrefix:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    ConstraintDescription: "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Default: "quickstart-sumo-logic-cloudsiem/"
+    Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Type: "String"
+
+  QSVersion:
+    Type: String
+    Description: "Version of Quick Start"
+    Default: "1.0"
+
+  ParentHelperFunctionArn:
+    Type: String
+    Description: Parent Helper Function Arn. Do Not Edit the value.
+
+  ParentStackName:
+    Type: String
+    Description: Parent Stack Name. Do Not Edit the value.
+
+Conditions:
+
+  install_sumo_aws_waf_cloud_security_monitoring_and_analytics_app: !Equals [!Ref InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp, 'Yes']
+  install_sumo_aws_waf: !Equals [!Ref InstallSumoAWSWAF, 'Yes']
+  enable_firewall_config: !Equals [!Ref EnableFirewallManager, 'Yes']
+  install_s3_source: !Equals [!Ref CreateS3Source, 'Yes']
+  install_delivery_stream_source: !Equals [!Ref CreateDeliveryStreamSource, 'Yes']
+  install_sumo_aws_network_firewall: !Equals [!Ref InstallSumoAWSNetworkFirewall, 'Yes']
+  enable_forward_data_to_cloudsiem: !And
+    - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
+    - !Condition install_s3_source
+    - !Condition install_delivery_stream_source
+  create_s3_bucket_or_s3_source: !Or 
+    - !Condition install_s3_source
+    - !Equals [!Ref CreateS3Bucket, 'Yes']
+  create_s3_bucket: !Equals [!Ref CreateS3Bucket, 'Yes']
+  #create_delivery_stream: !And 
+  #  - !Equals [!Ref CreateDeliveryStream, 'Yes']
+  #  - !Condition install_s3_source
+
+Resources:
+
+  FirewallManagerOrgDisassociateIamRoleStackSet:
+    Condition: enable_firewall_config
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'FirewallManagerOrgDisassociateIamRole-${ParentStackName}'
+      AdministrationRoleARN: !Ref AdministrationRoleArn
+      ExecutionRoleName: !Ref ExecutionRoleRuleName
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions: 
+            - !Ref SecurityAccountRegion
+          DeploymentTargets:
+            Accounts:
+              - !Ref SecurityAccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-disassociate-iam-role.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        - ParameterKey: 'FMSDisassociateRoleName'
+          ParameterValue: !Sub 'FMSDRName-${ParentStackName}'
+        - ParameterKey: 'OrgManagementAccountId'
+          ParameterValue: !Ref AWS::AccountId
+        - ParameterKey: 'OrgManagementLambdaRoleName'
+          ParameterValue: !Select [1, !Split ["/", !Ref SumoLogicHelperRoleARN]]
+
+  CustomLambdaFirewallManagerSetup:
+    DependsOn:
+        - FirewallManagerOrgDisassociateIamRoleStackSet  
+    Condition: enable_firewall_config
+    Type: Custom::AWSFirewallManagerSetup
+    Version: '1.0'
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AWS_PARTITION: !Sub ${AWS::Partition}
+      ASSUME_ROLE_NAME: !Sub 'FMSDRName-${ParentStackName}'
+      DELEGATED_ADMIN_ACCOUNT_ID: !Ref SecurityAccountId
+      RemoveOnDeleteStack: !Ref DisassociateAdminAccountOnDeleteStack
+
+  WaitSevenMinutesFirewallManagerSetup:
+    DependsOn:
+        - CustomLambdaFirewallManagerSetup  
+    Condition: enable_firewall_config
+    Type: Custom::AWSTimeToWait
+    Version: '1.0'
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      TimeToWait: 420
+
+  WaitSixtMinutesFirewallManagerSetup:
+    DependsOn:
+        - WaitSevenMinutesFirewallManagerSetup  
+    Condition: enable_firewall_config
+    Type: Custom::AWSTimeToWait
+    Version: '1.0'
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      TimeToWait: 360
+
+  FirewallManagerOrgSgPolicyStackSet:
+    DependsOn:
+        - WaitSixtMinutesFirewallManagerSetup
+    Condition: enable_firewall_config
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'FirewallManagerOrgSgPolicy-${ParentStackName}'
+      AdministrationRoleARN: !Ref AdministrationRoleArn
+      ExecutionRoleName: !Ref ExecutionRoleRuleName
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions: !Split [",", !Ref FirewallManagerPolicyRegions]
+          DeploymentTargets:
+            Accounts:
+              - !Ref SecurityAccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sg-policy.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        - ParameterKey: 'InternalNetCIDR'
+          ParameterValue: !Ref InternalNetCIDR
+        - ParameterKey: 'CreateVpcForSG'
+          ParameterValue: !Ref CreateVpcForSG
+        - ParameterKey: 'VPCCidrBlock'
+          ParameterValue: !Ref VPCCidrBlock
+        - ParameterKey: 'VpcId'
+          ParameterValue: !Ref VpcId
+  
+  FirewallManagerOrgWafNetworkFirewallPolicyStackSet:
+    DependsOn:
+        - WaitSixtMinutesFirewallManagerSetup
+    Condition: enable_firewall_config
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'FirewallManagerOrgWafNetworkFirewallPolicy-${ParentStackName}'
+      AdministrationRoleARN: !Ref AdministrationRoleArn
+      ExecutionRoleName: !Ref ExecutionRoleRuleName
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions: !Split [",", !Ref FirewallManagerPolicyRegions]
+          DeploymentTargets:
+            Accounts:
+              - !Ref SecurityAccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-waf-network-firewall-policy.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        - ParameterKey: 'CreateDeliveryStream'
+          ParameterValue: !Ref CreateDeliveryStreamSource
+        - ParameterKey: 'ParentStackName'
+          ParameterValue: !Ref ParentStackName
+        - ParameterKey: 'DeliveryStreamName'
+          ParameterValue: !Ref DeliveryStreamName
+        - ParameterKey: 'SumoLogicKinesisLogsURL'
+          ParameterValue: !If [ install_delivery_stream_source ,!GetAtt SumoDeliveryStreamSource.SUMO_ENDPOINT,'']
+        - ParameterKey: 'LogsS3BucketName'
+          ParameterValue: !If [create_s3_bucket, !Ref DeliveryBucketPrefix, !Ref NetworkFirewallExistsS3BucketName]
+
+  FirewallManagerOrgSumoLogSourceStackSet:
+    Condition: create_s3_bucket_or_s3_source
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'FirewallManagerOrgSumoLogSource-${ParentStackName}'
+      AdministrationRoleARN: !Ref AdministrationRoleArn
+      ExecutionRoleName: !Ref ExecutionRoleRuleName
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions: 
+            - !Ref SecurityAccountRegion
+          DeploymentTargets:
+            Accounts:
+              - !Ref SecurityAccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-logsource.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        - ParameterKey: 'CreateS3Bucket'
+          ParameterValue: !Ref CreateS3Bucket        
+        - ParameterKey: 'LogsS3BucketName'
+          ParameterValue: !If [create_s3_bucket, !Ref DeliveryBucketPrefix, !Ref NetworkFirewallExistsS3BucketName]
+        - ParameterKey: 'SumoDeployment'
+          ParameterValue: !Ref SumoDeployment
+        - ParameterKey: 'SumoOrganizationId'
+          ParameterValue: !Ref SumoOrganizationId      
+
+  SNSTopicArn:
+    Condition: install_s3_source  
+    DependsOn:
+      - FirewallManagerOrgSumoLogSourceStackSet    
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref SecurityAccountRegion
+      stackName: !Sub 'FirewallManagerOrgSumoLogSource-${ParentStackName}'
+      outputKey: SumoSNSTopicArn
+
+  SumoRoleArn:
+    Condition: install_s3_source  
+    DependsOn:
+      - FirewallManagerOrgSumoLogSourceStackSet    
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref SecurityAccountRegion
+      stackName:  !Sub 'FirewallManagerOrgSumoLogSource-${ParentStackName}'
+      outputKey: SumoRoleArn
+
+  SumoS3Source: 
+    Type: Custom::AWSSource
+    Condition: install_s3_source
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      SourceType: AwsS3Bucket
+      Region: !Ref SecurityAccountRegion
+      SourceName: !Ref S3SourceName
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      SourceCategory: !Ref S3SourceCategoryName
+      CollectorId: !Ref CollectorID
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      TargetBucketName: !If [create_s3_bucket, !Ref DeliveryBucketPrefix, !Ref NetworkFirewallExistsS3BucketName]
+      PathExpression: '*'
+      RoleArn: !GetAtt SumoRoleArn.ARN
+
+  SumoDeliveryStreamSource:
+    Type: Custom::KinesisLogSource
+    Condition: install_delivery_stream_source
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      SourceName: !Ref DeliveryStreamSourceName
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      SourceCategory: !Ref DeliveryStreamSourceCategoryName
+      CollectorId: !Ref CollectorID
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  SumoUpdateS3SourceFields:
+    DependsOn:
+        - SumoS3Source   
+    Type: Custom::SumoLogicUpdateFields
+    Condition: enable_forward_data_to_cloudsiem
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      CollectorId: !Ref CollectorID
+      SourceName: !Ref S3SourceName
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      Fields: {'_siemForward':'True'}
+
+  SumoUpdateDeliveryStreamSourceFields:
+    DependsOn:
+        - SumoDeliveryStreamSource   
+    Type: Custom::SumoLogicUpdateFields
+    Condition: enable_forward_data_to_cloudsiem
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      CollectorId: !Ref CollectorID
+      SourceName: !Ref DeliveryStreamSourceName
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      Fields: {'_siemForward':'True'}
+
+  FirewallManagerOrgSumoSubscriptionStackSet:   
+    Condition: install_s3_source
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'FirewallManagerOrgSumoSubscription-${ParentStackName}'
+      AdministrationRoleARN: !Ref AdministrationRoleArn
+      ExecutionRoleName: !Ref ExecutionRoleRuleName
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions: 
+            - !Ref SecurityAccountRegion
+          DeploymentTargets:
+            Accounts:
+              - !Ref SecurityAccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-subscription.yaml'
+        - S3Region:  !Ref 'AWS::Region'
+          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+      Parameters:
+        - ParameterKey: 'SumoSNSTopicArn'
+          ParameterValue: !GetAtt SNSTopicArn.ARN
+        - ParameterKey: 'SumoEndpoint'
+          ParameterValue: !GetAtt SumoS3Source.SUMO_ENDPOINT
+
+  SumoAWSNetworkFirewallApp:
+    Type: Custom::App
+    Condition: install_sumo_aws_network_firewall
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      Region: !Ref AWS::Region
+      AppName: "Amazon QuickStart - AWS Network Firewall"
+      AppId: "3735b649-d337-49a5-ad94-d0650ef02db9"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        logsrc: !Sub "_sourceCategory=${S3SourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  SumoAWSWAFApp:
+    Type: Custom::App
+    Condition: install_sumo_aws_waf
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      Region: !Ref AWS::Region
+      AppName: "Amazon QuickStart - AWS WAF"
+      AppId: "87c2e6ca-a526-4745-af48-0c7225127b22"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        awsWAF: !Sub "_sourceCategory=${DeliveryStreamSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  SumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp:
+    Type: Custom::App
+    Condition: install_sumo_aws_waf_cloud_security_monitoring_and_analytics_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      Region: !Ref AWS::Region
+      AppName: "Amazon QuickStart - AWS WAF - Cloud Security Monitoring and Analytics"
+      AppId: "6b2b1a84-e544-4e99-8cda-a51ba6d6c383"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        waflogsrc: !Sub "_sourceCategory=${DeliveryStreamSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment

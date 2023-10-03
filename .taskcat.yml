@@ -1,33 +1,55 @@
 project:
-  name: cfn-sample-template
-  owner: quickstart@amazon.com
-  package_lambda: false
+  name: cfn-ps-sumo-logic-cloudsiem
+  shorten_stack_name: true
+  s3_regional_buckets: true
   regions:
-  - ap-northeast-1
-  - ap-northeast-2
-  - ap-southeast-1
-  - ap-southeast-2
-  - eu-central-1
-  - eu-west-1
-  - sa-east-1
-  - us-east-1
-  - us-west-1
-  - us-west-2
+    - us-east-2
+  artifact_regions:
+    - us-east-2
 tests:
-  sample:
-    parameters:
-      Param1: 'Inputs to Stack'
-      # Examples: of other taskcat dynamic input parameters for more into see http://taskcat.io
-      #
-      #      AvailabilityZones: $[taskcat_genaz_3]
-      #      ByteValue: 1
-      #      PasswordA: $[taskcat_genpass_8A]
-      #      PasswordB: $[taskcat_genpass_32S]
-      #      RandomNumber: $[taskcat_random-numbers]
-      #      RandomString: $[taskcat_random-string]
-      #      StackName: TestStack
-      #      UUID: $[taskcat_genuuid]
-      #
+  default:
+    template: ./templates/main-org.template.yaml
     regions:
     - us-east-2
-    template: templates/another-workload.template.yaml
+    parameters:
+      QSS3KeyPrefix: "quickstart-sumo-logic-cloudsiem/"
+      QSS3BucketName:  "$[taskcat_autobucket_prefix]"
+      QSS3BucketRegion: "us-east-2"
+      # Section1SumoLogicDeployment: "us1"
+      # Section1SumoLogicAccessID: ""
+      # Section1SumoLogicAccessKey: ""
+      # Section1SumoLogicOrganizationId: ""
+      Section1SecurityToolingAccountId: ""
+      Section1ToolingAndLoggingRegion: "us-east-2"
+      Section1LogArchivingAccountId: ""
+      Section1OrganizationRootID: ""
+      Section1DeliveryBucketPrefix: logs-delivery-$[taskcat_random-string]
+      Section2InstallSumoGlobalGuardDutyApp: "Yes"
+      Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp: "No"
+      Section2GuardDutyRegions: "us-east-2"
+      Section2GuardDutyCreateHttpLogsSource: "Yes"
+      Section3CloudTrailRegions: "us-east-2"
+      Section3InstallAWSCloudTrail: "Yes"
+      Section3InstallPCICloudTrailApp: "Yes"
+      Section3InstallCISFoundationApp: "Yes"
+      Section3InstallCloudTrailMonitoringAnalyticsApp: "Yes"
+      Section3InstallCloudTrailSecOpsApp: "Yes"
+      Section3CloudTrailCreateS3LogsSource: "Yes"
+      Section3CreateCloudTrailS3Bucket: "Yes"
+
+      Section4SecurityHubEnableSecurityHub: "Yes"
+      Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp: "Yes"
+      Section4SecurityHubRegionsToEnable: "us-east-2"
+      Section4SecurityHubCreateHttpLogsSource: "Yes"
+
+      Section6EnableFirewallManager: "Yes"
+      Section6DisassociateAdminAccountOnDeleteStack: "false"
+      Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp: "Yes"
+      Section6InstallSumoAWSNetworkFirewallApp: "Yes"
+      Section6FirewallManagerPolicyRegions: "us-east-2"
+      Section6CreateDeliveryStreamSource: "Yes"
+      Section6DeliveryStreamName: $[taskcat_random-string]
+      Section6CreateS3Source: "Yes"
+      Section6CreateS3Bucket: "Yes"
+      Section6DeliveryBucketPrefix: nw-logs-delivery-$[taskcat_random-string]
+      

@@ -1,0 +1,351 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: "Template to setup the AWS CloudTrail, PCI Compliance For AWS CloudTrail, CIS AWS Foundations Benchmark, Sumo Cloud Security Monitoring and Analytics For AWS CloudTrail, Sumo Global Intelligence for AWS CloudTrail SecOps app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu6s)"
+
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9001 # Resource names should be PascalCase
+        - W9003 # Parameter is not in a ParameterGroup
+        - W9002 # Parameter is missing ParameterLabe
+
+Parameters:
+  SumoDeployment:
+    Type: String
+    AllowedValues:
+      - au
+      - ca
+      - de
+      - eu
+      - jp
+      - us2
+      - us1
+      - in
+      - fed
+    Description: "Enter au, ca, de, eu, jp, us2, in, fed or us1."
+  SumoAccessID:
+    Type: String
+    Description: "The Sumo Logic Access ID. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access ID can not be empty."
+  SumoAccessKey:
+    Type: String
+    Description: "The Sumo Logic Access Key. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access Key can not be empty."
+    NoEcho: true
+
+  RemoveSumoResourcesOnDeleteStack:
+    AllowedValues:
+      - true
+      - false
+    Default: true
+    Description: "To delete collectors, sources and apps when the stack is deleted, set this parameter to true. Default is true.
+                  Deletes the resources created by the stack. Deletion of updated resources will be skipped."
+    Type: String
+
+  CollectorID:
+    Type: String
+    Description: "ID of Sumo Hosted Collector"
+
+  SumoRoleArn:
+    Description: "ARN of Sumo Role that allow sumologic read data from s3 bucket"
+    Type: String
+  CloudTrailS3Region:
+    Description: "Region of S3 Log Archiving for CloudTrail"
+    Type: String
+
+  InstallCloudTrailApp:
+    Type: String
+    Description: "Yes -> To Install Sumo Logic AWS CloudTrail App in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  InstallPCICloudTrailApp:
+    Type: String
+    Description: "Yes -> To Install PCI Compliance For AWS CloudTrail App in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  InstallCISFoundationApp:
+    Type: String
+    Description: "Yes -> To Install CIS AWS Foundations Benchmark App in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  InstallCloudTrailMonitoringAnalyticsApp:
+    Type: String
+    Description: "Yes -> To Install Amazon CloudTrail - Sumo Cloud Security Monitoring and Analytics App in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  InstallCloudTrailSecOpsApp:
+    Type: String
+    Description: "Yes -> To Install Sumo Global Intelligence for AWS CloudTrail SecOps App in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  CloudTrailLogsBucketName:
+    Type: String
+    Description: "Existing Bucket Name - Provide value if the Flag is set to No.
+                  New Bucket Name - Provide a unique Bucket Name if the flag is set to Yes."
+  CloudTrailBucketPathExpression:
+    Type: String
+    Description: Path expression to match one or more S3 objects. For example, ABC*.log or ABC.log
+    Default: "CloudTrail/*"
+  CloudTrailLogsSourceName:
+    Type: String
+    Description: Change the CloudTrail Source name to be created else default name will be used.
+    Default: AWS-Cloudtrail-Log-Source
+  CloudTrailCreateS3LogsSource:
+    Type: String
+    Description: "Yes: Create Sumo Logic S3 log source to collect CloudTrail logs.
+                  No: Skip creation of the Sumo Logic S3 log source."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  CloudTrailLogsSourceCategoryName:
+    Type: String
+    Description: "Existing - Change to an existing Source Category from Sumo Logic if CloudTrail Source is not created.
+                  New - Default will be used if CloudTrail Source is Created."
+    Default: AWS/Cloudtrail/Logs
+  SNSTopicArn:
+    Type: String
+    Description: "ARN of SNS Topic to listen event S3 Put Object and trigger to Sumo Logic"
+  ParentHelperFunctionArn:
+    Type: String
+    Description: ARN of Parent Helper Funtion
+
+  EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "Yes -> Enabled forward data to CloudSIEM.
+                  No -> Skip enable forward."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+
+Conditions:
+  install_cloudtrail_app: !Equals [!Ref InstallCloudTrailApp, 'Yes']
+  install_pci_cloudtrail_app: !Equals [!Ref InstallPCICloudTrailApp, 'Yes']
+  install_cis_foundation_app: !Equals [!Ref InstallCISFoundationApp, 'Yes']
+  install_cloudtrail_monitoring_analytics_app: !Equals [!Ref InstallCloudTrailMonitoringAnalyticsApp,'Yes']
+  install_cloudtrail_secops_app: !Equals [!Ref InstallCloudTrailSecOpsApp,'Yes']
+  install_cloudtrail_logs_source: !Equals [!Ref CloudTrailCreateS3LogsSource, 'Yes']
+  enable_forward_data_to_cloudsiem: !And
+    - !Equals [!Ref EnableForwardDataToCloudSIEM, 'Yes']
+    - !Condition install_cloudtrail_logs_source
+
+Resources:
+
+  sumoAppWaitHandle:
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+
+  sumoCloudTrailAppWaitCondition:
+    Condition: install_cloudtrail_app
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !Ref sumoAppWaitHandle
+      Timeout: "5"
+      Count: 0
+
+
+
+  sumoCloudTrailApp:
+    Type: Custom::App
+    Condition: install_cloudtrail_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AppName: "Amazon QuickStart - AWS CloudTrail"
+      AppId: "ceb7fac5-1137-4a04-a5b8-2e49190be3d4"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        logsrc: !Sub "_sourceCategory=${CloudTrailLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+
+  sumoPCICloudTrailAppWaitCondition:
+    Condition: install_pci_cloudtrail_app
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !Ref sumoAppWaitHandle
+      Timeout: "15"
+      Count: 0
+
+  sumoPCICloudTrailApp:
+    Type: Custom::App
+    Condition: install_pci_cloudtrail_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AppName: "Amazon QuickStart - PCI Compliance For AWS CloudTrail."
+      AppId: "924d7e2a-a14a-4b11-8c91-133241be2a51"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        CloudtrailLogSrc: !Sub "_sourceCategory=${CloudTrailLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+
+  sumoCISFoundationsAppWaitCondition:
+    Condition: install_cis_foundation_app
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !Ref sumoAppWaitHandle
+      Timeout: "25"
+      Count: 0
+
+
+  sumoCISFoundationsApp:
+    Type: Custom::App
+    Condition: install_cis_foundation_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AppName: "Amazon QuickStart - CIS AWS Foundations Benchmark"
+      AppId: "9f630fe6-9253-4700-bb7e-36afc97b8cb6"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        paramId123: !Sub "_sourceCategory=${CloudTrailLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  sumMonitoringAnalyticsAppWaitCondition:
+    Condition: install_cloudtrail_monitoring_analytics_app
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !Ref sumoAppWaitHandle
+      Timeout: "35"
+      Count: 0
+
+  sumMonitoringAnalyticsApp:
+    Type: Custom::App
+    Condition: install_cloudtrail_monitoring_analytics_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AppName: "Amazon QuickStart - Amazon CloudTrail - Cloud Security Monitoring and Analytics App"
+      AppId: "a0ce63ad-ed4f-4ea2-967b-da2854c53aa9"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        logsrc: !Sub "_sourceCategory=${CloudTrailLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  sumSecOpsAppWaitCondition:
+    Condition: install_cloudtrail_secops_app
+    Type: "AWS::CloudFormation::WaitCondition"
+    Properties:
+      Handle: !Ref sumoAppWaitHandle
+      Timeout: "45"
+      Count: 0
+
+  sumSecOpsApp:
+    Type: Custom::App
+    Condition: install_cloudtrail_secops_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AppName: "Amazon QuickStart - Global Intelligence for AWS CloudTrail SecOps"
+      AppId: "570bdc0d-f824-4fcb-96b2-3230d4497180"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        seed: "%rnd%"
+        source: !Sub "_sourceCategory=${CloudTrailLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+
+  SumoSNSSubscription:
+    Condition: install_cloudtrail_logs_source
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      TopicArn: !Ref SNSTopicArn
+      Endpoint: !GetAtt SumoCloudTrailSource.SUMO_ENDPOINT
+      Protocol: https
+      Region: !Ref CloudTrailS3Region
+      DeliveryPolicy:
+        healthyRetryPolicy:
+          numRetries: 40
+          minDelayTarget: 10
+          maxDelayTarget: 300
+          numMinDelayRetries: 3
+          numMaxDelayRetries: 5
+          numNoDelayRetries: 0
+          backoffFunction: exponential
+
+
+  SumoCloudTrailSource:
+    Condition: install_cloudtrail_logs_source
+    Type: Custom::AWSSource
+    Properties:
+      SourceType: AwsCloudTrailBucket
+      ServiceToken: !Ref ParentHelperFunctionArn
+      SourceName: !Ref CloudTrailLogsSourceName
+      TargetBucketName: !Ref CloudTrailLogsBucketName
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      SourceCategory: !Ref CloudTrailLogsSourceCategoryName
+      CollectorId: !Ref CollectorID
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      PathExpression: !Ref CloudTrailBucketPathExpression
+      RoleArn: !Ref SumoRoleArn
+
+  SumoUpdateFields:
+    DependsOn:
+        - SumoCloudTrailSource   
+    Type: Custom::SumoLogicUpdateFields
+    Condition: enable_forward_data_to_cloudsiem
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      CollectorId: !Ref CollectorID
+      SourceName: !Ref CloudTrailLogsSourceName
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      Fields: {'_siemForward':'True'}
+
+Outputs:
+
+  SumoEndpoint:
+    Description: SNS Subscription Endpoint
+    Condition: install_cloudtrail_logs_source
+    Value: !GetAtt SumoCloudTrailSource.SUMO_ENDPOINT
+
+  CloudTrailAppFolder:
+    Description: "Folder Name"
+    Condition: install_cloudtrail_app
+    Value: !GetAtt sumoCloudTrailApp.APP_FOLDER_NAME
+  PciCloudTrailAppFolder:
+    Description: "Folder Name"
+    Condition: install_pci_cloudtrail_app
+    Value: !GetAtt sumoPCICloudTrailApp.APP_FOLDER_NAME
+  CloudTrailSecOpsFolder:
+    Description: "Folder Name"
+    Condition: install_cloudtrail_secops_app
+    Value: !GetAtt sumSecOpsApp.APP_FOLDER_NAME
+  CloudTrailCISFoundationAppFolder:
+    Description: "Folder Name"
+    Condition: install_cis_foundation_app
+    Value: !GetAtt sumoCISFoundationsApp.APP_FOLDER_NAME
+  CloudTrailMonitoringAnalyticsAppFolder:
+    Description: "Folder Name"
+    Condition: install_cloudtrail_monitoring_analytics_app
+    Value: !GetAtt sumMonitoringAnalyticsApp.APP_FOLDER_NAME

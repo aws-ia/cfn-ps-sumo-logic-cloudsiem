@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates the Security Hub enabler IAM role. (qs-1t29c972u)
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Security Hub Enabler Role Attributes
+        Parameters:
+          - SecurityHubEnablerRoleName
+          - SecurityHubEnablerLambdaRoleName
+          - OrgManagementAccountId
+
+    ParameterLabels:
+      SecurityHubEnablerRoleName:
+        default: Security Hub Enabler Role Name
+      SecurityHubEnablerLambdaRoleName:
+        default: Security Hub Enabler Lambda Role Name
+      OrgManagementAccountId:
+        default: Organization Management Account ID
+
+Parameters:
+
+  SecurityHubEnablerRoleName:
+    Type: String
+    Description: Security Hub Enabler Role Name
+    Default: sra-security-hub-enabler
+
+  SecurityHubEnablerLambdaRoleName:
+    Type: String
+    Description: Security Hub Enabler Role Name
+    Default: sra-security-hub-enabler-lambda
+
+  OrgManagementAccountId:
+    Type: String
+    Description: Organization Management Account ID
+
+Resources:
+  rSecurityHubEnablerRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit name used for restricting access to only the cross-account role
+    Properties:
+      RoleName: !Ref SecurityHubEnablerRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:PrincipalArn: !Sub arn:${AWS::Partition}:iam::${OrgManagementAccountId}:role/${SecurityHubEnablerLambdaRoleName}
+            Principal:
+              AWS:
+                - !Sub arn:${AWS::Partition}:iam::${OrgManagementAccountId}:root
+
+      Path: '/'
+      Policies:
+        - PolicyName: !Ref SecurityHubEnablerRoleName
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - securityhub:AcceptInvitation
+                  - securityhub:BatchDisableStandards
+                  - securityhub:BatchEnableStandards
+                  - securityhub:CreateActionTarget
+                  - securityhub:CreateMembers
+                  - securityhub:DeclineInvitations
+                  - securityhub:DeleteInvitations
+                  - securityhub:DeleteMembers
+                  - securityhub:DisableImportFindingsForProduct
+                  - securityhub:DisableSecurityHub
+                  - securityhub:DisassociateFromMasterAccount
+                  - securityhub:DisassociateMembers
+                  - securityhub:EnableImportFindingsForProduct
+                  - securityhub:EnableSecurityHub
+                  - securityhub:GetEnabledStandards
+                  - securityhub:GetFindings
+                  - securityhub:GetInvitationsCount
+                  - securityhub:GetMasterAccount
+                  - securityhub:GetMembers
+                  - securityhub:InviteMembers
+                  - securityhub:ListInvitations
+                  - securityhub:ListMembers
+                  - securityhub:TagResource
+                  - securityhub:UntagResource
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
+
+              - Sid: CreateServiceLinkedRole
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Condition:
+                  StringEquals:
+                    'iam:AWSServiceName': 'securityhub.amazonaws.com'
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub
