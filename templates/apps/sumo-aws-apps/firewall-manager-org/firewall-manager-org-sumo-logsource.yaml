@@ -82,8 +82,8 @@ Resources:
                   - s3:ListBucketVersions
                   - s3:ListBucket
                 Resource:
-                  - !Sub "arn:aws:s3:::${LogsS3BucketName}/*"
-                  - !Sub "arn:aws:s3:::${LogsS3BucketName}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${LogsS3BucketName}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${LogsS3BucketName}"
   SumoSNSTopic:
     Metadata:
       cfn_nag:

@@ -398,7 +398,7 @@ Resources:
                 
               - Effect: Allow
                 Action: iam:GetRole
-                Resource: "arn:aws:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection"
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection"
 
               - Effect: Allow
                 Action: iam:CreateServiceLinkedRole
@@ -410,7 +410,7 @@ Resources:
                       - guardduty.amazonaws.com
               - Effect: Allow
                 Action: ec2:CreateVpcEndpoint
-                Resource: arn:aws:ec2:*:*:vpc-endpoint/*
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:*:*:vpc-endpoint/*'
                 Condition:
                   ForAnyValue:StringEquals:
                     aws:TagKeys: GuardDutyManaged
@@ -423,7 +423,7 @@ Resources:
                 Action:
                   - ec2:ModifyVpcEndpoint
                   - ec2:DeleteVpcEndpoints
-                Resource: arn:aws:ec2:*:*:vpc-endpoint/*
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:vpc-endpoint/*"
                 Condition:
                   "Null":
                     aws:ResourceTag/GuardDutyManaged: false
@@ -432,12 +432,12 @@ Resources:
                   - ec2:CreateVpcEndpoint
                   - ec2:ModifyVpcEndpoint
                 Resource:
-                  - arn:aws:ec2:*:*:vpc/*
-                  - arn:aws:ec2:*:*:security-group/*
-                  - arn:aws:ec2:*:*:subnet/*
+                  - !Sub "arn:${AWS::Partition}:ec2:*:*:vpc/*"
+                  - !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
+                  - !Sub "arn:${AWS::Partition}:ec2:*:*:subnet/*"
               - Effect: Allow
                 Action: ec2:CreateTags
-                Resource: arn:aws:ec2:*:*:vpc-endpoint/*
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:vpc-endpoint/*"
                 Condition:
                   StringEquals:
                     ec2:CreateAction: CreateVpcEndpoint
@@ -450,25 +450,25 @@ Resources:
                   - ec2:RevokeSecurityGroupIngress
                   - ec2:RevokeSecurityGroupEgress
                   - ec2:DeleteSecurityGroup
-                Resource: arn:aws:ec2:*:*:security-group/*
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
                 Condition:
                   "Null":
                     aws:ResourceTag/GuardDutyManaged: false
 
               - Effect: Allow
                 Action: ec2:CreateSecurityGroup
-                Resource: arn:aws:ec2:*:*:security-group/*
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
                 Condition:
                   StringLike:
                     aws:RequestTag/GuardDutyManaged: "*"
 
               - Effect: Allow
                 Action: ec2:CreateSecurityGroup
-                Resource: arn:aws:ec2:*:*:vpc/*
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:vpc/*"
 
               - Effect: Allow
                 Action: ec2:CreateTags
-                Resource: arn:aws:ec2:*:*:security-group/*
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
                 Condition:
                   StringEquals:
                     ec2:CreateAction: CreateSecurityGroup
@@ -477,7 +477,7 @@ Resources:
                     
               - Effect: Allow
                 Action: eks:CreateAddon
-                Resource: arn:aws:eks:*:*:cluster/*
+                Resource: !Sub "arn:${AWS::Partition}:eks:*:*:cluster/*"
                 Condition:
                   ForAnyValue:StringEquals:
                     aws:TagKeys: GuardDutyManaged
@@ -486,10 +486,10 @@ Resources:
                   - eks:DeleteAddon
                   - eks:UpdateAddon
                   - eks:DescribeAddon
-                Resource: arn:aws:eks:*:*:addon/*/aws-guardduty-agent/*
+                Resource: !Sub "arn:${AWS::Partition}:eks:*:*:addon/*/aws-guardduty-agent/*"
               - Effect: Allow
                 Action: eks:TagResource
-                Resource: arn:aws:eks:*:*:cluster/*
+                Resource: !Sub "arn:${AWS::Partition}:eks:*:*:cluster/*"
                 Condition:
                   ForAnyValue:StringEquals:
                     aws:TagKeys: GuardDutyManaged

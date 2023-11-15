@@ -74,7 +74,7 @@ Resources:
                   - s3:ListBucketMultipartUploads
                   - s3:PutObject
                 Resource:
-                  - !Sub 'arn:aws:s3:::${LogsS3BucketName}'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${LogsS3BucketName}'
         - PolicyName: KinesisKinesisRolePolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -90,7 +90,7 @@ Resources:
                   - kinesis:PutRecord
                   - kinesis:PutRecordBatch
                 Resource:
-                  - !Sub 'arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%'
+                  - !Sub 'arn:${AWS::Partition}:kinesis:${AWS::Region}:${AWS::AccountId}:stream/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%'
         - PolicyName: KinesisLogsRolePolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -99,8 +99,8 @@ Resources:
                 Action:
                   - logs:PutLogEvents
                 Resource:
-                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/aws-waf-logs-${AWS::Region}-${DeliveryStreamName}:log-stream:*'
-                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%:log-stream:*'
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/aws-waf-logs-${AWS::Region}-${DeliveryStreamName}:log-stream:*'
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%:log-stream:*'
 
 
   KinesisFirehoseDeliveryStream:

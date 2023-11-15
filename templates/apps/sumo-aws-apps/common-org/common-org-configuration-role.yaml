@@ -122,7 +122,7 @@ Resources:
                 Effect: Allow
                 Resource: 
                   - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*
-                  - arn:aws:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection
+                  - !Sub arn:${AWS::Partition}:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection
                 Sid: AllowReadIamActions
 
               - Action:
@@ -136,7 +136,7 @@ Resources:
                 Effect: Allow
                 Resource: 
                   - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty
-                  - arn:aws:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection
+                  - !Sub arn:${AWS::Partition}:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection
                 Sid: AllowCreateDeleteServiceLinkedRole
 
               - Action:
@@ -145,5 +145,5 @@ Resources:
                 Effect: Allow
                 Resource: 
                   - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty
-                  - arn:aws:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection
+                  - !Sub arn:${AWS::Partition}:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection
                 Sid: AllowPolicyActions
