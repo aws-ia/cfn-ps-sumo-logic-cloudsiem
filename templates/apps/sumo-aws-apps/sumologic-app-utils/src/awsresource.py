@@ -13,6 +13,12 @@ from retrying import retry
 from botocore.config import Config
 from time import time as now
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from mypy_boto3_sns import SNSClient
+from mypy_boto3_organizations import OrganizationsClient
+from mypy_boto3_sns.type_defs import PublishBatchResponseTypeDef
+import common
+from time import sleep
+import securityhub
 
 # Setup Default Logger
 logging.basicConfig(level=logging.DEBUG)
@@ -614,14 +620,249 @@ class AWSCloudTrailOrg(AWSResource):
             "params": props
         }                                                                                 
 
+class AWSSecurityHub(AWSResource):
+    
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["AWS_PARTITION", "CIS_VERSION", "CONFIGURATION_ROLE_NAME",
+                                    "CONTROL_TOWER_REGIONS_ONLY", "DELEGATED_ADMIN_ACCOUNT_ID", "DISABLE_SECURITY_HUB",
+                                    "ENABLE_CIS_STANDARD", "ENABLE_PCI_STANDARD","ENABLE_SECURITY_BEST_PRACTICES_STANDARD",
+                                    "HOME_REGION","MANAGEMENT_ACCOUNT_ID","PCI_VERSION","REGION_LINKING_MODE",
+                                    "SECURITY_BEST_PRACTICES_VERSION","ENABLED_REGIONS","LINKED_REGIONS"]
+        self.UNEXPECTED = "Unexpected!"
+        self.SERVICE_NAME = "securityhub.amazonaws.com"
+        self.SLEEP_SECONDS = 60
+        self.PRE_DISABLE_SLEEP_SECONDS = 30
+        self.SNS_PUBLISH_BATCH_MAX = 10
+        self.BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})        
+        try:
+            MANAGEMENT_ACCOUNT_SESSION = boto3.Session()
+            self.ORG_CLIENT: OrganizationsClient = MANAGEMENT_ACCOUNT_SESSION.client("organizations", config=self.BOTO3_CONFIG)
+            self.SNS_CLIENT: SNSClient = MANAGEMENT_ACCOUNT_SESSION.client("sns", config=self.BOTO3_CONFIG)
+        except Exception:
+            logger.exception(self.UNEXPECTED)
+            raise ValueError("Unexpected error executing Lambda function. Review CloudWatch logs for details.") from None    
+            
 
+    def deregister_delegated_administrator(self,delegated_admin_account_id: str, service_principal: str = "securityhub.amazonaws.com") -> None:
+        """Deregister the delegated administrator account for the provided service principal within AWS Organizations.
+        Args:
+            delegated_admin_account_id: Delegated Admin Account
+            service_principal: Service Principal
+        """
+        try:
+            logger.info(f"Deregistering the delegated admin {delegated_admin_account_id} for {service_principal}")
+
+            self.ORG_CLIENT.deregister_delegated_administrator(AccountId=delegated_admin_account_id, ServicePrincipal=service_principal)
+        except self.ORG_CLIENT.exceptions.AccountNotRegisteredException as error:
+            logger.info(f"Account ({delegated_admin_account_id}) is not a registered delegated administrator: {error}")        
+
+    def create_sns_messages(self,accounts: list, regions: list, sns_topic_arn: str, action: str) -> None:
+        """Create SNS Message.
+        Args:
+            accounts: Account List
+            regions: AWS Region List
+            sns_topic_arn: SNS Topic ARN
+            action: Action
+        """
+        sns_messages = []
+        for account in accounts:
+            sns_message = {"AccountId": account["AccountId"], "Regions": regions, "Action": action}
+            sns_messages.append({"Id": account["AccountId"], "Message": json.dumps(sns_message), "Subject": "Security Hub Configuration"})
+
+        self.process_sns_message_batches(sns_messages, sns_topic_arn)
+
+
+    def process_sns_message_batches(self,sns_messages: list, sns_topic_arn: str) -> None:
+        """Process SNS Message Batches for Publishing.
+        Args:
+            sns_messages: SNS messages to be batched.
+            sns_topic_arn: SNS Topic ARN
+        """
+        message_batches = []
+        for i in range(self.SNS_PUBLISH_BATCH_MAX, len(sns_messages) + self.SNS_PUBLISH_BATCH_MAX, self.SNS_PUBLISH_BATCH_MAX):
+            message_batches.append(sns_messages[i - self.SNS_PUBLISH_BATCH_MAX : i])
+
+        for batch in message_batches:
+            self.publish_sns_message_batch(batch, sns_topic_arn)
+
+
+    def publish_sns_message_batch(self,message_batch: list, sns_topic_arn: str) -> None:
+        """Publish SNS Message Batches.
+        Args:
+            message_batch: Batch of SNS messages
+            sns_topic_arn: SNS Topic ARN
+        """
+        logger.info("Publishing SNS Message Batch")
+        logger.info({"SNSMessageBatch": message_batch})
+        response: PublishBatchResponseTypeDef = self.SNS_CLIENT.publish_batch(TopicArn=sns_topic_arn, PublishBatchRequestEntries=message_batch)
+        api_call_details = {"API_Call": "sns:PublishBatch", "API_Response": response}
+        logger.info(api_call_details)
+
+    def get_standards_dictionary(self,params: dict) -> dict:
+        """Get Standards Dictionary used to process standard configurations.
+        Args:
+            params: Configuration parameters
+        Returns:
+            Dictionary of standards data
+        """
+        return {
+            "SecurityBestPracticesVersion": params["SECURITY_BEST_PRACTICES_VERSION"],
+            "CISVersion": params["CIS_VERSION"],
+            "PCIVersion": params["PCI_VERSION"],
+            "StandardsToEnable": {
+                "cis": params["ENABLE_CIS_STANDARD"] == "true",
+                "pci": params["ENABLE_PCI_STANDARD"] == "true",
+                "sbp": params["ENABLE_SECURITY_BEST_PRACTICES_STANDARD"] == "true",
+            },
+        }
+
+    def process_add_update_event(self,params: dict,action: str) -> str:
+        """Process Add or Update Events.
+        Args:
+            params: Configuration Parameters
+        Returns:
+            Status
+        """
+        accounts = common.get_active_organization_accounts(params["DELEGATED_ADMIN_ACCOUNT_ID"])
+        regions = common.get_enabled_regions(params["ENABLED_REGIONS"], params["CONTROL_TOWER_REGIONS_ONLY"] == "true")
+
+        if params["DISABLE_SECURITY_HUB"] == "true" and action == "Update":
+            logger.info("...Disable Security Hub")
+            securityhub.disable_organization_admin_account(regions)
+            securityhub.disable_securityhub(params["DELEGATED_ADMIN_ACCOUNT_ID"], params["CONFIGURATION_ROLE_NAME"], regions)
+
+            logger.info(f"Waiting {self.PRE_DISABLE_SLEEP_SECONDS} seconds before disabling member accounts.")
+            sleep(self.PRE_DISABLE_SLEEP_SECONDS)
+            #self.create_sns_messages(accounts, regions, params["SNS_TOPIC_ARN"], "disable")
+            return "DISABLE_COMPLETE"
+
+        if action == "Add":
+            logger.info("...Enable Security Hub")
+
+            # Configure Security Hub in the Management Account
+            securityhub.enable_account_securityhub(
+                params["MANAGEMENT_ACCOUNT_ID"], regions, params["CONFIGURATION_ROLE_NAME"], params["AWS_PARTITION"], self.get_standards_dictionary(params)
+            )
+            logger.info("Waiting 20 seconds before configuring the delegated admin account.")
+            sleep(20)
+
+        linked_region_list = []
+        for region in params["LINKED_REGIONS"].split(","):
+            if region != "":
+                linked_region_list.append(region.strip())
+
+        # Configure Security Hub Delegated Admin and Organizations
+        securityhub.configure_delegated_admin_securityhub(
+            accounts,
+            regions,
+            params["DELEGATED_ADMIN_ACCOUNT_ID"],
+            params["CONFIGURATION_ROLE_NAME"],
+            params["REGION_LINKING_MODE"],
+            linked_region_list,
+            params["HOME_REGION"],
+        )
+        # Configure Security Hub in the Delegated Admin Account
+        securityhub.enable_account_securityhub(
+            params["DELEGATED_ADMIN_ACCOUNT_ID"],
+            regions,
+            params["CONFIGURATION_ROLE_NAME"],
+            params["AWS_PARTITION"],
+            self.get_standards_dictionary(params),
+        )
+
+        if action == "Add":
+            logger.info(f"Waiting {self.SLEEP_SECONDS} seconds before configuring member accounts.")
+            sleep(self.SLEEP_SECONDS)
+        #self.create_sns_messages(accounts, regions, params["SNS_TOPIC_ARN"], "configure")
+        return "ADD_UPDATE_COMPLETE"
+
+
+    def create(self, params, *args, **kwargs):
+        logger.info("Create Event")
+        self.process_add_update_event(params,"Add")
+        
+        return {'SecurityHubResourceId': "SecurityHubResourceId"}, "SecurityHubResourceId"
+
+    def update(self, params, *args, **kwargs):
+        logger.info("Update Event")
+        self.process_add_update_event(params,"Update")
+
+    def delete(self, params, *args, **kwargs):
+        logger.info("Delete Event")
+        regions = common.get_enabled_regions(params["ENABLED_REGIONS"], params["CONTROL_TOWER_REGIONS_ONLY"] == "true")
+        logger.info("...Disable Security Hub")
+        securityhub.disable_organization_admin_account(regions)
+        securityhub.disable_securityhub(params["DELEGATED_ADMIN_ACCOUNT_ID"], params["CONFIGURATION_ROLE_NAME"], regions)
+        self.deregister_delegated_administrator(params["DELEGATED_ADMIN_ACCOUNT_ID"], self.SERVICE_NAME)        
+
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }                                                                                 
+
+class GetAvailableServiceRegions(AWSResource):
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["ENABLED_REGIONS","AWS_SERVICE"]
+
+    def is_region_available(self,region):
+        regional_sts = boto3.client('sts', region_name=region)
+        try:
+            regional_sts.get_caller_identity()
+            return True
+        except ClientError as error:
+            if "InvalidClientTokenId" in str(error):
+                logger.info(f"Region: {region} is not available")
+                return False
+            else:
+                logger.error(f"{error}")
+
+    def get_available_service_regions(self, user_regions: str, aws_service: str) -> list:
+        available_regions = []
+        try:
+            if user_regions.strip():
+                logger.info(f"USER REGIONS: {str(user_regions)}")
+                service_regions = [value.strip() for value in user_regions.split(",") if value != '']
+            else:
+                service_regions = boto3.session.Session().get_available_regions(
+                    aws_service
+                )
+            logger.info(f"SERVICE REGIONS: {service_regions}")
+        except ClientError as ce:
+            logger.error(f"get_available_service_regions error: {ce}")
+            raise ValueError("Error getting service regions")
+        
+        for region in service_regions:
+            if self.is_region_available(region):
+                available_regions.append(region)
+
+        logger.info(f"AVAILABLE REGIONS: {available_regions}")
+        return available_regions
+            
+    
+    def create(self, params, *args, **kwargs):
+        available_regions = self.get_available_service_regions(params.get("ENABLED_REGIONS", ""), params.get("AWS_SERVICE", "guardduty"))
+        regions = ','.join([str(regions) for regions in available_regions])
+        return {'REGIONS': regions}, regions
+        
+    def update(self, params, *args, **kwargs):
+        pass
+
+    def delete(self,params, *args, **kwargs):
+        pass
+
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }                 
 class GuardDuty(AWSResource):
 
     def __init__(self, props,  *args, **kwargs):
 
         self.CLOUDFORMATION_PARAMETERS = ["AUTO_ENABLE_S3_LOGS", "AWS_PARTITION", "CONFIGURATION_ROLE_NAME",
                                     "DELEGATED_ADMIN_ACCOUNT_ID", "DELETE_DETECTOR_ROLE_NAME", "ENABLED_REGIONS",
-                                    "FINDING_PUBLISHING_FREQUENCY"]
+                                    "FINDING_PUBLISHING_FREQUENCY", "ENABLE_RDS_LOGIN_ACTIVITY_MONITORING","FEATURES"]
         self.SERVICE_ROLE_NAME = "AWSServiceRoleForAmazonGuardDuty"
         self.SERVICE_NAME = "guardduty.amazonaws.com"
         self.PAGE_SIZE = 20  # Max page size for list_accounts
@@ -629,6 +870,7 @@ class GuardDuty(AWSResource):
         self.SLEEP_SECONDS = 10
         self.MAX_THREADS = 10
         self.STS_CLIENT = boto3.client('sts')
+        
 
     def get_service_client(self,aws_service: str, aws_region: str, session=None):
         if aws_region:
@@ -680,7 +922,7 @@ class GuardDuty(AWSResource):
     def get_all_organization_accounts(self,exclude_account_id: str):
         accounts = []  # used for create_members
         account_ids = []  # used for disassociate_members
-
+        
         try:
             organizations = boto3.client("organizations")
             paginator = organizations.get_paginator("list_accounts")
@@ -755,12 +997,14 @@ class GuardDuty(AWSResource):
             logger.error(f"{exc}")
             raise ValueError(f"Error Creating Member Accounts")
 
-    def update_member_detectors(self,guardduty_client, detector_id: str, account_ids: list):
+    def update_member_detectors(self,guardduty_client, detector_id: str, account_ids: list, features: str):
         try:
+            
+            features_member_detector = self.generator_feature_member_detector(features=features)
             configuration_params = {
                 "DetectorId": detector_id,
                 "AccountIds": account_ids,
-                "DataSources": {"S3Logs": {"Enable": True}}
+                "Features": features_member_detector
             }
             update_member_response = guardduty_client.update_member_detectors(**configuration_params)
 
@@ -796,27 +1040,86 @@ class GuardDuty(AWSResource):
             raise ValueError("Error updating member detectors")
 
     def update_guardduty_configuration(self,guardduty_client, auto_enable_s3_logs: bool, detector_id: str,
-                                    finding_publishing_frequency: str, account_ids: list):
+                                    finding_publishing_frequency: str, account_ids: list, features: str):
+        logger.info(f"botocore version: {boto3.__version__}")
         try:
-            org_configuration_params = {"DetectorId": detector_id, "AutoEnable": True}
+            features_organization = self.generator_feature_organization(features=features)
+            features_admin_configuration = self.generator_feature_member_detector(features=features)
+            org_configuration_params = {"DetectorId": detector_id, "AutoEnable": True, "Features":features_organization}
             admin_configuration_params = {
                 "DetectorId": detector_id,
                 "FindingPublishingFrequency": finding_publishing_frequency
             }
 
-            if auto_enable_s3_logs:
-                org_configuration_params["DataSources"] = {"S3Logs": {"AutoEnable": True}}
-                admin_configuration_params["DataSources"] = {"S3Logs": {"Enable": True}}
-
+            admin_configuration_params["Features"] = features_admin_configuration
             guardduty_client.update_organization_configuration(**org_configuration_params)
             guardduty_client.update_detector(**admin_configuration_params)
-            self.update_member_detectors(guardduty_client, detector_id, account_ids)
+            self.update_member_detectors(guardduty_client, detector_id, account_ids,features)
         except ClientError as error:
             logger.error(f"update_guardduty_configuration {error}")
             raise ValueError(f"Error updating GuardDuty configuration")
-
+        
+    def generator_feature_member_detector(self,features:str):
+        if len(features.strip())<=0:
+            return [{"Name":"RDS_LOGIN_EVENTS","Status":"ENABLED"},
+                    {"Name":"EKS_AUDIT_LOGS","Status":"ENABLED"},
+                    {"Name":"EBS_MALWARE_PROTECTION","Status":"ENABLED"},
+                    {"Name":"S3_DATA_EVENTS","Status":"ENABLED"}
+                    ]
+        else:
+            tmp = features.split(",")
+            list_feature = [x.strip().upper() for x in tmp ]
+            return_feature = []
+            if "RDS" in list_feature:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","Status":"DISABLED"})
+            if "EKS" in list_feature:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","Status":"DISABLED"})
+            if "MALWAREPROTECTION" in list_feature:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","Status":"DISABLED"})
+            if "S3LOGS" in list_feature:
+                return_feature.append({"Name":"S3_DATA_EVENTS","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"S3_DATA_EVENTS","Status":"DISABLED"})
+            return return_feature
+        
+    def generator_feature_organization(self,features:str):
+        if len(features.strip())<=0:
+            return [{"Name":"RDS_LOGIN_EVENTS","AutoEnable":"NEW"},
+                    {"Name":"EKS_AUDIT_LOGS","AutoEnable":"NEW"},
+                    {"Name":"EBS_MALWARE_PROTECTION","AutoEnable":"NEW"},
+                    {"Name":"S3_DATA_EVENTS","AutoEnable":"NEW"}
+                    ]
+        else:
+            tmp = features.split(",")
+            list_feature = [x.strip().upper() for x in tmp ]
+            return_feature = []
+            if "RDS" in list_feature:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","AutoEnable":"NONE"})
+            if "EKS" in list_feature:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","AutoEnable":"NONE"})
+            if "MALWAREPROTECTION" in list_feature:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","AutoEnable":"NONE"})
+            if "S3LOGS" in list_feature:
+                return_feature.append({"Name":"S3_DATA_EVENTS","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"S3_DATA_EVENTS","AutoEnable":"NONE"})
+            logger.info(f"return_feature: {return_feature}")    
+            return return_feature
+        
     def configure_guardduty(self, session, delegated_account_id: str, auto_enable_s3_logs: bool, available_regions: list,
-                            finding_publishing_frequency: str):
+                            finding_publishing_frequency: str, features: str):
 
         accounts, account_ids = self.get_all_organization_accounts(delegated_account_id)
 
@@ -835,7 +1138,7 @@ class GuardDuty(AWSResource):
                     logger.info(f"Waiting {self.SLEEP_SECONDS} seconds")
                     time.sleep(self.SLEEP_SECONDS)
                     self.update_guardduty_configuration(regional_guardduty, auto_enable_s3_logs, detector_id,
-                                                finding_publishing_frequency, account_ids)
+                                                finding_publishing_frequency, account_ids, features)
             except Exception as exc:
                 logger.error(f"configure_guardduty Exception: {exc}")
                 raise ValueError(f"Configure GuardDuty Exception. Review logs for details.")
@@ -1039,7 +1342,8 @@ class GuardDuty(AWSResource):
                     params.get("DELEGATED_ADMIN_ACCOUNT_ID", ""),
                     auto_enable_s3_logs,
                     available_regions,
-                    params.get("FINDING_PUBLISHING_FREQUENCY", "FIFTEEN_MINUTES")
+                    params.get("FINDING_PUBLISHING_FREQUENCY", "FIFTEEN_MINUTES"),
+                    params.get("FEATURES","")
                 )
             else:
                 raise ValueError(

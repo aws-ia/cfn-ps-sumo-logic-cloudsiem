@@ -131,6 +131,7 @@ Resources:
             reason: No KMS Key Provided
     Condition: cCreateCloudWatchLogGroup
     Properties:
+      KmsKeyId: !Ref AWS::NoValue
       RetentionInDays: !Ref pDefaultLogGroupRetention
       LogGroupName: !Sub "CloudTrail/${pCloudTrailName}-${ResourcePrefix}-${AWS::Region}"
 

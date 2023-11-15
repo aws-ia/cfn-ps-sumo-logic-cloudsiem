@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates the Security Hub enabler IAM role. (qs-1t29c972u)
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Role Properties
+        Parameters:
+          - SecurityHubConfigurationRoleName
+          - SecurityHubOrgLambdaRoleName
+          - DelegatedAdminAccountId
+          - ManagementAccountId
+          - ParentStackName
+
+    ParameterLabels:
+      SecurityHubConfigurationRoleName:
+        default: SecurityHub Configuration Role Name
+      SecurityHubOrgLambdaRoleName:
+        default: Lambda Role Name
+      DelegatedAdminAccountId:
+        default: Delegated Admin Account ID
+      ManagementAccountId:
+        default: Organization Management Account ID
+      ParentStackName:
+        default: "If Any, Name of parent Stack"
+      
+
+Parameters:
+
+  SecurityHubConfigurationRoleName:
+    Type: String
+    Description: Security Hub Configuration IAM Role Name
+    Default: sra-securityhub-configuration
+    ConstraintDescription: Max 64 alphanumeric characters. Also special characters supported [+, =, ., @, -]
+    AllowedPattern: '^[\w+=,.@-]{1,64}$'
+
+  SecurityHubOrgLambdaRoleName:
+    Type: String
+    Description: Lambda Role Name
+    Default: sra-securityhub-org-lambda
+    ConstraintDescription: Max 64 alphanumeric characters. Also special characters supported [+, =, ., @, -]
+    AllowedPattern: '^[\w+=,.@-]{1,64}$'
+
+  ManagementAccountId:
+    Type: String
+    Description: Organization Management Account ID
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: Must be 12 digits
+  
+  DelegatedAdminAccountId:
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: Must be 12 digits
+    Description: Delegated administrator account ID
+    Type: String
+
+  ParentStackName:
+    Type: String
+    Description: Parent Stack Name. Do Not Edit the value.
+
+Conditions:
+  DelegatedAdminAccount: !Equals [!Ref DelegatedAdminAccountId, !Ref 'AWS::AccountId']
+
+Resources:
+  rSecurityHubEnablerRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: Actions require * in resource
+          - id: W28
+            reason: Explicit role name provided
+    Properties:
+      RoleName: !Ref SecurityHubConfigurationRoleName
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:PrincipalArn:
+                  - !Sub arn:${AWS::Partition}:iam::${ManagementAccountId}:role/${SecurityHubOrgLambdaRoleName}
+            Principal:
+              AWS:
+                - !Sub arn:${AWS::Partition}:iam::${ManagementAccountId}:root
+      Path: '/'
+      Policies:
+        - PolicyName: !Sub 'sra-securityhub-org-policy-organizations-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: OrganizationsListAccounts
+                Effect: Allow
+                Action: organizations:ListAccounts
+                Resource: '*'
+
+        - PolicyName: !Sub 'sra-securityhub-org-policy-config-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowConfigDescribeActions
+                Effect: Allow
+                Action:
+                  - config:DescribeConfigurationRecorderStatus
+                  - config:DescribeConfigurationRecorders
+                Resource: '*'
+
+        - PolicyName: !Sub 'sra-securityhub-org-policy-securityhub-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: SecurityHubWildcardResource
+                Effect: Allow
+                Action:
+                  - securityhub:ListFindingAggregators
+                Resource: '*'
+
+              - Sid: SecurityHubWithResource
+                Effect: Allow
+                Action:
+                  - securityhub:BatchDisableStandards
+                  - securityhub:BatchEnableStandards
+                  - securityhub:CreateActionTarget
+                  - securityhub:DisableImportFindingsForProduct
+                  - securityhub:DisableSecurityHub
+                  - securityhub:DisassociateMembers
+                  - securityhub:EnableImportFindingsForProduct
+                  - securityhub:EnableSecurityHub
+                  - securityhub:GetEnabledStandards
+                  - securityhub:GetFindings
+                  - securityhub:GetMasterAccount
+                  - securityhub:ListMembers
+                  - securityhub:TagResource
+                  - securityhub:UntagResource
+                  - securityhub:UpdateSecurityHubConfiguration
+                  - securityhub:UpdateStandardsControl
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
+
+              - Sid: SecurityHubFindingAggregator
+                Effect: Allow
+                Action:
+                  - securityhub:CreateFindingAggregator
+                  - securityhub:DeleteFindingAggregator
+                  - securityhub:GetFindingAggregator
+                  - securityhub:UpdateFindingAggregator
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:finding-aggregator/*
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/findingAggregator/*
+
+              - !If
+                - DelegatedAdminAccount
+                - Sid: SecurityHubDelegatedAdminActions
+                  Effect: Allow
+                  Action:
+                    - securityhub:CreateMembers
+                    - securityhub:DeleteMembers
+                    - securityhub:GetMembers
+                    - securityhub:UpdateOrganizationConfiguration
+                  Resource:
+                    - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                    - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
+                - !Ref AWS::NoValue
+
+        - PolicyName: !Sub 'sra-securityhub-org-policy-iam-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowReadIamActions
+                Effect: Allow
+                Action: iam:GetRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*
+
+              - Sid: AllowCreateServiceLinkedRole
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Condition:
+                  StringLike:
+                    iam:AWSServiceName: securityhub.amazonaws.com
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub
+
+              - Sid: AllowPolicyActions
+                Effect: Allow
+                Action: iam:PutRolePolicy
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub

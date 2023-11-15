@@ -56,6 +56,7 @@ Metadata:
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+          - QSS3BucketRegion
 
       - Label:
           default: "Local Parameters. Do Not Edit the values."
@@ -111,6 +112,8 @@ Metadata:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
         default: "Quick Start S3 key prefix"
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"        
       ParentStackName:
         default: "If Any, Name of parent Stack"
 
@@ -270,6 +273,10 @@ Parameters:
     Default: "quickstart-sumo-logic-cloudsiem/"
     Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
     Type: "String"
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String    
   ParentStackName:
     Type: String
     Description: Parent Stack Name. Do Not Edit the value.
@@ -284,6 +291,7 @@ Parameters:
 
 Conditions:
   install_cloudtrail_on_aws: !Equals [ !Ref InstallAWSCloudTrail, 'Yes' ]
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 Resources:
   #Stackset for cloudtrail org
   CloudtrailResoucesStackset:
@@ -310,8 +318,8 @@ Resources:
               - !Ref "AWS::AccountId"
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/cloudtrail-org/cloudtrail-org.yaml'
-        - S3Region: !Ref "AWS::Region"
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'pCloudTrailS3BucketName'
           ParameterValue: !Ref CloudTrailLogsBucketName
@@ -327,8 +335,8 @@ Resources:
           Value: !Ref QSVersion
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/cloudtrail-org/cloudtrail-app-sumo.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         SumoDeployment: !Ref SumoLogicDeployment
         SumoAccessID: !Ref SumoLogicAccessID
