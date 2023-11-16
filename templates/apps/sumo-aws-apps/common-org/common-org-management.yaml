@@ -256,7 +256,6 @@ Resources:
             Action: sts:AssumeRole
       Path: /
       Policies:
-
         - PolicyName: firewall-manager-org-policy-iam
           PolicyDocument:
             Version: 2012-10-17
@@ -268,7 +267,7 @@ Resources:
                   StringLike:
                     iam:AWSServiceName: fms.amazonaws.com
                 Effect: Allow
-                Resource: "arn:aws:iam::*:role/aws-service-role/*"
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/aws-service-role/*"
                 Sid: AllowCreateDeleteServiceLinkedRole
 
               - Action:
@@ -277,6 +276,7 @@ Resources:
                 Effect: Allow
                 Resource: !Sub arn:${AWS::Partition}:iam::aws:policy/aws-service-role/FMSServiceRolePolicy
                 Sid: AllowPolicyActions
+
         - PolicyName: firewall-manager-org-policy-fms
           PolicyDocument:
             Version: 2012-10-17
@@ -299,7 +299,9 @@ Resources:
                   - securityhub:DisableOrganizationAdminAccount
                   - securityhub:EnableOrganizationAdminAccount
                   - securityhub:ListOrganizationAdminAccounts
-                Resource: '*'
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
 
               - Sid: SecurityHubWithResource
                 Effect: Allow
@@ -379,23 +381,43 @@ Resources:
                   - ec2:DescribeVpcPeeringConnections
                   - ec2:DescribeTransitGatewayAttachments
                   - organizations:ListAccounts
-                  - organizations:DescribeAccount
-                  - s3:GetBucketPublicAccessBlock
-                  - s3:GetEncryptionConfiguration
-                  - s3:GetBucketTagging
                   - s3:GetAccountPublicAccessBlock
                   - s3:ListAllMyBuckets
-                  - s3:GetBucketAcl
-                  - s3:GetBucketPolicy
-                  - s3:GetBucketPolicyStatus
-                  - lambda:GetFunctionConfiguration
-                  - lambda:ListTags
                   - eks:ListClusters
-                  - eks:DescribeCluster
                   - ec2:DescribeVpcEndpointServices
                   - ec2:DescribeSecurityGroups
                 Resource: "*"
-                
+
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketPolicyStatus
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketAcl
+                  - s3:GetBucketTagging
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:GetEncryptionConfiguration                  
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::*
+
+              - Effect: Allow
+                Action:
+                  - lambda:ListTags
+                  - lambda:GetFunctionConfiguration
+                Resource:
+                  - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*
+
+              - Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                Resource:
+                  - !Sub arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/*
+
+              - Effect: Allow
+                Action:
+                  - organizations:DescribeAccount
+                Resource:
+                  - !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:account/*/*
+
               - Effect: Allow
                 Action: iam:GetRole
                 Resource: !Sub "arn:${AWS::Partition}:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection"
@@ -514,8 +536,6 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
-                  - organizations:AcceptHandshake
-                  - organizations:DescribeAccount
                   - organizations:DescribeOrganization
                   - organizations:ListAWSServiceAccessForOrganization
                   - organizations:ListAccounts
@@ -523,6 +543,18 @@ Resources:
                 Effect: Allow
                 Resource: "*"
                 Sid: OrganizationsReadAccess
+
+              - Action: organizations:AcceptHandshake
+                Effect: Allow
+                Resource: 
+                  - !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:handshake/*/*/*                  
+                Sid: OrganizationsAcceptHandshake
+
+              - Action: organizations:DescribeAccount
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:account/*/*
+                Sid: OrganizationsDescribeAccount
+
               - Action: ec2:DescribeRegions
                 Effect: Allow
                 Resource: '*'

@@ -111,11 +111,11 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Sid: SecurityHubWildcardResource
+              - Sid: SecurityHubListFindingAggregators
                 Effect: Allow
                 Action:
                   - securityhub:ListFindingAggregators
-                Resource: '*'
+                Resource: !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/findingAggregator/list
 
               - Sid: SecurityHubWithResource
                 Effect: Allow
