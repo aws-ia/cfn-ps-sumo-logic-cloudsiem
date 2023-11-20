@@ -38,6 +38,7 @@ Metadata:
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+          - QSS3BucketRegion
           - ParentStackName
 
   ParameterLabels:
@@ -67,6 +68,8 @@ Metadata:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
         default: "Quick Start S3 key prefix"
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"
       ParentStackName:
         default: "If Any, Name of parent Stack"
 Parameters:
@@ -157,6 +160,11 @@ Parameters:
     Default: "quickstart-sumo-logic-cloudsiem/"
     Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
     Type: "String"
+    
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String
 
   OrganizationRootID:
     AllowedPattern: '^r-[0-9a-z]{4,32}$'
@@ -175,9 +183,11 @@ Parameters:
     Default: "ParentStackName"
     Description: Parent Stack Name. Do Not Edit the value.
 
+
 Conditions:
   create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'Yes' ]
   not_create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'No' ]
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 Resources:
 
   rExecutionRole:
@@ -224,19 +234,15 @@ Resources:
                     - 'arn:*:iam::*:role/${ExecutionRoleRuleName}'
                     - ExecutionRoleRuleName: !Select [1, !Split ["/", !GetAtt rExecutionRole.Arn]]
 
-
+#Role for management account
   rSumoLogicHelperRole:
     Metadata:
-      cfn-lint:
-        config:
-          ignore_checks:
-            - EIAMPolicyWildcardResource
-          ignore_reasons:
-            EIAMPolicyWildcardResource: Ignoring wildcard resource
       cfn_nag:
         rules_to_suppress:
           - id: W11
             reason: "IAM role should not allow * resource on its permissions policy"
+          - id: W76
+            reason: "SPCM for IAM policy document is higher than 25"            
     DependsOn:
       - "rAdministrationRole"
     Type: AWS::IAM::Role
@@ -250,7 +256,6 @@ Resources:
             Action: sts:AssumeRole
       Path: /
       Policies:
-
         - PolicyName: firewall-manager-org-policy-iam
           PolicyDocument:
             Version: 2012-10-17
@@ -262,7 +267,7 @@ Resources:
                   StringLike:
                     iam:AWSServiceName: fms.amazonaws.com
                 Effect: Allow
-                Resource: '*'
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/aws-service-role/*"
                 Sid: AllowCreateDeleteServiceLinkedRole
 
               - Action:
@@ -271,6 +276,7 @@ Resources:
                 Effect: Allow
                 Resource: !Sub arn:${AWS::Partition}:iam::aws:policy/aws-service-role/FMSServiceRolePolicy
                 Sid: AllowPolicyActions
+
         - PolicyName: firewall-manager-org-policy-fms
           PolicyDocument:
             Version: 2012-10-17
@@ -283,13 +289,69 @@ Resources:
                 Resource: '*'
                 Sid: AllowFMS
 
-        - PolicyName: !Sub 'securityhub-acct-policy-sns-${ParentStackName}'
+        - PolicyName: !Sub 'securityhub-org-policy-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: NoResource
+                Effect: Allow
+                Action:
+                  - securityhub:DisableOrganizationAdminAccount
+                  - securityhub:EnableOrganizationAdminAccount
+                  - securityhub:ListOrganizationAdminAccounts
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
+
+              - Sid: SecurityHubWithResource
+                Effect: Allow
+                Action:
+                  - securityhub:EnableSecurityHub
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
+        
+        - PolicyName: !Sub 'securityhub-org-policy-iam-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AssumeRole
+                Effect: Allow
+                Action: sts:AssumeRole
+                Condition:
+                  StringEquals:
+                    aws:PrincipalOrgId: !Ref OrganizationRootID
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::*:role/*
+
+              - Sid: AllowReadIamActions
+                Effect: Allow
+                Action: iam:GetRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*
+
+              - Sid: AllowCreateServiceLinkedRole
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Condition:
+                  StringLike:
+                    iam:AWSServiceName:
+                      - securityhub.amazonaws.com
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub
+
+              - Sid: AllowPolicyActions
+                Effect: Allow
+                Action: iam:PutRolePolicy
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub
+
+        - PolicyName: !Sub 'securityhub-org-policy-sns-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Sid: SNSPublish
                 Effect: Allow
-                Action: sns:Publish
+                Action:
+                  - sns:Publish
+                  - sns:PublishBatch
                 Resource: !Sub arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:*
 
               - Sid: SNSEncryption
@@ -306,6 +368,154 @@ Resources:
                 Action: cloudformation:ListStackInstances
                 Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stackset/AWSControlTowerBP-*
 
+        - PolicyName: !Sub 'guardduty-org-policy-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeImages
+                  - ec2:DescribeVpcEndpoints
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcPeeringConnections
+                  - ec2:DescribeTransitGatewayAttachments
+                  - organizations:ListAccounts
+                  - s3:GetAccountPublicAccessBlock
+                  - s3:ListAllMyBuckets
+                  - eks:ListClusters
+                  - ec2:DescribeVpcEndpointServices
+                  - ec2:DescribeSecurityGroups
+                Resource: "*"
+
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketPolicyStatus
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketAcl
+                  - s3:GetBucketTagging
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:GetEncryptionConfiguration                  
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::*
+
+              - Effect: Allow
+                Action:
+                  - lambda:ListTags
+                  - lambda:GetFunctionConfiguration
+                Resource:
+                  - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*
+
+              - Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                Resource:
+                  - !Sub arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/*
+
+              - Effect: Allow
+                Action:
+                  - organizations:DescribeAccount
+                Resource:
+                  - !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:account/*/*
+
+              - Effect: Allow
+                Action: iam:GetRole
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection"
+
+              - Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName: 
+                      - malware-protection.guardduty.amazonaws.com
+                      - guardduty.amazonaws.com
+              - Effect: Allow
+                Action: ec2:CreateVpcEndpoint
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:*:*:vpc-endpoint/*'
+                Condition:
+                  ForAnyValue:StringEquals:
+                    aws:TagKeys: GuardDutyManaged
+                  StringLike:
+                    ec2:VpceServiceName:
+                      - com.amazonaws.*.guardduty-data
+                      - com.amazonaws.*.guardduty-data-fips
+
+              - Effect: Allow
+                Action:
+                  - ec2:ModifyVpcEndpoint
+                  - ec2:DeleteVpcEndpoints
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:vpc-endpoint/*"
+                Condition:
+                  "Null":
+                    aws:ResourceTag/GuardDutyManaged: false
+              - Effect: Allow
+                Action:
+                  - ec2:CreateVpcEndpoint
+                  - ec2:ModifyVpcEndpoint
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:ec2:*:*:vpc/*"
+                  - !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
+                  - !Sub "arn:${AWS::Partition}:ec2:*:*:subnet/*"
+              - Effect: Allow
+                Action: ec2:CreateTags
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:vpc-endpoint/*"
+                Condition:
+                  StringEquals:
+                    ec2:CreateAction: CreateVpcEndpoint
+                  ForAnyValue:StringEquals:
+                    aws:TagKeys: GuardDutyManaged
+              - Effect: Allow
+                Action:
+                  - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:AuthorizeSecurityGroupEgress
+                  - ec2:RevokeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupEgress
+                  - ec2:DeleteSecurityGroup
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
+                Condition:
+                  "Null":
+                    aws:ResourceTag/GuardDutyManaged: false
+
+              - Effect: Allow
+                Action: ec2:CreateSecurityGroup
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
+                Condition:
+                  StringLike:
+                    aws:RequestTag/GuardDutyManaged: "*"
+
+              - Effect: Allow
+                Action: ec2:CreateSecurityGroup
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:vpc/*"
+
+              - Effect: Allow
+                Action: ec2:CreateTags
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:security-group/*"
+                Condition:
+                  StringEquals:
+                    ec2:CreateAction: CreateSecurityGroup
+                  ForAnyValue:StringEquals:
+                    aws:TagKeys: GuardDutyManaged
+                    
+              - Effect: Allow
+                Action: eks:CreateAddon
+                Resource: !Sub "arn:${AWS::Partition}:eks:*:*:cluster/*"
+                Condition:
+                  ForAnyValue:StringEquals:
+                    aws:TagKeys: GuardDutyManaged
+              - Effect: Allow
+                Action:
+                  - eks:DeleteAddon
+                  - eks:UpdateAddon
+                  - eks:DescribeAddon
+                Resource: !Sub "arn:${AWS::Partition}:eks:*:*:addon/*/aws-guardduty-agent/*"
+              - Effect: Allow
+                Action: eks:TagResource
+                Resource: !Sub "arn:${AWS::Partition}:eks:*:*:cluster/*"
+                Condition:
+                  ForAnyValue:StringEquals:
+                    aws:TagKeys: GuardDutyManaged
+
         - PolicyName: !Sub 'management-org-policy-logs-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
@@ -320,14 +530,12 @@ Resources:
                 Effect: Allow
                 Resource: !Sub arn:*:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*
                 Sid: CreateLogStreamAndEvents
-
+        
         - PolicyName: !Sub 'management-org-policy-organizations-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
-                  - organizations:AcceptHandshake
-                  - organizations:DescribeAccount
                   - organizations:DescribeOrganization
                   - organizations:ListAWSServiceAccessForOrganization
                   - organizations:ListAccounts
@@ -335,6 +543,18 @@ Resources:
                 Effect: Allow
                 Resource: "*"
                 Sid: OrganizationsReadAccess
+
+              - Action: organizations:AcceptHandshake
+                Effect: Allow
+                Resource: 
+                  - !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:handshake/*/*/*                  
+                Sid: OrganizationsAcceptHandshake
+
+              - Action: organizations:DescribeAccount
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:account/*/*
+                Sid: OrganizationsDescribeAccount
+
               - Action: ec2:DescribeRegions
                 Effect: Allow
                 Resource: '*'
@@ -363,6 +583,7 @@ Resources:
                       - stacksets.cloudformation.amazonaws.com
                       - access-analyzer.amazonaws.com
                       - securityhub.amazonaws.com
+                      - malware-protection.guardduty.amazonaws.com
                       - fms.amazonaws.com
                 Effect: Allow
                 Resource: "*"
@@ -389,6 +610,7 @@ Resources:
                   - !Sub arn:*:guardduty:*:${AWS::AccountId}:detector/*
                   - !Sub arn:*:guardduty:*:${AWS::AccountId}:/detector/*
                 Sid: GuardDutyWithResource
+
         - PolicyName: !Sub 'management-org-policy-iam-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
@@ -404,7 +626,9 @@ Resources:
               Effect: Allow
               Condition:
                 StringLike:
-                  iam:AWSServiceName: guardduty.amazonaws.com
+                  iam:AWSServiceName: 
+                    - guardduty.amazonaws.com
+                    - malware-protection.guardduty.amazonaws.com
               Resource: !Sub arn:*:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty
               Sid: AllowCreateDeleteServiceLinkedRole
 
@@ -421,30 +645,41 @@ Resources:
                 - !Sub arn:*:guardduty:*:${AWS::AccountId}:admin/*
                 - !Sub arn:*:iam::*:role/*
               Sid: AssumeRole
+                   
   rSumoLogicLambdaHelper:
+
     Metadata:
       cfn_nag:
         rules_to_suppress:
           - id: W58
             reason: "Lambda functions require permission to write CloudWatch Logs"
           - id: W89
-            reason: "Lambda functions should be deployed inside a VPC"
+            reason: "Lambda functions should be deployed inside a VPC"          
     Type: 'AWS::Serverless::Function'
     Properties:
       Handler: main.handler
-      Runtime: python3.7
+      Runtime: python3.11
       CodeUri:
         Bucket: !Sub
                 - "${S3Bucket}"
-                - S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+                - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
         Key: !Sub "${QSS3KeyPrefix}templates/apps/sumo-aws-apps/sumologic-app-utils/sumo_app_utils.zip"
       MemorySize: 512
       Timeout: 900
-      ReservedConcurrentExecutions: 1
+      DeadLetterQueue:
+        TargetArn: !Ref AWS::NoValue
+        Type: SQS
+      ReservedConcurrentExecutions: 4
       Role:
         Fn::GetAtt:
           - rSumoLogicHelperRole
           - Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref AWS::NoValue
+        SubnetIds:
+          - !Ref AWS::NoValue
+
 
 
   OrgTrustAllStackset:
@@ -477,8 +712,8 @@ Resources:
                 - !Ref OrganizationRootID
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-trust-all.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
 
   OrgDeliveryKmsKeyStackset:
     DependsOn:
@@ -504,8 +739,8 @@ Resources:
               - !Ref SecurityToolingAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-delivery-kms-key.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'LoggingAccountId'
           ParameterValue: !Ref LoggingAccountId
@@ -538,14 +773,14 @@ Resources:
               - !Ref SecurityToolingAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-configuration-role.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'ConfigurationRoleName'
           ParameterValue: !Sub "ConfigurationRole-${ParentStackName}"
         - ParameterKey: 'OrgPrimaryAccountId'
           ParameterValue: !Ref "AWS::AccountId"
-        - ParameterKey: 'OrgPrimaryLambdaRoleName'
+        - ParameterKey: 'GuardDutyOrgLambdaRoleName'
           ParameterValue: !Select [1, !Split ["/", !GetAtt rSumoLogicHelperRole.Arn]]
 
 #Get ARN of Delivery KMS Key
@@ -583,8 +818,8 @@ Resources:
               - !Ref LoggingAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-delivery-s3-bucket.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'DeliveryKMSKeyArn'
           ParameterValue: !GetAtt rOrgDeliveryKMSKeyArn.ARN

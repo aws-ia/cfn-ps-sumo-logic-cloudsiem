@@ -4,6 +4,8 @@ from awsresource import AWSResource
 
 from resourcefactory import ResourceFactory
 
+import securityhubsnsevent
+
 helper = CfnResource(json_logging=False, log_level='DEBUG')
 
 
@@ -62,7 +64,10 @@ def delete(event, context):
 
 
 def handler(event, context):
-    helper(event, context)
+    if event.get("Records") and event["Records"][0]["EventSource"] == "aws:sns":
+        securityhubsnsevent.process_event_sns(event=event)
+    else:
+        helper(event, context)
 
 if __name__ == "__main__":
     event = {}

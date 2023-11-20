@@ -63,11 +63,13 @@ Metadata:
           - SecurityAccountRegion
           - AdministrationRoleArn
           - ExecutionRoleRuleName
+          - KMSArn
       - Label:
           default: "AWS Quick Start configuration"
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+          - QSS3BucketRegion
       - Label:
           default: "Local Parameters. Do Not Edit the values."
         Parameters:
@@ -137,10 +139,14 @@ Metadata:
         default: Arn of Administration Role
       ExecutionRoleRuleName:
         default: Execution Role Name
+      KMSArn:
+        default: "ARN of KMS"
       QSS3BucketName:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
         default: "Quick Start S3 key prefix"
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"
       ParentStackName:
         default: "If Any, Name of parent Stack"
       ParentHelperFunctionArn:
@@ -369,6 +375,10 @@ Parameters:
     Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
     Type: String
 
+  KMSArn:
+    Type: String
+    Description: "ARN of KMS"
+
   CreateS3Source:
     Type: String
     Description: "Yes - to create Sumo Logic Amazon S3 Log Source with provided bucket Name.
@@ -414,6 +424,11 @@ Parameters:
     Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
     Type: "String"
 
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String
+
   QSVersion:
     Type: String
     Description: "Version of Quick Start"
@@ -443,6 +458,7 @@ Conditions:
     - !Condition install_s3_source
     - !Equals [!Ref CreateS3Bucket, 'Yes']
   create_s3_bucket: !Equals [!Ref CreateS3Bucket, 'Yes']
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
   #create_delivery_stream: !And 
   #  - !Equals [!Ref CreateDeliveryStream, 'Yes']
   #  - !Condition install_s3_source
@@ -472,8 +488,8 @@ Resources:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-disassociate-iam-role.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'FMSDisassociateRoleName'
           ParameterValue: !Sub 'FMSDRName-${ParentStackName}'
@@ -495,7 +511,7 @@ Resources:
       DELEGATED_ADMIN_ACCOUNT_ID: !Ref SecurityAccountId
       RemoveOnDeleteStack: !Ref DisassociateAdminAccountOnDeleteStack
 
-  WaitSevenMinutesFirewallManagerSetup:
+  WaitTenStepOneMinutesFirewallManagerSetup:
     DependsOn:
         - CustomLambdaFirewallManagerSetup  
     Condition: enable_firewall_config
@@ -503,21 +519,21 @@ Resources:
     Version: '1.0'
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
-      TimeToWait: 420
+      TimeToWait: 600
 
-  WaitSixtMinutesFirewallManagerSetup:
+  WaitTenStepTwoMinutesFirewallManagerSetup:
     DependsOn:
-        - WaitSevenMinutesFirewallManagerSetup  
+        - WaitTenStepOneMinutesFirewallManagerSetup  
     Condition: enable_firewall_config
     Type: Custom::AWSTimeToWait
     Version: '1.0'
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
-      TimeToWait: 360
+      TimeToWait: 600
 
   FirewallManagerOrgSgPolicyStackSet:
     DependsOn:
-        - WaitSixtMinutesFirewallManagerSetup
+        - WaitTenStepTwoMinutesFirewallManagerSetup
     Condition: enable_firewall_config
     Type: AWS::CloudFormation::StackSet
     Properties:
@@ -539,8 +555,8 @@ Resources:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sg-policy.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'InternalNetCIDR'
           ParameterValue: !Ref InternalNetCIDR
@@ -553,7 +569,7 @@ Resources:
   
   FirewallManagerOrgWafNetworkFirewallPolicyStackSet:
     DependsOn:
-        - WaitSixtMinutesFirewallManagerSetup
+        - WaitTenStepTwoMinutesFirewallManagerSetup
     Condition: enable_firewall_config
     Type: AWS::CloudFormation::StackSet
     Properties:
@@ -575,8 +591,8 @@ Resources:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-waf-network-firewall-policy.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'CreateDeliveryStream'
           ParameterValue: !Ref CreateDeliveryStreamSource
@@ -612,8 +628,8 @@ Resources:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-logsource.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'CreateS3Bucket'
           ParameterValue: !Ref CreateS3Bucket        
@@ -621,6 +637,8 @@ Resources:
           ParameterValue: !If [create_s3_bucket, !Ref DeliveryBucketPrefix, !Ref NetworkFirewallExistsS3BucketName]
         - ParameterKey: 'SumoDeployment'
           ParameterValue: !Ref SumoDeployment
+        - ParameterKey: 'DeliveryKMSKeyArn'
+          ParameterValue: !Ref KMSArn
         - ParameterKey: 'SumoOrganizationId'
           ParameterValue: !Ref SumoOrganizationId      
 
@@ -734,8 +752,8 @@ Resources:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-subscription.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'SumoSNSTopicArn'
           ParameterValue: !GetAtt SNSTopicArn.ARN

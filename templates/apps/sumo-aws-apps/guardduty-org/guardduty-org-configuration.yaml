@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: Organization GuardDuty delegated admin template for to setup the Amazon GuardDuty, Global Intelligence for Amazon GuardDuty with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu9l)
+Description:  Organization GuardDuty delegated admin template for to setup the Amazon GuardDuty, Global Intelligence for Amazon GuardDuty with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu9l)
 
 Metadata:
    cfn-lint:
@@ -41,6 +41,7 @@ Metadata:
           - DelegatedAdminAccountId
           - EnabledRegions
           - FindingPublishingFrequency
+          - AdditionalConfigurationFeatures
       - Label:
           default: AWS StackSet Attributes
         Parameters:
@@ -52,6 +53,7 @@ Metadata:
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+          - QSS3BucketRegion
 
       - Label:
           default: "Local Parameters. Do Not Edit the values."
@@ -93,6 +95,8 @@ Metadata:
         default: Enabled Regions
       FindingPublishingFrequency:
         default: Finding Publishing Frequency
+      AdditionalConfigurationFeatures:
+        default: "Additional configuration features"
 
       AdministrationRoleArn:
         default: Arn of Administration Role
@@ -105,6 +109,8 @@ Metadata:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
         default: "Quick Start S3 key prefix"
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"        
       ParentHelperFunctionArn:
         default: "If Any, Arn of parent Helper Function"
       ParentStackName:
@@ -223,6 +229,12 @@ Parameters:
     Description: Finding publishing frequency
     Type: String
 
+  AdditionalConfigurationFeatures:
+    Default: ''
+    ConstraintDescription: "Features support: RDS,EKS,MalwareProtection,S3Logs"
+    Description: Comma delimited list of features to enable. Leave blank to enable all features.
+    Type: String
+
   AdministrationRoleArn:
     Description: Arn of AWS Administration Role name to enable use of AWS CloudFormation StackSets.
     Type: String
@@ -252,6 +264,10 @@ Parameters:
     Default: "quickstart-sumo-logic-cloudsiem/"
     Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
     Type: "String"
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String
 
   QSVersion:
     Type: String
@@ -276,6 +292,7 @@ Conditions:
   enable_forward_data_to_cloudsiem: !And
     - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
     - !Condition install_http_logs_source
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']  
 
 Resources:
 
@@ -294,14 +311,14 @@ Resources:
         - 'CAPABILITY_AUTO_EXPAND'
       StackInstancesGroup:
         - Regions:
-            -  !Select [0, !Split [",", !Ref EnabledRegions]]
+            - !Ref 'AWS::Region'
           DeploymentTargets:
               OrganizationalUnitIds:
                 - !Ref OrganizationRootID
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-delete-detector-role.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AutoDeployment:
         Enabled: true
         RetainStacksOnAccountRemoval: true
@@ -311,6 +328,23 @@ Resources:
         - ParameterKey: 'OrgPrimaryAccountId'
           ParameterValue: !Ref "AWS::AccountId"
 
+  AvailableServiceRegionsCustomResource:
+    Condition: install_http_logs_source
+    Type: Custom::GetAvailableServiceRegions
+    Version: "1.0.1"
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      ENABLED_REGIONS: !Ref EnabledRegions
+      AWS_SERVICE: "guardduty"
+
+  EnableServiceAccessMalwareProtectionCustomResource:
+    Condition: install_http_logs_source
+    Type: Custom::AWSOrgEnableServiceAccess
+    Version: "1.0.1"
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      servicePrincipal: malware-protection.guardduty.amazonaws.com
+      
   OrgSumoCloudWatchEventFunctionStackset:
     Condition: install_http_logs_source
     Type: AWS::CloudFormation::StackSet
@@ -327,14 +361,14 @@ Resources:
         - 'CAPABILITY_IAM'
         - 'CAPABILITY_AUTO_EXPAND'
       StackInstancesGroup:
-        - Regions: !Split [",", !Ref EnabledRegions]
+        - Regions: !Split [",", !GetAtt AvailableServiceRegionsCustomResource.REGIONS]
           DeploymentTargets:
             Accounts:
               - !Ref DelegatedAdminAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-cloudwatch-event.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'SumoEndpoint'
           ParameterValue: !GetAtt SumoHTTPSource.SUMO_ENDPOINT
@@ -356,6 +390,7 @@ Resources:
         - StackName: !Select [0, !Split ["-", !Ref "AWS::StackName"]]
       ENABLED_REGIONS: !Ref EnabledRegions
       FINDING_PUBLISHING_FREQUENCY: !Ref FindingPublishingFrequency
+      FEATURES: !Ref AdditionalConfigurationFeatures
 
   SumoHTTPSource:
     Condition: install_http_logs_source

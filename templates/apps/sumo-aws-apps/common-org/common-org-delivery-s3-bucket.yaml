@@ -113,6 +113,7 @@ Resources:
             reason: "SNS Topic should specify KmsMasterKeyId property"
     Type: "AWS::SNS::Topic"
     Properties:
+      KmsMasterKeyId: !Ref DeliveryKMSKeyArn
       TopicName: !Sub "SumoSNSTopic-${AWS::StackName}"
 
   SumoSNSpolicy:

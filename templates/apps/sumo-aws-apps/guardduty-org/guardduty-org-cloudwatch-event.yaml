@@ -34,6 +34,6 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:us-east-1:956882708938:applications/sumologic-guardduty-events-processor
-        SemanticVersion: 1.0.3
+        SemanticVersion: 1.0.4
       Parameters:
         SumoEndpointUrl: !Ref SumoEndpoint

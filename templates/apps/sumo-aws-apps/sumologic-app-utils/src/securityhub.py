@@ -1,7 +1,3 @@
-########################################################################
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: MIT-0
-########################################################################
 import boto3
 import json
 import os
@@ -9,816 +5,571 @@ import re
 import logging
 import requests
 from botocore.exceptions import ClientError
+from botocore.config import Config
+from time import sleep
+import common
+from mypy_boto3_config import ConfigServiceClient
+from mypy_boto3_iam import IAMClient
+from mypy_boto3_securityhub import GetEnabledStandardsPaginator, ListMembersPaginator, ListOrganizationAdminAccountsPaginator, SecurityHubClient
+from mypy_boto3_securityhub.type_defs import CreateMembersResponseTypeDef, DeleteMembersResponseTypeDef
+
 
 # Setup Default Logger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-"""
-The purpose of this script is to enable Security Hub within all the available 
-AWS Organization accounts and regions. Security Hub standards will also get 
-configured based on the parameters provided.
-"""
+# Global variables
+UNEXPECTED = "Unexpected!"
+MAX_RETRY = 5
+SECURITY_HUB_THROTTLE_PERIOD = 0.2
+BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
+
 try:
-    SESSION = boto3.Session()
+    MANAGEMENT_ACCOUNT_SESSION = boto3.Session()
+except Exception:
+    logger.exception(UNEXPECTED)
+    raise ValueError("Unexpected error executing Lambda function. Review CloudWatch logs for details.") from None
 
 
-    AWS_REGION = os.environ.get("AWS_REGION", "")
-    SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
-
-    MGMT_ACCOUNT_ID = os.environ["MGMT_ACCOUNT_ID"]
-    if not MGMT_ACCOUNT_ID or not re.match("^[0-9]{12}$", MGMT_ACCOUNT_ID):
-        raise ValueError("MGMT_ACCOUNT_ID parameter is missing or invalid")
-
-    USER_REGIONS = os.environ.get("REGIONS_TO_ENABLE", "")
-
-    ASSUME_ROLE_NAME = os.environ.get("ASSUME_ROLE", "")
-    if not ASSUME_ROLE_NAME or not re.match("[\\w+=,.@-]+", ASSUME_ROLE_NAME):
-        logger.error("ASSUME_ROLE is missing or invalid")
-        raise ValueError("ASSUME_ROLE_NAME parameter is missing or invalid")
-
-    ENABLE_CIS_STANDARD = (os.environ.get("ENABLE_CIS_STANDARD", "false")).lower() in "true"
-    ENABLE_PCI_STANDARD = (os.environ.get("ENABLE_PCI_STANDARD", "false")).lower() in "true"
-    ENABLE_SBP_STANDARD = (os.environ.get("ENABLE_SBP_STANDARD", "false")).lower() in "true"
-
-    SBP_STANDARD_VERSION = os.environ.get("SBP_STANDARD_VERSION", "1.0.0")
-    CIS_STANDARD_VERSION = os.environ.get("CIS_STANDARD_VERSION", "1.2.0")
-    PCI_STANDARD_VERSION = os.environ.get("PCI_STANDARD_VERSION", "3.2.1")
-
-    CONTROL_TOWER_REGIONS_ONLY = (os.environ.get("CONTROL_TOWER_REGIONS_ONLY", "false")).lower() in "true"
-    ENABLE_PROWLER_INTEGRATION = (os.environ.get("ENABLE_PROWLER_INTEGRATION", "false")).lower() in "true"
-    DISABLE_ALL_ACCOUNTS = (os.environ.get("DISABLE_ALL_ACCOUNTS", "false")).lower() in "true"
-except Exception as e:
-    logger.error(f"Unexpected error: {str(e)}")
-    raise
-
-
-def send_response(event, context, response_status, response_data, physical_resource_id=None, no_echo=False):
+def is_admin_account_enabled(securityhub_client: SecurityHubClient, admin_account_id: str) -> bool:
+    """Is admin account enabled.
+    Args:
+        securityhub_client: SecurityHubClient
+        admin_account_id: Admin Account ID
+    Returns:
+        True or False
     """
-    Send response
-    :param event: CloudFormation event
-    :param context:
-    :param response_status:
-    :param response_data:
-    :param physical_resource_id:
-    :param no_echo:
-    :return: None
-    """
-    response_url = event["ResponseURL"]
+    paginator: ListOrganizationAdminAccountsPaginator = securityhub_client.get_paginator("list_organization_admin_accounts")
+    for page in paginator.paginate():
+        for admin_account in page["AdminAccounts"]:
+            if admin_account["AccountId"] == admin_account_id and admin_account["Status"] == "ENABLED":
+                return True
+        sleep(SECURITY_HUB_THROTTLE_PERIOD)
+    return False
 
-    logger.info(response_url)
-    ls = context.log_stream_name
-    response_body = {
-        "Status": response_status,
-        "Reason": "See the details in CloudWatch Log Stream: " + ls,
-        "PhysicalResourceId": physical_resource_id or ls,
-        "StackId": event["StackId"],
-        "RequestId": event["RequestId"],
-        "LogicalResourceId": event["LogicalResourceId"],
-        "NoEcho": no_echo,
-        "Data": response_data,
+def process_organization_admin_account(admin_account_id: str, regions: list) -> None:  # noqa: CCR001 # NOSONAR
+    """Process the delegated admin account for each region.
+    Args:
+        admin_account_id: Admin account ID
+        regions: AWS Region List
+    Raises:
+        ClientError: boto3 ClientError
+    """
+    for region in regions:
+        securityhub_client: SecurityHubClient = MANAGEMENT_ACCOUNT_SESSION.client("securityhub", region, config=BOTO3_CONFIG)
+
+        if not is_admin_account_enabled(securityhub_client, admin_account_id):
+            for _ in range(10):
+                try:
+                    securityhub_client.enable_organization_admin_account(AdminAccountId=admin_account_id)
+                    logger.info(f"Delegated admin '{admin_account_id}' enabled in {region}")
+                    break
+                except securityhub_client.exceptions.ResourceConflictException:
+                    logger.info(f"Delegated admin already enabled in {region}")
+                except ClientError as error:
+                    if error.response["Error"]["Code"] != "InvalidInputException":
+                        raise
+                    logger.info(
+                        f"Waiting 10 seconds before retrying the enable organization delegated admin '{admin_account_id}' enabled in {region}"
+                    )
+                    sleep(10)
+
+def disable_organization_admin_account(regions: list) -> None:
+    """Disable the organization admin account.
+    Args:
+        regions: AWS Region List
+    """
+    for region in regions:
+        securityhub_client: SecurityHubClient = MANAGEMENT_ACCOUNT_SESSION.client("securityhub", region, config=BOTO3_CONFIG)
+        paginator: ListOrganizationAdminAccountsPaginator = securityhub_client.get_paginator("list_organization_admin_accounts")
+        for page in paginator.paginate():
+            for admin_account in page["AdminAccounts"]:
+                if admin_account["Status"] == "ENABLED":
+                    response = securityhub_client.disable_organization_admin_account(AdminAccountId=admin_account["AccountId"])
+                    api_call_details = {"API_Call": "securityhub:DisableOrganizationAdminAccount", "API_Response": response}
+                    logger.info(api_call_details)
+                    logger.info(f"Admin Account {admin_account['AccountId']} Disabled in {region}")
+            sleep(SECURITY_HUB_THROTTLE_PERIOD)
+
+def disable_securityhub(account_id: str, configuration_role_name: str, regions: list) -> None:  # noqa: CCR001
+    """Disable Security Hub.
+    Args:
+        account_id: Account ID
+        configuration_role_name: Configuration Role Name
+        regions: AWS Region List
+    """
+    account_session = common.assume_role(configuration_role_name, "sra-disable-security-hub", account_id)
+
+    for region in regions:
+        securityhub_client: SecurityHubClient = account_session.client("securityhub", region, config=BOTO3_CONFIG)
+        member_account_ids: list = get_associated_members(securityhub_client)
+
+        if member_account_ids:
+            disassociate_members_response = securityhub_client.disassociate_members(AccountIds=member_account_ids)
+            api_call_details = {"API_Call": "securityhub:DisassociateMembers", "API_Response": disassociate_members_response}
+            logger.info(api_call_details)
+            logger.info(f"Member accounts disassociated in {region}")
+
+            delete_members_response: DeleteMembersResponseTypeDef = securityhub_client.delete_members(AccountIds=member_account_ids)
+            api_call_details = {"API_Call": "securityhub:DeleteMembers", "API_Response": delete_members_response}
+            logger.info(api_call_details)
+            logger.info(f"Member accounts deleted in {region}")
+
+        try:
+            disable_security_hub_response = securityhub_client.disable_security_hub()
+            api_call_details = {"API_Call": "securityhub:DisableSecurityHub", "API_Response": disable_security_hub_response}
+            logger.info(api_call_details)
+            logger.info(f"SecurityHub disabled in {region}")
+        except securityhub_client.exceptions.ResourceNotFoundException:
+            logger.info(f"SecurityHub is not enabled in {region}")
+
+
+def get_associated_members(securityhub_client: SecurityHubClient) -> list:
+    """Get SecurityHub members.
+    Args:
+        securityhub_client: SecurityHub Client
+    Returns:
+        account_ids
+    Raises:
+        ClientError: botocore Client Error
+    """
+    account_ids = []
+    paginator: ListMembersPaginator = securityhub_client.get_paginator("list_members")
+
+    try:
+        for page in paginator.paginate(OnlyAssociated=False):
+            for member in page["Members"]:
+                account_ids.append(member["AccountId"])
+        sleep(SECURITY_HUB_THROTTLE_PERIOD)
+    except securityhub_client.exceptions.InternalException:
+        logger.info("No associated members")
+    except ClientError as error:
+        if error.response["Error"]["Code"] != "BadRequestException":
+            raise
+        else:
+            logger.info("SecurityHub is not enabled")
+
+    return account_ids
+
+
+def get_unprocessed_account_details(create_members_response: CreateMembersResponseTypeDef, accounts: list) -> list:
+    """Get unprocessed account list.
+    Args:
+        create_members_response: CreateMembersResponseTypeDef
+        accounts: list
+    Returns:
+        remaining account list
+    """
+    remaining_accounts = []
+
+    for unprocessed_account in create_members_response["UnprocessedAccounts"]:
+        for account_record in accounts:
+            if account_record["AccountId"] == unprocessed_account["AccountId"]:
+                remaining_accounts.append(account_record)
+    return remaining_accounts
+
+
+def create_members(security_hub_client: SecurityHubClient, accounts: list) -> None:  # noqa: CCR001 # NOSONAR
+    """Create members.
+    Args:
+        security_hub_client: SecurityHubClient
+        accounts: list of account details [{"AccountId": "", "Email": ""}]
+    """
+    response: CreateMembersResponseTypeDef = security_hub_client.create_members(AccountDetails=accounts)
+    api_call_details = {"API_Call": "securityhub:CreateMembers", "API_Response": response}
+    logger.info(api_call_details)
+    if "UnprocessedAccounts" in response and response["UnprocessedAccounts"]:
+        unprocessed = True
+        retry_count = 0
+        unprocessed_accounts = []
+        while unprocessed:
+            retry_count += 1
+            logger.info(f"Unprocessed Accounts: {response['UnprocessedAccounts']}")
+            remaining_accounts = get_unprocessed_account_details(response, accounts)
+            unprocessed = False
+            if remaining_accounts:
+                response = security_hub_client.create_members(AccountDetails=remaining_accounts)
+                api_call_details = {"API_Call": "securityhub:CreateMembers", "API_Response": response}
+                logger.info(api_call_details)
+                if "UnprocessedAccounts" in response and response["UnprocessedAccounts"]:
+                    unprocessed_accounts = response["UnprocessedAccounts"]
+                    if retry_count != MAX_RETRY:
+                        unprocessed = True
+                        logger.info("Waiting 10 seconds before retrying create members with unprocessed accounts.")
+                        sleep(10)
+
+        if unprocessed_accounts:
+            logger.info(f"Unable to add the following accounts as members. {unprocessed_accounts}")
+
+    logger.info(f"Member accounts created: {len(accounts)}")
+
+
+def enable_account_securityhub(account_id: str, regions: list, configuration_role_name: str, aws_partition: str, standards_user_input: dict) -> None:
+    """Enable account SecurityHub.
+    Args:
+        account_id: Account ID
+        regions: AWS Region List
+        configuration_role_name: Configuration Role Name
+        aws_partition: AWS Partition
+        standards_user_input: Dictionary of standards
+    """
+    account_session: boto3.Session = common.assume_role(configuration_role_name, "sra-configure-security-hub", account_id)
+    iam_client: IAMClient = account_session.client("iam", config=BOTO3_CONFIG)
+    common.create_service_linked_role(
+        "AWSServiceRoleForSecurityHub",
+        "securityhub.amazonaws.com",
+        "A service-linked role required for AWS Security Hub to access your resources.",
+        iam_client,
+    )
+
+    for region in regions:
+        standard_dict: dict = get_standard_dictionary(
+            account_id,
+            region,
+            aws_partition,
+            standards_user_input["SecurityBestPracticesVersion"],
+            standards_user_input["CISVersion"],
+            standards_user_input["PCIVersion"],
+        )
+        securityhub_client: SecurityHubClient = account_session.client("securityhub", region, config=BOTO3_CONFIG)
+
+        try:
+            enable_security_hub_response: Any = securityhub_client.enable_security_hub(EnableDefaultStandards=False)
+            api_call_details = {"API_Call": "securityhub:EnableSecurityHub", "API_Response": enable_security_hub_response}
+            logger.info(api_call_details)
+            logger.info(f"SecurityHub enabled in {account_id} {region}")
+        except securityhub_client.exceptions.ResourceConflictException:
+            logger.info(f"SecurityHub already enabled in {account_id} {region}")
+
+        config_client: ConfigServiceClient = account_session.client("config", region, config=BOTO3_CONFIG)
+        if is_config_enabled(config_client):
+            process_standards(securityhub_client, standard_dict, standards_user_input["StandardsToEnable"])
+
+
+def configure_delegated_admin_securityhub(
+    accounts: list, regions: list, delegated_admin_account_id: str, configuration_role_name: str, region_linking_mode: str, linked_regions: list, home_region: str
+) -> None:
+    """Configure delegated admin security hub.
+    Args:
+        accounts: list of account details [{"AccountId": "", "Email": ""}]
+        regions: AWS Region List
+        delegated_admin_account_id: Delegated Admin Account ID
+        configuration_role_name: Configuration Role Name
+        region_linking_mode: Region Linking Mode
+        linked_regions: Findings from linked Regions can be viewed in the aggregation Region.
+        home_region: Home Region
+    """
+    process_organization_admin_account(delegated_admin_account_id, regions)
+    delegated_admin_session = common.assume_role(configuration_role_name, "sra-enable-security-hub", delegated_admin_account_id)
+
+    for region in regions:
+        securityhub_delegated_admin_region_client: SecurityHubClient = delegated_admin_session.client("securityhub", region, config=BOTO3_CONFIG)
+        update_organization_configuration_response = securityhub_delegated_admin_region_client.update_organization_configuration(AutoEnable=True)
+        api_call_details = {"API_Call": "securityhub:UpdateOrganizationConfiguration", "API_Response": update_organization_configuration_response}
+        logger.info(api_call_details)
+        logger.info(f"SecurityHub organization configuration updated in {region}")
+
+        update_security_hub_configuration_response = securityhub_delegated_admin_region_client.update_security_hub_configuration(
+            AutoEnableControls=True
+        )
+        api_call_details = {"API_Call": "securityhub:UpdateSecurityHubConfiguration", "API_Response": update_security_hub_configuration_response}
+        logger.info(api_call_details)
+        logger.info(f"SecurityHub configuration updated in {region}")
+
+        create_members(securityhub_delegated_admin_region_client, accounts)
+
+    securityhub_delegated_admin_client: SecurityHubClient = delegated_admin_session.client("securityhub", config=BOTO3_CONFIG)
+    create_finding_aggregator(securityhub_delegated_admin_client, region_linking_mode, linked_regions, home_region)
+
+
+def configure_member_account(account_id: str, configuration_role_name: str, regions: list, standards_user_input: dict, aws_partition: str) -> None:
+    """Configure Member Account.
+    Args:
+        account_id: Account ID
+        configuration_role_name: Configuration Role Name
+        regions: AWS Region List
+        standards_user_input: Standards user input dictionary
+        aws_partition: AWS Partition
+    """
+    logger.info(f"Configuring account {account_id}")
+
+    account_session = common.assume_role(configuration_role_name, "sra-configure-security-hub", account_id)
+
+    for region in regions:
+        securityhub_client: SecurityHubClient = account_session.client("securityhub", region, config=BOTO3_CONFIG)
+        standard_dict: dict = get_standard_dictionary(
+            account_id,
+            region,
+            aws_partition,
+            standards_user_input["SecurityBestPracticesVersion"],
+            standards_user_input["CISVersion"],
+            standards_user_input["PCIVersion"],
+        )
+        config_client: ConfigServiceClient = account_session.client("config", region, config=BOTO3_CONFIG)
+        if is_config_enabled(config_client):
+            process_standards(securityhub_client, standard_dict, standards_user_input["StandardsToEnable"])
+
+
+def get_standard_dictionary(account_id: str, region: str, aws_partition: str, sbp_version: str, cis_version: str, pci_version: str) -> dict:
+    """Get Standard ARNs.
+    Args:
+        account_id: Account ID
+        region: AWS Region
+        aws_partition: AWS Partition
+        sbp_version: AWS Security Best Practices Standard Version
+        cis_version: CIS Standard Version
+        pci_version: PCI Standard Version
+    Returns:
+        Standard ARN Dictionary
+    """
+    cis_standard_arn: str = f"arn:{aws_partition}:securityhub:::ruleset/cis-aws-foundations-benchmark/v/{cis_version}"
+    if cis_version != "1.2.0":
+        cis_standard_arn = f"arn:{aws_partition}:securityhub:{region}::standards/cis-aws-foundations-benchmark/v/{cis_version}"
+
+    return {
+        "cis": {
+            "name": "CIS AWS Foundations Benchmark Security Standard",
+            "enabled": False,
+            "standard_arn": cis_standard_arn,
+            "subscription_arn": f"arn:{aws_partition}:securityhub:{region}:{account_id}:subscription/cis-aws-foundations-benchmark/v/{cis_version}",
+        },
+        "pci": {
+            "name": "Payment Card Industry Data Security Standard (PCI DSS)",
+            "enabled": False,
+            "standard_arn": f"arn:{aws_partition}:securityhub:{region}::standards/pci-dss/v/{pci_version}",
+            "subscription_arn": f"arn:{aws_partition}:securityhub:{region}:{account_id}:subscription/pci-dss/v/{pci_version}",
+        },
+        "sbp": {
+            "name": "AWS Foundational Security Best Practices Standard",
+            "enabled": False,
+            "standard_arn": f"arn:{aws_partition}:securityhub:{region}::standards/aws-foundational-security-best-practices/v/{sbp_version}",
+            "subscription_arn": (
+                f"arn:{aws_partition}:securityhub:{region}:{account_id}:subscription/aws-foundational-security-best-practices/v/{sbp_version}"
+            ),
+        },
     }
 
-    json_response_body = json.dumps(response_body)
 
-    logger.info("Response body:\n" + json_response_body)
-
-    headers = {"content-type": "", "content-length": str(len(json_response_body))}
-    try:
-        response = requests.put(response_url, data=json_response_body, headers=headers)
-        logger.info("Status code: " + response.reason)
-    except Exception as exc:
-        logger.error(f"send(..) failed executing requests.put(..): {str(exc)}")
-
-
-def get_validated_securityhub_regions(user_regions: str, control_tower_regions_only: bool = False):
+def get_enabled_standards(securityhub_client: SecurityHubClient) -> list:
+    """Get Enabled Standards.
+    Args:
+        securityhub_client: SecurityHubClient
+    Returns:
+        standards subscriptions list
     """
-    Get the SecurityHub regions and check if they are enabled
-    :param user_regions: User provided regions
-    :param control_tower_regions_only: Control Tower regions only
-    :return: validated SecurityHub regions
-    """
-    enabled_regions = []
-
+    standards_subscriptions = []
     try:
-        if user_regions:
-            securityhub_regions = [value.strip() for value in user_regions.split(",") if value != '']
-        elif control_tower_regions_only:
-            cf_client = SESSION.client('cloudformation')
-            paginator = cf_client.get_paginator("list_stack_instances")
-            region_set = set()
-            for page in paginator.paginate(
-                StackSetName="AWSControlTowerBP-BASELINE-CLOUDWATCH"
-            ):
-                for summary in page["Summaries"]:
-                    region_set.add(summary["Region"])
-            securityhub_regions = list(region_set)
-        else:
-            securityhub_regions = SESSION.get_available_regions("securityhub")
+        paginator: GetEnabledStandardsPaginator = securityhub_client.get_paginator("get_enabled_standards")
 
-        logging.info(f"SecurityHub regions: {securityhub_regions}")
-    except ClientError as ce:
-        logger.error(f"Error getting available regions: {str(ce)}")
-        raise
+        for page in paginator.paginate():
+            for standards_subscription in page["StandardsSubscriptions"]:
+                standards_subscriptions.append(standards_subscription)
+    except securityhub_client.exceptions.InvalidAccessException:
+        logger.info("Security Hub is not enabled.")
+    return standards_subscriptions
 
-    for region in securityhub_regions:
-        sts_client = SESSION.client("sts", region_name=region)
+
+def all_standards_in_status(standards_subscriptions: list, standards_status: str) -> bool:
+    """All standards in status.
+    Args:
+        standards_subscriptions: list of standards subscriptions
+        standards_status: standards status 'PENDING'|'READY'|'FAILED'|'DELETING'|'INCOMPLETE'
+    Returns:
+        True or False
+    """
+    for standards_subscription in standards_subscriptions:  # noqa: SIM111
+        if standards_subscription.get("StandardsStatus") != standards_status:
+            return False
+    return True
+
+
+def get_current_enabled_standards(securityhub_client: SecurityHubClient, standard_dict: dict) -> dict:  # noqa: CCR001 (cognitive complexity)
+    """Get current enabled standards.
+    Args:
+        securityhub_client: SecurityHubClient
+        standard_dict: Standard Dictionary
+    Returns:
+        Standard Dictionary
+    """
+    standards_subscriptions = get_enabled_standards(securityhub_client)
+    if all_standards_in_status(standards_subscriptions, "READY"):
+        for item in standards_subscriptions:
+            if standard_dict["sbp"]["standard_arn"] == item["StandardsArn"]:
+                standard_dict["sbp"]["enabled"] = True
+            if standard_dict["cis"]["standard_arn"] == item["StandardsArn"]:
+                standard_dict["cis"]["enabled"] = True
+            if standard_dict["pci"]["standard_arn"] == item["StandardsArn"]:
+                standard_dict["pci"]["enabled"] = True
+
+    return standard_dict
+
+
+def all_standards_ready(securityhub_client: SecurityHubClient) -> bool:
+    """All Standards Ready.
+    Args:
+        securityhub_client: SecurityHubClient
+    Returns:
+        True or False
+    """
+    for i in range(10):
+        standards_subscriptions = get_enabled_standards(securityhub_client)
+        if all_standards_in_status(standards_subscriptions, "READY"):
+            return True
+        logger.info(f"Waiting 20 seconds before checking if standards are in READY status. {i} of 10")
+        sleep(20)
+    return False
+
+
+def process_standards(
+    securityhub_client: SecurityHubClient,
+    standard_dict: dict,
+    standards_to_enable: dict,
+) -> None:
+    """Process Standards.
+    Args:
+        securityhub_client: SecurityHubClient
+        standard_dict: Standard Dictionary
+        standards_to_enable: Dictionary of standards to enable
+    """
+    standard_dict = get_current_enabled_standards(securityhub_client, standard_dict)
+    for standard, status in standard_dict.items():
+        process_standard(securityhub_client, standards_to_enable, status, standard)
+
+
+def process_standard(securityhub_client: SecurityHubClient, standards_to_enable: dict, standard_definition: dict, standard_short_name: str) -> bool:
+    """Process standard.
+    Args:
+        securityhub_client: SecurityHubClient
+        standards_to_enable: Dictionary of standards to enable
+        standard_definition: Specific Standard Information like subscription and standard ARNs
+        standard_short_name: Standard short name
+    Returns:
+        True or False
+    """
+    if all_standards_ready(securityhub_client):
         try:
-            sts_client.get_caller_identity()
-            enabled_regions.append(region)
-        except ClientError as ce:
-            if ce.response["Error"]["Code"] == "InvalidClientTokenId":
-                logger.info(f"{region} region is disabled")
-            else:
-                err = ce.response["Error"]
-                logger.error(f"Error {err} occurred testing region {region}")
-    return enabled_regions
-
-
-def get_all_organization_accounts() -> dict:
-    """
-    Gets a list of Active AWS Accounts in the Organization.
-    This is called if the function is not executed by an SNS trigger and
-    used to periodically ensure all accounts are correctly configured, and
-    prevent gaps in security from activities like new regions being added and
-    SecurityHub being disabled.
-    :return: AWS Account Dictionary
-    """
-    aws_accounts_dict = dict()
-
-    try:
-        org_client = SESSION.client("organizations", region_name="us-east-1")
-        paginator = org_client.get_paginator("list_accounts")
-
-        for page in paginator.paginate(PaginationConfig={"PageSize": 20}):
-            for acct in page["Accounts"]:
-
-                if acct["Status"] == "ACTIVE":  # Store active accounts in a dict
-                    account_id = acct["Id"]
-                    email = acct["Email"]
-                    aws_accounts_dict.update({account_id: email})
-
-        logger.info(
-            "Active accounts count: {}, Active accounts: {}".format(
-                len(aws_accounts_dict.keys()), json.dumps(aws_accounts_dict)
-            )
-        )
-    except ClientError as ce:
-        logger.error(f"Error: {str(ce)}")
-        raise
-
-    return aws_accounts_dict
-
-
-def assume_role(aws_account_number, role_name):
-    """
-    Assumes the provided role in each account and returns a session object
-    :param aws_account_number: AWS Account Number
-    :param role_name: Role to assume in target account
-    :return: Session object for the specified AWS Account and Region
-    """
-    try:
-        sts_client = SESSION.client("sts")
-        partition = sts_client.get_caller_identity()["Arn"].split(":")[1]
-        response = sts_client.assume_role(
-            RoleArn="arn:{}:iam::{}:role/{}".format(
-                partition, aws_account_number, role_name
-            ),
-            RoleSessionName="EnableSecurityHub",
-        )
-        sts_session = boto3.Session(
-            aws_access_key_id=response["Credentials"]["AccessKeyId"],
-            aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
-            aws_session_token=response["Credentials"]["SessionToken"],
-        )
-        logger.info("Assumed session for {}.".format(aws_account_number))
-        return sts_session
-    except Exception as e:
-        logging.error(f"{e}")
-
-
-def get_mgmt_members(mgmt_session, aws_region):
-    """
-    Returns a list of current members of the SecurityHub management account
-    :param mgmt_session: Security Hub Management Account Session
-    :param aws_region: AWS Region of the SecurityHub management account
-    :return: dict of AwsAccountId:MemberStatus
-    """
-    member_dict = dict()
-    sh_client = mgmt_session.client("securityhub", region_name=aws_region)
-
-    try:
-        paginator = sh_client.get_paginator("list_members")
-        operation_parameters = {"OnlyAssociated": False}
-        page_iterator = paginator.paginate(**operation_parameters)
-        for page in page_iterator:
-            if page["Members"]:
-                for member in page["Members"]:
-                    member_dict.update({member["AccountId"]: member["MemberStatus"]})
-        logger.info(f"Members of SecurityHub Management Account: {member_dict}")
-    except Exception as exc:
-        if "BadRequestException" in str(exc):
-            logger.info("No members exist")
-        else:
-            raise ValueError(f"List members exception {exc}")
-    return member_dict
-
-
-def process_integrations(sh_client, partition, region, account_id):
-    """
-    Enable Security Hub Integrations
-    :param sh_client: SecurityHub boto3 client
-    :param partition: AWS Partition
-    :param region: region to configure
-    :param account_id: account to configure
-    :return:
-    """
-    try:
-        if ENABLE_PROWLER_INTEGRATION:
-            logger.info(f"Enabling Prowler SecurityHub integration in  {account_id} {region}")
-            prowler_product_arn = f"arn:{partition}:securityhub:{region}::product/prowler/prowler"
-            sh_client.enable_import_findings_for_product(
-                ProductArn=prowler_product_arn
-            )
-    except ClientError as error:
-        if "InvalidAccessException" in str(error):
-            logger.info(f"Account {account_id} is not subscribed to AWS Security Hub in {region}")
-        elif "ResourceConflictException" in str(error):
-            logger.info(f"SecurityHub integration already enabled in Account {account_id} and {region}")
-        else:
-            logger.error(f"Client Error: {error}")
-    except Exception as exc:
-        logger.error(f"Error Enabling SecurityHub integration in {account_id} {region} Exception: {exc}")
-        raise ValueError(f"Enabling SecurityHub integration in {account_id} {region}")
-
-
-def process_security_standards(sh_client, partition, region, account):
-    """
-    Configure the security standards
-    :param sh_client: SecurityHub boto3 client
-    :param partition: AWS partition
-    :param region: region to configure
-    :param account: account to configure
-    :return: None
-    """
-    logger.info(f"Processing Security Standards for Account {account} " f"in {region}")
-    # AWS Standard ARNs
-    aws_standard_arn = (
-        f"arn:{partition}:securityhub:{region}::standards/"
-        f"aws-foundational-security-best-practices/v/{SBP_STANDARD_VERSION}"
-    )
-    aws_subscription_arn = (
-        f"arn:{partition}:securityhub:{region}:{account}:"
-        f"subscription/aws-foundational-security-best-practices"
-        f"/v/{SBP_STANDARD_VERSION}"
-    )
-    logger.debug(f"ARN: {aws_standard_arn}")
-    # CIS Standard ARNs
-    cis_standard_arn = (
-        f"arn:{partition}:securityhub:::ruleset/"
-        f"cis-aws-foundations-benchmark/v/{CIS_STANDARD_VERSION}"
-    )
-    cis_subscription_arn = (
-        f"arn:{partition}:securityhub:{region}:{account}:"
-        f"subscription/cis-aws-foundations-benchmark"
-        f"/v/{CIS_STANDARD_VERSION}"
-    )
-    logger.debug(f"ARN: {cis_standard_arn}")
-    # PCI Standard ARNs
-    pci_standard_arn = (
-        f"arn:{partition}:securityhub:{region}::standards/" f"pci-dss/v/{PCI_STANDARD_VERSION}"
-    )
-    pci_subscription_arn = (
-        f"arn:{partition}:securityhub:{region}:{account}:"
-        f"subscription/pci-dss/v/{PCI_STANDARD_VERSION}"
-    )
-    logger.debug(f"ARN: {pci_standard_arn}")
-    # Check for Enabled Standards
-    aws_standard_enabled = False
-    cis_standard_enabled = False
-    pci_standard_enabled = False
-    enabled_standards = sh_client.get_enabled_standards()
-    logger.info(
-        f"Account {account} in {region}. " f"Enabled Standards: {enabled_standards}"
-    )
-    for item in enabled_standards["StandardsSubscriptions"]:
-        if aws_standard_arn in item["StandardsArn"]:
-            aws_standard_enabled = True
-        if cis_standard_arn in item["StandardsArn"]:
-            cis_standard_enabled = True
-        if pci_standard_arn in item["StandardsArn"]:
-            pci_standard_enabled = True
-    # Enable AWS Standard
-    if ENABLE_SBP_STANDARD:
-        if aws_standard_enabled:
-            logger.info(
-                f"AWS Foundational Security Best Practices "
-                f"Security Standard is already enabled in Account "
-                f"{account} in {region}"
-            )
-        else:
-            try:
-                sh_client.batch_enable_standards(
-                    StandardsSubscriptionRequests=[{"StandardsArn": aws_standard_arn}]
-                )
-                logger.info(
-                    f"Enabled AWS Foundational Security Best Practices "
-                    f"Security Standard in Account {account} in "
-                    f"{region}"
-                )
-            except Exception as error:
-                logger.info(
-                    f"Failed to enable AWS Foundational Security Best Practices "
-                    f"Security Standard in Account {account} in "
-                    f"{region} - {error}"
-                )
-    # Disable AWS Standard
-    else:
-        if not aws_standard_enabled:
-            logger.info(
-                f"AWS Foundational Security Best Practices v{SBP_STANDARD_VERSION} "
-                f"Security Standard is already disabled in Account "
-                f"{account} in {region}"
-            )
-        else:
-            try:
-                sh_client.batch_disable_standards(
-                    StandardsSubscriptionArns=[aws_subscription_arn]
-                )
-                logger.info(
-                    f"Disabled AWS Foundational Security Best Practices "
-                    f"v{SBP_STANDARD_VERSION} Security Standard in Account {account} in "
-                    f"{region}"
-                )
-            except Exception as error:
-                logger.info(
-                    f"Failed to disable AWS Foundational Security Best Practices "
-                    f"Security Standard in Account {account} in "
-                    f"{region} - {error}"
-                )
-    # Enable CIS Standard
-    if ENABLE_CIS_STANDARD:
-        if cis_standard_enabled:
-            logger.info(
-                f"CIS AWS Foundations Benchmark Security "
-                f"Standard is already enabled in Account {account} "
-                f"in {region}"
-            )
-        else:
-            try:
-                sh_client.batch_enable_standards(
-                    StandardsSubscriptionRequests=[{"StandardsArn": cis_standard_arn}]
-                )
-                logger.info(
-                    f"Enabled CIS AWS Foundations Benchmark "
-                    f"Security Standard in Account {account} in {region}"
-                )
-            except Exception as error:
-                logger.info(
-                    f"Failed to enable CIS AWS Foundations Benchmark "
-                    f"Security Standard in Account {account} in "
-                    f"{region} - {error}"
-                )
-    # Disable CIS Standard
-    else:
-        if not cis_standard_enabled:
-            logger.info(
-                f"CIS AWS Foundations Benchmark Security "
-                f"Standard is already disabled in Account {account} "
-                f"in {region}"
-            )
-        else:
-            try:
-                sh_client.batch_disable_standards(
-                    StandardsSubscriptionArns=[cis_subscription_arn]
-                )
-                logger.info(
-                    f"Disabled CIS AWS Foundations Benchmark "
-                    f"Security Standard in Account {account} in {region}"
-                )
-            except Exception as error:
-                logger.info(
-                    f"Failed to disable CIS AWS Foundations Benchmark "
-                    f"Security Standard in Account {account} in "
-                    f"{region} - {error}"
-                )
-    # Enable PCI Standard
-    if ENABLE_PCI_STANDARD:
-        if pci_standard_enabled:
-            logger.info(
-                f"PCI DSS v3.2.1 Security Standard is already "
-                f"enabled in Account {account} in {region}"
-            )
-        else:
-            try:
-                sh_client.batch_enable_standards(
-                    StandardsSubscriptionRequests=[{"StandardsArn": pci_standard_arn}]
-                )
-                logger.info(
-                    f"Enabled PCI DSS Security Standard "
-                    f"in Account {account} in {region}"
-                )
-            except Exception as error:
-                logger.info(
-                    f"Failed to enable PCI DSS Security Standard "
-                    f"Security Standard in Account {account} in "
-                    f"{region} - {error}"
-                )
-    # Disable PCI Standard
-    else:
-        if not pci_standard_enabled:
-            logger.info(
-                f"PCI DSS Security Standard is already "
-                f"disabled in Account {account} in {region}"
-            )
-        else:
-            try:
-                sh_client.batch_disable_standards(
-                    StandardsSubscriptionArns=[pci_subscription_arn]
-                )
-                logger.info(
-                    f"Disabled PCI DSS Security Standard "
-                    f"in Account {account} in {region}"
-                )
-            except Exception as error:
-                logger.info(
-                    f"Failed to disable PCI DSS Security Standard "
-                    f"Security Standard in Account {account} in "
-                    f"{region} - {error}"
-                )
-
-
-def disable_mgmt(mgmt_session, role, securityhub_regions):
-    """
-    Disable SecurityHub in the Management Account
-    :param mgmt_session: Management account session
-    :param role: Role to assume
-    :param securityhub_regions: regions to enable
-    :return: None
-    """
-
-    for region in securityhub_regions:
-        sh_mgmt_client = mgmt_session.client("securityhub", region_name=region)
-        mgmt_members = get_mgmt_members(mgmt_session, region)
-        member_accounts = []
-
-        for member in mgmt_members:
-            member_accounts.append(member)
-
-        if member_accounts:
-            sh_mgmt_client.disassociate_members(AccountIds=member_accounts)
-            logger.info(
-                f"Disassociated Member Accounts {member_accounts} "
-                f"from the Management Account in {region}"
-            )
-            sh_mgmt_client.delete_members(AccountIds=member_accounts)
-            logger.info(
-                f"Deleted Member Accounts {member_accounts} "
-                f"from the Management Account in {region}"
-            )
-            for member in mgmt_members:
-                member_session = assume_role(member, role)
-                member_client = member_session.client("securityhub", region_name=region)
-                member_client.disable_security_hub()
-                logger.info(
-                    f"Disabled SecurityHub in member Account {member} " f"in {region}"
-                )
-        try:
-            sh_mgmt_client.disable_security_hub()
-            logger.info(f"Disabled SecurityHub in Management Account in {region}")
-        except ClientError:
-            logger.info(
-                f"SecurityHub already Disable in Management Account " f"in {region}"
-            )
-    return
-
-
-def enable_mgmt(mgmt_session, securityhub_regions, partition):
-    """
-    Enable Security Hub in the Management Account
-    :param mgmt_session: Management Account Session
-    :param securityhub_regions: regions to enable
-    :param partition: AWS partition
-    :return: None
-    """
-
-    for region in securityhub_regions:
-        sh_mgmt_client = mgmt_session.client("securityhub", region_name=region)
-        # Ensure SecurityHub is Enabled in the Management Account
-        try:
-            sh_mgmt_client.get_findings()
-        except ClientError as ce:
-            logger.info(
-                f"SecurityHub not currently Enabled on Management Account "
-                f"{MGMT_ACCOUNT_ID} in {region}. Enabling it."
-            )
-            try:
-                sh_mgmt_client.enable_security_hub(EnableDefaultStandards=False)
-            except Exception as exc:
-                logger.info(
-                    f"Unable to Enable Security Hub on Management Account "
-                    f"{MGMT_ACCOUNT_ID} in {region}. Error: {exc}"
-                )
-                continue
-        else:
-            logger.info(
-                f"SecurityHub already Enabled in Management Account "
-                f"{MGMT_ACCOUNT_ID} in {region}"
-            )
-        try:
-            # Enable Action Target
-            sh_mgmt_client.create_action_target(
-                Name="CWExportS3", Description="CWExportS3", Id="CWExportS3"
-            )
-        except ClientError:
-            logger.info(f"SecurityHub Action Target Already Present")
-
-        process_security_standards(sh_mgmt_client, partition, region, MGMT_ACCOUNT_ID)
-        process_integrations(sh_mgmt_client, partition, region, MGMT_ACCOUNT_ID)
-    return
-
-
-def processing_accounts(mgmt_session, aws_account_dict, securityhub_regions, partition, action):
-    """
-    Process all accounts provided
-    :param mgmt_session: Management account session
-    :param aws_account_dict: Account dictionary
-    :param securityhub_regions: Regions to enable
-    :param partition: AWS partition
-    :param action: CloudFormation event action
-    :return: None
-    """
-    # Processing Accounts
-    logger.info(f"Processing: {json.dumps(aws_account_dict)}")
-
-    for account in aws_account_dict.keys():
-        email_address = aws_account_dict[account]
-        if account == MGMT_ACCOUNT_ID:
-            logger.info(f"Account {account} cannot become a member of itself")
-            continue
-        logger.debug(
-            f"Working on SecurityHub on Account {account} in \
-                     regions %{securityhub_regions}"
-        )
-        failed_invitations = []
-        member_session = assume_role(account, ASSUME_ROLE_NAME)
-        # Process Regions
-        for aws_region in securityhub_regions:
-            sh_member_client = member_session.client(
-                "securityhub", region_name=aws_region
-            )
-            sh_mgmt_client = mgmt_session.client("securityhub", region_name=aws_region)
-            mgmt_members = get_mgmt_members(mgmt_session, aws_region)
-            logger.info(f"Beginning {aws_region} in Account {account}")
-
-            if account in mgmt_members:
-                if mgmt_members[account] == "Associated":
-                    logger.info(
-                        f"Account {account} is already associated "
-                        f"with Management Account {MGMT_ACCOUNT_ID} in "
-                        f"{aws_region}"
+            if standards_to_enable[standard_short_name]:
+                if not standard_definition["enabled"]:
+                    response = securityhub_client.batch_enable_standards(
+                        StandardsSubscriptionRequests=[{"StandardsArn": standard_definition["standard_arn"]}]
                     )
-                    if action == "Delete":
-                        try:
-                            sh_mgmt_client.disassociate_members(AccountIds=[account])
-                        except ClientError:
-                            continue
-                        try:
-                            sh_mgmt_client.delete_members(AccountIds=[account])
-                        except ClientError:
-                            continue
+                    api_call_details = {"API_Call": "securityhub:BatchEnableStandards", "API_Response": response}
+                    logger.info(api_call_details)
+                    logger.info(f"Enabled {standard_definition['name']}")
                 else:
-                    logger.warning(
-                        f"Account {account} exists, but not "
-                        f"associated to Management Account "
-                        f"{MGMT_ACCOUNT_ID} in {aws_region}"
-                    )
-                    logger.info(
-                        f"Disassociating Account {account} from "
-                        f"Management Account {MGMT_ACCOUNT_ID} in "
-                        f"{aws_region}"
-                    )
-                    try:
-                        sh_mgmt_client.disassociate_members(AccountIds=[account])
-                    except ClientError:
-                        continue
-                    try:
-                        sh_mgmt_client.delete_members(AccountIds=[account])
-                    except ClientError:
-                        continue
-            try:
-                sh_member_client.get_findings()
-            except Exception as exc:
-                logger.debug(str(exc))
-                logger.info(
-                    f"SecurityHub not currently Enabled on Account "
-                    f"{account} in {aws_region}"
-                )
-                if action != "Delete":
-                    logger.info(
-                        f"Enabled SecurityHub on Account {account} " f"in {aws_region}"
-                    )
-                    try:
-                        sh_member_client.enable_security_hub(EnableDefaultStandards=False)
-                    except ClientError:
-                        logger.info(f"Unable to Enable Security Hub in {account} and {aws_region}")
-                        continue
-            else:
-                # Security Hub is already enabled
-                if action != "Delete":
-                    logger.info(
-                        f"SecurityHub already Enabled in Account "
-                        f"{account} in {aws_region}"
-                    )
+                    logger.info(f"{standard_definition['name']} is already enabled")
+            else:  # Disable Standard
+                if standard_definition["enabled"]:
+                    logger.info(f"Disabling {standard_definition['name']} in Account")
+                    response = securityhub_client.batch_disable_standards(StandardsSubscriptionArns=[standard_definition["subscription_arn"]])
+                    api_call_details = {"API_Call": "securityhub:BatchDisableStandards", "API_Response": response}
+                    logger.info(api_call_details)
+                    logger.info(f"Disabled {standard_definition['name']} in Account")
                 else:
-                    logger.info(
-                        f"Disabled SecurityHub in Account " f"{account} in {aws_region}"
-                    )
-                    try:
-                        sh_member_client.disable_security_hub()
-                    except ClientError:
-                        continue
-            if action != "Delete":
-                process_security_standards(sh_member_client, partition, aws_region, account)
-                process_integrations(sh_member_client, partition, aws_region, account)
-                logger.info(
-                    f"Creating member for Account {account} and "
-                    f"Email, {email_address} in {aws_region}"
-                )
-                member_response = sh_mgmt_client.create_members(
-                    AccountDetails=[{"AccountId": account, "Email": email_address}]
-                )
-                if len(member_response["UnprocessedAccounts"]) > 0:
-                    logger.warning(
-                        f"Could not create member Account " f"{account} in {aws_region}"
-                    )
-                    failed_invitations.append(
-                        {"AccountId": account, "Region": aws_region}
-                    )
-                    continue
-                logger.info(f"Inviting Account {account} in {aws_region}")
-                sh_mgmt_client.invite_members(AccountIds=[account])
-            # go through each invitation (hopefully only 1)
-            # and pull the one matching the Security Management Account ID
-            try:
-                paginator = sh_member_client.get_paginator("list_invitations")
-                invitation_iterator = paginator.paginate()
-                for invitation in invitation_iterator:
-                    mgmt_invitation = next(
-                        item
-                        for item in invitation["Invitations"]
-                        if item["AccountId"] == MGMT_ACCOUNT_ID
-                    )
-                logger.info(
-                    f"Accepting invitation on Account {account} "
-                    f"from Management Account {MGMT_ACCOUNT_ID} in "
-                    f"{aws_region}"
-                )
-                sh_member_client.accept_invitation(
-                    MasterId=MGMT_ACCOUNT_ID,
-                    InvitationId=mgmt_invitation["InvitationId"],
-                )
-            except Exception as exc:
-                logger.warning(
-                    f"Account {account} could not accept "
-                    f"invitation from Management Account "
-                    f"{MGMT_ACCOUNT_ID} in {aws_region}"
-                )
-                logger.warning(f"{exc}")
-
-        if len(failed_invitations) > 0:
-            failed_accounts = json.dumps(
-                failed_invitations, sort_keys=True, default=str
-            )
-            logger.warning(
-                f"Error Processing the following Accounts: {failed_accounts}"
-            )
+                    logger.info(f"{standard_definition['name']} is already disabled")
+        except securityhub_client.exceptions.InvalidInputException:
+            logger.error("Retry after the standard is no longer in pending state.")
+    return True
 
 
-def enabling_securityhub_all_regions(
-        mgmt_session, securityhub_regions, partition, action, event
-):
+def create_finding_aggregator(securityhub_client: SecurityHubClient, region_linking_mode: str, regions: list, home_region: str) -> str:
+    """Create Finding Aggregator.
+    Args:
+        securityhub_client: Security Hub Client
+        region_linking_mode: Region Linking Mode
+        regions: AWS Region List
+        home_region: Home Region
+    Returns:
+        status string
     """
-    Enable SecurityHub in all regions
-    :param mgmt_session: Management account session
-    :param securityhub_regions:
-    :param partition: AWS Partition
-    :param action: CloudFormation event action
-    :param event: event containing records to process
-    :return: None
-    """
-    logger.info(f"Enabling SecurityHub in Regions: {securityhub_regions}")
-    aws_account_dict = dict()
-    # Checks if Function was called by SNS
-    if "Records" in event:
-        message = event["Records"][0]["Sns"]["Message"]
-        json_message = json.loads(message)
-        logger.info(f"SNS message: {json.dumps(json_message, default=str)}")
-        account_id = json_message["AccountId"]
-        email = json_message["Email"]
-        aws_account_dict.update({account_id: email})
-        action = json_message["Action"]
-        # Ensure the Security Hub Management is still enabled
-        enable_mgmt(mgmt_session, securityhub_regions, partition)
-        processing_accounts(
-            mgmt_session, aws_account_dict, securityhub_regions, partition, action
-        )
+    regions_minus_home_region = regions.copy()
+    if home_region in regions_minus_home_region:
+        regions_minus_home_region.remove(home_region)
+        
+    if not regions_minus_home_region:
+        logger.info("Region aggregator not created due to only one governed region.")
+        return "Not Created"
+
+    finding_aggregator_arns: list = []
+    paginator = securityhub_client.get_paginator("list_finding_aggregators")
+
+    try:
+        for page in paginator.paginate():
+            for finding_aggregator in page["FindingAggregators"]:
+                finding_aggregator_arns.append(finding_aggregator["FindingAggregatorArn"])
+    except securityhub_client.exceptions.InternalException:
+        logger.info("No existing finding aggregator")
+
+    if finding_aggregator_arns:
+        logger.info("...Updating finding aggregator")
+        update_finding_aggregator(securityhub_client, region_linking_mode, regions_minus_home_region, finding_aggregator_arns)
     else:
-        # Publish SNS messages for each Organization Account
-        aws_account_dict = get_all_organization_accounts()
-        sns_client = SESSION.client("sns", region_name=AWS_REGION)
-        for account_id, email in aws_account_dict.items():
-            sns_message = {"AccountId": account_id, "Email": email, "Action": action}
-            logger.info(f"Publishing to configure Account {account_id}")
-            sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=json.dumps(sns_message))
-
-
-def disable_sh_all_accounts(user_regions: str,ASSUME_ROLE):
-    """
-    Disable Security Hub in all accounts
-    :return:
-    """
-    try:
-        aws_account_dict = get_all_organization_accounts()
-        regions = get_validated_securityhub_regions(user_regions, False)
-    except Exception as error:
-        logger.info(f"{error}")
-
-    for account_id, email in aws_account_dict.items():
-        try:
-            member_session = assume_role(account_id, ASSUME_ROLE)
-        except Exception as error:
-            logger.info(f"{account_id} {region} - {error}")
-
-        for region in regions:
-            try:
-                member_client = member_session.client("securityhub", region_name=region)
-                member_client.disassociate_from_master_account()
-                member_client.disable_security_hub()
-                logger.info(
-                    f"Disabled SecurityHub in member Account {account_id} " f"in {region}"
-                )
-            except Exception as error:
-                logger.info(f"{account_id} {region} - {error}")
-
-
-def lambda_handler(event, context):
-    """
-    Lambda Handler
-    :param event: event data
-    :param context: runtime information
-    :return: None
-    """
-    logger.info(event)
-    partition = context.invoked_function_arn.split(":")[1]
-
-    response_data = {}
-    try:
-        mgmt_session = assume_role(MGMT_ACCOUNT_ID, ASSUME_ROLE_NAME)
-        if mgmt_session is None:
-            raise NameError("STS Assume Role Failed")
-        # Regions to Deploy
-        securityhub_regions = get_validated_securityhub_regions(USER_REGIONS, CONTROL_TOWER_REGIONS_ONLY)
-
-        # Check for Custom Resource Call
-        if "RequestType" in event and (
-                event["RequestType"] == "Delete"
-                or event["RequestType"] == "Create"
-                or event["RequestType"] == "Update"
-        ):
-            action = event["RequestType"]
-            if action == "Create":
-                enable_mgmt(mgmt_session, securityhub_regions, partition)
-            if action == "Update":
-                OLD_MGMT_ACCOUNT_ID = event["OldResourceProperties"]["MGMT_ACCOUNT_ID"]
-                OLD_ASSUME_ROLE_NAME = event["OldResourceProperties"]["ASSUME_ROLE"]
-                OLD_USER_REGIONS = event["OldResourceProperties"]["REGIONS_TO_ENABLE"]
-                OLD_CONTROL_TOWER_REGIONS_ONLY = (event["OldResourceProperties"]["CONTROL_TOWER_REGIONS_ONLY"]).lower() in "true"
-                old_mgmt_session = assume_role(OLD_MGMT_ACCOUNT_ID, OLD_ASSUME_ROLE_NAME)
-                old_securityhub_regions = get_validated_securityhub_regions(OLD_USER_REGIONS, OLD_CONTROL_TOWER_REGIONS_ONLY)
-
-                disable_mgmt(old_mgmt_session, OLD_ASSUME_ROLE_NAME, old_securityhub_regions)
-                disable_sh_all_accounts(OLD_USER_REGIONS,OLD_ASSUME_ROLE_NAME)
-
-                enable_mgmt(mgmt_session, securityhub_regions, partition)
-                
-            if action == "Delete":
-                disable_mgmt(mgmt_session, ASSUME_ROLE_NAME, securityhub_regions)
-                if DISABLE_ALL_ACCOUNTS:
-                    disable_sh_all_accounts(USER_REGIONS,ASSUME_ROLE_NAME)
-            logger.info(f"Sending Custom Resource Response")
-            send_response(event, context, "SUCCESS", response_data)
+        logger.info("...Creating finding aggregator")
+        if region_linking_mode != "ALL_REGIONS":
+            response = securityhub_client.create_finding_aggregator(RegionLinkingMode=region_linking_mode, Regions=regions_minus_home_region)
         else:
-            action = "Create"
-            enabling_securityhub_all_regions(mgmt_session, securityhub_regions, partition, action, event)
-    except NameError:
-        logger.error("STS Assume Failed")
+            response = securityhub_client.create_finding_aggregator(RegionLinkingMode=region_linking_mode)
 
-        if "RequestType" in event:
-            send_response(event, context, "SUCCESS", response_data)
+        api_call_details = {"API_Call": "securityhub:CreateFindingAggregator", "API_Response": response}
+        logger.info(api_call_details)
+    return "Aggregator Created or Updated"
 
-    except Exception as exc:
-        logger.error(exc)
-        if "RequestType" in event:
-            send_response(event, context, "FAILED", response_data)
+
+def update_finding_aggregator(securityhub_client: SecurityHubClient, region_linking_mode: str, regions: list, finding_aggregator_arns: list) -> None:
+    """Update Finding Aggregator.
+    Args:
+        securityhub_client: Security Hub Client
+        region_linking_mode: Region Linking Mode
+        regions: AWS Region List
+        finding_aggregator_arns: Finding Aggregator Arns
+    """
+    for finding_aggregator_arn in finding_aggregator_arns:
+        response = securityhub_client.get_finding_aggregator(FindingAggregatorArn=finding_aggregator_arn)
+        api_call_details = {"API_Call": "securityhub:GetFindingAggregator", "API_Response": response}
+        logger.info(api_call_details)
+
+        if response["RegionLinkingMode"] != region_linking_mode or not compare_lists(regions, response["Regions"]):
+            logger.info(f"Update finding aggregator: {finding_aggregator_arn}")
+            if region_linking_mode != "ALL_REGIONS":
+                securityhub_client.update_finding_aggregator(
+                    FindingAggregatorArn=finding_aggregator_arn, RegionLinkingMode=region_linking_mode, Regions=regions
+                )
+                api_call_details = {"API_Call": "securityhub:UpdateFindingAggregator", "API_Response": response}
+                logger.info(api_call_details)
+            else:
+                securityhub_client.update_finding_aggregator(FindingAggregatorArn=finding_aggregator_arn, RegionLinkingMode=region_linking_mode)
+                api_call_details = {"API_Call": "securityhub:UpdateFindingAggregator", "API_Response": response}
+                logger.info(api_call_details)
+
+
+def compare_lists(list1: list, list2: list) -> bool:
+    """Compare 2 lists.
+    Args:
+        list1: List 1
+        list2: List 2
+    Returns:
+        True or False
+    """
+    if len(list1) != len(list2):
+        return False
+
+    if set(list1) == set(list2):
+        return True
+
+    return False
+
+
+def is_config_enabled(config_client: ConfigServiceClient) -> bool:
+    """Check if Config is enabled.
+    Args:
+        config_client: ConfigServiceClient
+    Returns:
+        True or False
+    """
+    if (
+        len(config_client.describe_configuration_recorders()["ConfigurationRecorders"]) > 0
+        and config_client.describe_configuration_recorder_status()["ConfigurationRecordersStatus"][0]["recording"]
+    ):
+        return True
+    return False

@@ -31,12 +31,9 @@ Metadata:
           - PCIStandardVersion
           - EnableSBPStandard
           - SBPStandardVersion
+          - RegionLinkingMode
+          - LinkedRegions
           - ControlTowerRegionsOnly
-          - EnableProwlerIntegration
-      - Label:
-          default: Scheduled Event Rule
-        Parameters:
-          - ComplianceFrequency
       - Label:
           default: "App Details - HTTP Logs Source Configuration"
         Parameters:
@@ -59,6 +56,7 @@ Metadata:
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+          - QSS3BucketRegion
       - Label:
           default: "Local Parameters. Do Not Edit the values."
         Parameters:
@@ -99,14 +97,14 @@ Metadata:
         default: ENABLE Security Best Practices Standard
       SBPStandardVersion:
         default: Security Best Practices Standard Version
-      ComplianceFrequency:
-        default: Compliance Frequency
       RegionsToEnable:
         default: Regions to Enable
+      RegionLinkingMode:
+        default: Region Linking Mode
+      LinkedRegions:
+        default: Linked Regions
       ControlTowerRegionsOnly:
         default: Control Tower Regions Only
-      EnableProwlerIntegration:
-        default: Enable Prowler Integration
       AdministrationRoleArn:
         default: Arn of Administration Role
       ExecutionRoleRuleName:
@@ -130,7 +128,8 @@ Metadata:
         default: "Sumo Logic HTTP Logs Source Name"
       HttpLogsSourceCategoryName:
         default: "Sumo Logic HTTP Logs Source Category Name" 
-
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"
       ConnectionName:
         default: "Webhook Lambda Connection Name"
 
@@ -223,15 +222,6 @@ Parameters:
     MinLength: 12
     MaxLength: 12
 
-  ComplianceFrequency:
-    Type: Number
-    Default: 30
-    Description: Frequency (in minutes between 1 and 3600, default is 60) to check organizational compliance
-    MinValue: 1
-    MaxValue: 3600
-    ConstraintDescription: >
-      Compliance Frequency must be a number between 1 and 3600, inclusive.
-
   EnableCISStandard:
     Type: String
     Description: CIS AWS Foundations Standard
@@ -276,17 +266,22 @@ Parameters:
     Description: Comma delimited list of regions to enable Security Hub.
     Default: us-west-1
 
+  RegionLinkingMode:
+    AllowedValues: [SPECIFIED_REGIONS, ALL_REGIONS]
+    Default: SPECIFIED_REGIONS
+    Description:
+      Indicates whether to aggregate findings from all of the available Regions in the current partition. Also determines whether to automatically
+      aggregate findings from new Regions as Security Hub supports them and you opt into them.
+    Type: String
+    
+  LinkedRegions:
+    Default: us-east-2, us-west-1
+    Description: Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region.
+    Type: String
+
   ControlTowerRegionsOnly:
     Type: String
     Description: Only enable Security Hub in the Control Tower regions
-    Default: false
-    AllowedValues:
-      - true
-      - false
-
-  EnableProwlerIntegration:
-    Type: String
-    Description: Enable the Prowler integration
     Default: false
     AllowedValues:
       - true
@@ -305,6 +300,11 @@ Parameters:
     Default: "quickstart-sumo-logic-cloudsiem/"
     Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
     Type: "String"
+
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String
 
   SumoLogicHelperRoleARN:
     Description: "Sumo Logic Helper Role ARN"
@@ -370,6 +370,7 @@ Conditions:
   enable_forward_data_to_cloudsiem: !And
     - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
     - !Condition install_http_log_source
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 
 Resources:
 
@@ -419,65 +420,77 @@ Resources:
         - 'CAPABILITY_IAM'
         - 'CAPABILITY_AUTO_EXPAND'
       StackInstancesGroup:
-        - Regions: !Split [",", !Ref RegionsToEnable]
+        - Regions:
+          - !Ref 'AWS::Region'
           DeploymentTargets:
             Accounts:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-audit-sumo-collector.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'SumoEndpoint'
           ParameterValue: !GetAtt SumoHTTPSource.SUMO_ENDPOINT
 
-  SecurityHubOrgSumoConnectionStackset:
+  SumoSecurityHubSecretAccessKey:
+    Condition: install_http_log_source
+    DependsOn:
+        - SecurityHubOrgAuditSumoCollectorStackset
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AWS::Region
+      stackName:  !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
+      outputKey: 'oSecurityHubSecretAccessKey'
+
+  SumoSecurityHubUserKey:
+    Condition: install_http_log_source
+    DependsOn:
+        - SecurityHubOrgAuditSumoCollectorStackset
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AWS::Region
+      stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
+      outputKey: 'oSecurityHubUserKey'
+
+  SumoSecurityHubForwarderApiUrl:
+    Condition: install_http_log_source
+    DependsOn:
+        - SecurityHubOrgAuditSumoCollectorStackset
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AWS::Region
+      stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
+      outputKey: 'oSecurityHubForwarderApiUrl'
+
+  SumoConnections:
+    Condition: install_http_log_source
     DependsOn:
         - SecurityHubOrgAuditSumoCollectorStackset  
-    Condition: install_http_log_source
-    Type: AWS::CloudFormation::StackSet
+    Type: Custom::Connections
     Properties:
-      Tags:
-        - Key: "version"
-          Value: !Ref QSVersion
-      StackSetName: !Sub 'SecurityHubOrgSumoConnection-${ParentStackName}'
-      AdministrationRoleARN: !Ref AdministrationRoleArn
-      ExecutionRoleName: !Ref ExecutionRoleRuleName
-      PermissionModel: SELF_MANAGED
-      Capabilities:
-        - 'CAPABILITY_NAMED_IAM'
-        - 'CAPABILITY_IAM'
-        - 'CAPABILITY_AUTO_EXPAND'
-      StackInstancesGroup:
-        - Regions: !Split [",", !Ref RegionsToEnable]
-          DeploymentTargets:
-            Accounts:
-              - !Ref AWS::AccountId
-      TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-sumo-connections.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
-      Parameters:
-        - ParameterKey: 'SumoDeployment'
-          ParameterValue: !Ref SumoDeployment
-        - ParameterKey: 'SumoAccessID'
-          ParameterValue: !Ref SumoAccessID
-        - ParameterKey: 'SumoAccessKey'
-          ParameterValue: !Ref SumoAccessKey
-        - ParameterKey: 'ConnectionName'
-          ParameterValue: !Ref ConnectionName
-        - ParameterKey: 'ExecutionRoleRuleName'
-          ParameterValue: !Ref ExecutionRoleRuleName
-        - ParameterKey: 'SecurityAccountId'
-          ParameterValue: !Ref SecurityAccountId
-        - ParameterKey: 'StackNameGetOutput'
-          ParameterValue: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
-        - ParameterKey: 'SumoLogicHelperRoleARN'
-          ParameterValue: !Ref SumoLogicHelperRoleARN 
-        - ParameterKey: 'QSS3BucketName'
-          ParameterValue: !Ref QSS3BucketName 
-        - ParameterKey: 'QSS3KeyPrefix'
-          ParameterValue: !Ref QSS3KeyPrefix                  
+      ServiceToken: !Ref ParentHelperFunctionArn
+      Type: "WebhookDefinition"
+      Name: !Sub '${ConnectionName}-${AWS::Region}'
+      Description: "Webhook Lambda connection for SecurityHub"
+      URL: !GetAtt SumoSecurityHubForwarderApiUrl.ARN
+      UserName: !GetAtt SumoSecurityHubUserKey.ARN
+      Password: !GetAtt SumoSecurityHubSecretAccessKey.ARN
+      Region: !Ref "AWS::Region"
+      ServiceName: 'execute-api'
+      WebhookType: 'AWSLambda'
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
 
   SumoSecurityHubApp:
     Type: Custom::App
@@ -511,14 +524,14 @@ Resources:
       SumoAccessKey: !Ref SumoAccessKey
       SumoDeployment: !Ref SumoDeployment
 
-  SecurityHubOrgEnablerAcctRoleStackset:
+  SecurityHubConfigurationIAMRoleStackSet:
     Condition: install_aws_security_hub_app
     Type: 'AWS::CloudFormation::StackSet'
     Properties:
       Tags:
         - Key: "version"
           Value: !Ref QSVersion
-      StackSetName: !Sub 'SecurityHubOrgEnablerAcctRole-${ParentStackName}'
+      StackSetName: !Sub 'SecurityHubConfigurationIAMRole-${ParentStackName}'
       PermissionModel: SERVICE_MANAGED
       Capabilities:
         - 'CAPABILITY_NAMED_IAM'
@@ -526,170 +539,68 @@ Resources:
         - 'CAPABILITY_AUTO_EXPAND' 
       StackInstancesGroup:
         - Regions:
-            -  !Select [0, !Split [",", !Ref RegionsToEnable]]
+            -  !Ref AWS::Region
           DeploymentTargets:
               OrganizationalUnitIds: 
                 - !Ref OrganizationRootID
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-enabler-acct-role.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-configuration-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AutoDeployment: 
         Enabled: true
         RetainStacksOnAccountRemoval: true
       Parameters: 
-        - ParameterKey: 'SecurityHubEnablerRoleName'
+        - ParameterKey: 'SecurityHubConfigurationRoleName'
           ParameterValue: !Sub "SHERole-${ParentStackName}"
-        - ParameterKey: 'SecurityHubEnablerLambdaRoleName'
+        - ParameterKey: 'SecurityHubOrgLambdaRoleName'
           ParameterValue: !Select [1, !Split ["/", !Ref SumoLogicHelperRoleARN]]
-        - ParameterKey: 'OrgManagementAccountId'
+        - ParameterKey: 'ManagementAccountId'
           ParameterValue: !Ref "AWS::AccountId"
+        - ParameterKey: 'DelegatedAdminAccountId'
+          ParameterValue: !Ref SecurityAccountId
+        - ParameterKey: 'ParentStackName'
+          ParameterValue: !Ref ParentStackName
 
-  SecurityHubOrgEnablerAcctRoleStack:
-    Condition: install_aws_security_hub_app
+  SecurityHubConfigurationIAMRoleStack:
     Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
-      Tags:
-        - Key: "version"
-          Value: !Ref QSVersion
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-enabler-acct-role.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-configuration-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
-        SecurityHubEnablerRoleName: !Sub "SHERole-${ParentStackName}"
-        SecurityHubEnablerLambdaRoleName: !Select [1, !Split ["/", !Ref SumoLogicHelperRoleARN]]
-        OrgManagementAccountId: !Ref "AWS::AccountId"
+        SecurityHubConfigurationRoleName: !Sub "SHERole-${ParentStackName}"
+        SecurityHubOrgLambdaRoleName: !Select [1, !Split ["/", !Ref SumoLogicHelperRoleARN]]
+        DelegatedAdminAccountId: !Ref SecurityAccountId
+        ManagementAccountId: !Ref AWS::AccountId
+        ParentStackName: !Ref ParentStackName
 
-  SecurityHubEnablerTopic:
-    Condition: install_aws_security_hub_app
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: !Sub 'securityhub-enabler-${ParentStackName}'
-      TopicName: !Sub 'securityhub-enabler-${ParentStackName}'
-      KmsMasterKeyId: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/sns
-
-  SecurityHubEnablerTopicLambdaPermission:
-    Condition: install_aws_security_hub_app
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !GetAtt SecurityHubEnablerLambdaHelper.Arn
-      Principal: sns.amazonaws.com
-      SourceArn: !Ref SecurityHubEnablerTopic
-
-  SecurityHubEnablerSubscription:
-    Condition: install_aws_security_hub_app
-    Type: AWS::SNS::Subscription
-    Properties:
-      Endpoint: !GetAtt SecurityHubEnablerLambdaHelper.Arn
-      Protocol: lambda
-      TopicArn: !Ref SecurityHubEnablerTopic
-
-  ScheduledRule:
-    Condition: install_aws_security_hub_app
-    Type: AWS::Events::Rule
-    Properties:
-      Description: SecurityHubEnablerTrigger
-      ScheduleExpression: !Sub 'rate(${ComplianceFrequency} minutes)'
-      State: 'ENABLED'
-      Targets:
-        - Arn: !GetAtt SecurityHubEnablerLambdaHelper.Arn
-          Id: 'DailyInvite'
-
-  PermissionForEventsToInvokeLambda:
-    Condition: install_aws_security_hub_app
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt SecurityHubEnablerLambdaHelper.Arn
-      Action: lambda:InvokeFunction
-      Principal: 'events.amazonaws.com'
-      SourceArn: !GetAtt ScheduledRule.Arn
-
-  SecurityHubEnablerLambdaHelper:
-    Condition: install_aws_security_hub_app
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W58
-            reason: "Lambda functions require permission to write CloudWatch Logs"
-          - id: W89
-            reason: "Lambda functions should be deployed inside a VPC"
-    Type: 'AWS::Serverless::Function'
-    Properties:
-      Handler: securityhub.lambda_handler
-      Runtime: python3.8
-      CodeUri:
-        Bucket: !Sub
-                - "${S3Bucket}"
-                - S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
-        Key: !Sub "${QSS3KeyPrefix}templates/apps/sumo-aws-apps/sumologic-app-utils/sumo_app_utils.zip"
-      MemorySize: 512
-      Timeout: 900
-      Role: !Ref SumoLogicHelperRoleARN
-      ReservedConcurrentExecutions: 2
-      Environment:
-        Variables:    
-          ASSUME_ROLE: !Sub "SHERole-${ParentStackName}"
-          MGMT_ACCOUNT_ID: !Ref SecurityAccountId
-          SNS_TOPIC_ARN: !Ref SecurityHubEnablerTopic
-          ENABLE_CIS_STANDARD: !Sub ${EnableCISStandard}
-          CIS_STANDARD_VERSION: !Sub ${CISStandardVersion}
-          ENABLE_PCI_STANDARD: !Sub ${EnablePCIStandard}
-          PCI_STANDARD_VERSION: !Sub ${PCIStandardVersion}
-          ENABLE_SBP_STANDARD: !Sub ${EnableSBPStandard}
-          SBP_STANDARD_VERSION: !Sub ${SBPStandardVersion}
-          REGIONS_TO_ENABLE: !Sub ${RegionsToEnable}
-          CONTROL_TOWER_REGIONS_ONLY: !Sub ${ControlTowerRegionsOnly}
-          ENABLE_PROWLER_INTEGRATION: !Sub ${EnableProwlerIntegration}
-
-  SecurityHubEnablerLambdaCustomResource:
+  SecurityHubLambdaCustomResource:
     Condition: install_aws_security_hub_app
     DependsOn:
-        - SecurityHubOrgEnablerAcctRoleStackset
-        - SecurityHubOrgEnablerAcctRoleStack
+        - SecurityHubConfigurationIAMRoleStackSet
+        - SecurityHubConfigurationIAMRoleStack
     Type: Custom::AWSSecurityHub
     Properties:
       Version: '1.0'
-      ServiceToken: !GetAtt SecurityHubEnablerLambdaHelper.Arn
-      ASSUME_ROLE: !Sub "SHERole-${ParentStackName}"
-      MGMT_ACCOUNT_ID: !Ref SecurityAccountId
-      SNS_TOPIC_ARN: !Ref SecurityHubEnablerTopic
-      ENABLE_CIS_STANDARD: !Sub ${EnableCISStandard}
-      CIS_STANDARD_VERSION: !Sub ${CISStandardVersion}
-      ENABLE_PCI_STANDARD: !Sub ${EnablePCIStandard}
-      PCI_STANDARD_VERSION: !Sub ${PCIStandardVersion}
-      ENABLE_SBP_STANDARD: !Sub ${EnableSBPStandard}
-      SBP_STANDARD_VERSION: !Sub ${SBPStandardVersion}
-      REGIONS_TO_ENABLE: !Sub ${RegionsToEnable}
+      ServiceToken: !Ref ParentHelperFunctionArn
+      CIS_VERSION: !Sub ${CISStandardVersion}
+      CONFIGURATION_ROLE_NAME: !Sub "SHERole-${ParentStackName}"
       CONTROL_TOWER_REGIONS_ONLY: !Sub ${ControlTowerRegionsOnly}
-      ENABLE_PROWLER_INTEGRATION: !Sub ${EnableProwlerIntegration}
+      DELEGATED_ADMIN_ACCOUNT_ID: !Ref SecurityAccountId
+      DISABLE_SECURITY_HUB: 'false'
+      ENABLED_REGIONS: !Sub ${RegionsToEnable}
+      ENABLE_CIS_STANDARD: !Sub ${EnableCISStandard}
+      ENABLE_PCI_STANDARD: !Sub ${EnablePCIStandard}
+      ENABLE_SECURITY_BEST_PRACTICES_STANDARD: !Sub ${EnableSBPStandard}
+      PCI_VERSION: !Sub ${PCIStandardVersion}
+      REGION_LINKING_MODE: !Ref RegionLinkingMode
+      LINKED_REGIONS: !Ref LinkedRegions
+      SECURITY_BEST_PRACTICES_VERSION: !Sub ${SBPStandardVersion}
+      MANAGEMENT_ACCOUNT_ID: !Ref AWS::AccountId
+      AWS_PARTITION: !Ref AWS::Partition
+      HOME_REGION: !Ref AWS::Region
 
-  # Trigger Security Hub Enabler after account is vended by AWS Control Tower
-  ControlTowerLifeCycleRule:
-    Condition: install_aws_security_hub_app
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !Sub 'securityhub-enabler-${ParentStackName}'
-      Description: 'SecurityHubLifeCycleTrigger'
-      EventPattern:
-        source:
-          - 'aws.controltower'
-        detail-type:
-          - 'AWS Service Event via CloudTrail'
-        detail:
-          eventName:
-            - 'CreateManagedAccount'
-      State: 'ENABLED'
-      Targets:
-        - Arn: !GetAtt SecurityHubEnablerLambdaHelper.Arn
-          Id: !Sub 'SecurityHubEnabler-${ParentStackName}'
-
-  PermissionForCTRuleToInvokeLambda:
-    Condition: install_aws_security_hub_app
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt SecurityHubEnablerLambdaHelper.Arn
-      Action: 'lambda:InvokeFunction'
-      Principal: 'events.amazonaws.com'
-      SourceArn: !GetAtt ControlTowerLifeCycleRule.Arn
