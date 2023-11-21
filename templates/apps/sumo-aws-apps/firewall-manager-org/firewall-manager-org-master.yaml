@@ -186,7 +186,10 @@ Parameters:
   DeliveryStreamName:
     Type: String
     Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
-
+    Default: "sumologic"
+    AllowedPattern: "[a-zA-Z0-9._-]+"
+    MaxLength: 16
+    
   FirewallManagerPolicyRegions:
     Type: String
     Description: Comma delimited list of regions for Firewall Manager Policy.

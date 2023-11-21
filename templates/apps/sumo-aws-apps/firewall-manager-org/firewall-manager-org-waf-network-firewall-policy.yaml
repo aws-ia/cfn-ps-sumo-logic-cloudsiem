@@ -22,6 +22,9 @@ Parameters:
   DeliveryStreamName:
     Type: String
     Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
+    Default: "sumologic"
+    AllowedPattern: "[a-zA-Z0-9._-]+"
+    MaxLength: 16
 
   SumoLogicKinesisLogsURL:
     Type: String
@@ -35,7 +38,9 @@ Parameters:
 
 Conditions:
   cCreateCFRuleGroup: !Equals [!Ref "AWS::Region", "us-east-1"]
-  create_delivery_stream: !Equals [!Ref CreateDeliveryStream, 'Yes']
+  create_delivery_stream: !And 
+    - !Equals [!Ref CreateDeliveryStream, 'Yes']
+    - !Not [!Equals [!Ref "DeliveryStreamName", ""]]
 
 Resources:
 
@@ -134,6 +139,8 @@ Resources:
           RoleARN: !GetAtt KinesisRole.Arn
 
   rFmsRegionalWafDefaultPolicy:
+    DependsOn:
+      - KinesisFirehoseDeliveryStream    
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-${ParentStackName}-policy'
@@ -200,6 +207,8 @@ Resources:
             
 
   rFmsCloudFrontDefaultPolicy:
+    DependsOn:
+      - KinesisFirehoseDeliveryStream    
     Type: AWS::FMS::Policy
     Condition: cCreateCFRuleGroup
     Properties:
@@ -263,6 +272,8 @@ Resources:
                 - ''
           
   rFmsRegionalWafWindowsPolicy:
+    DependsOn:
+      - KinesisFirehoseDeliveryStream    
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-windows-${ParentStackName}-policy'
@@ -306,6 +317,8 @@ Resources:
                 - ''
  
   rFmsRegionalWafLinuxPolicy:
+    DependsOn:
+      - KinesisFirehoseDeliveryStream  
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-linux-${ParentStackName}-policy'
@@ -349,6 +362,8 @@ Resources:
                 - ''
   
   rFmsRegionalWafPosixPolicy:
+    DependsOn:
+      - KinesisFirehoseDeliveryStream    
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-posix-${ParentStackName}-policy'
