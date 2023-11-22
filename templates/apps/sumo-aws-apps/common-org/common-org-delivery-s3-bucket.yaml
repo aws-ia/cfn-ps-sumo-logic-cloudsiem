@@ -207,7 +207,9 @@ Resources:
           - ServerSideEncryptionByDefault:
               KMSMasterKeyID: !Ref DeliveryKMSKeyArn
               SSEAlgorithm: aws:kms
-      BucketName: !Sub ${DeliveryBucketPrefix}-orgs
+      BucketName: !Sub 
+                    - ${DeliveryBucketPrefix}-orgs-${RandomGUID}
+                    - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]]}
       NotificationConfiguration:
         TopicConfigurations:
           - Event: s3:ObjectCreated:Put
