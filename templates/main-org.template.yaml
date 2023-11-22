@@ -745,7 +745,10 @@ Parameters:
   Section6DeliveryStreamName:
     Type: String
     Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
-
+    Default: "sumologic"
+    AllowedPattern: "[a-zA-Z0-9._-]+"
+    MaxLength: 16
+    
   Section6DeliveryBucketPrefix:
     AllowedPattern: "^$|^[0-9a-z]+([0-9a-z-]*[0-9a-z])*$"
     ConstraintDescription:
