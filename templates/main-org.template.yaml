@@ -50,8 +50,9 @@ Metadata:
       - Label:
           default: "CloudTrail service configuration"
         Parameters:
-          - Section3CloudTrailRegions
-          - Section3InstallAWSCloudTrail
+          - Section3CloudTrailRegion
+          - Section3EnableAWSCloudTrail
+          - Section3DisassociateAdminAccountOnDeleteStack
 
       - Label:
           default: "CloudTrail app configuration"
@@ -190,7 +191,7 @@ Metadata:
         default: "Forward Data To CloudSIEM"
 
       # CloudTrail parameters
-      Section3CloudTrailRegions:
+      Section3CloudTrailRegion:
         default: "CloudTrail Region in management account"
       Section3InstallPCICloudTrailApp:
         default: "Install Sumo Logic PCI compliance for AWS CloudTrail app"
@@ -210,8 +211,10 @@ Metadata:
         default: "Create an S3 bucket for CloudTrail logs"
       Section3CloudTrailExistsS3BucketName:
         default: "Name of existing S3 bucket that contains the CloudTrail logs"
-      Section3InstallAWSCloudTrail:
-        default: "Install CloudTrail Service in AWS"
+      Section3EnableAWSCloudTrail:
+        default: "Enable CloudTrail Org in AWS"
+      Section3DisassociateAdminAccountOnDeleteStack:
+        default: "Disassociate admin account in CloudTrail Org when stack is deleted"
       Section3EnableForwardDataToCloudSIEM:
         default: "Forward Data To CloudSIEM"
 
@@ -448,14 +451,23 @@ Parameters:
     AllowedValues:
       - 'Yes'
       - 'No'
-  Section3InstallAWSCloudTrail:
+  Section3EnableAWSCloudTrail:
     Type: String
-    Description: "Choose No to skip installation of the CloudTrail service on AWS."
+    Description: "Choose No to skip enable of the CloudTrail Org on AWS."
     Default: 'Yes'
     AllowedValues:
       - 'Yes'
       - 'No'
-  Section3CloudTrailRegions:
+  Section3DisassociateAdminAccountOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: "To disassociate admin account in CloudTrail Org when stack is deleted, set this parameter to true. Default is false.
+                  Disassociate admin account in CloudTrail Org will be skipped."
+    Type: String
+
+  Section3CloudTrailRegion:
     Type: String
     Description: "Enter the management account Region where organization trails will be created."
     Default: us-east-1
@@ -525,6 +537,7 @@ Parameters:
     Type: String
     Description: "Required when the flag is set to No. Provide the name of an existing S3 bucket that contains CloudTrail logs. The existing bucket must be in same AWS Region as the log-archiving account."
     Default: ""
+
   Section3CloudTrailCreateS3LogsSource:
     Type: String
     Description: "Choose No to skip creation of the Sumo Logic S3 log source to collect CloudTrail logs."
@@ -748,7 +761,7 @@ Parameters:
     Default: "sumologic"
     AllowedPattern: "[a-zA-Z0-9._-]+"
     MaxLength: 16
-    
+
   Section6DeliveryBucketPrefix:
     AllowedPattern: "^$|^[0-9a-z]+([0-9a-z-]*[0-9a-z])*$"
     ConstraintDescription:
@@ -797,7 +810,7 @@ Parameters:
   QSVersion:
     Type: String
     Description: "Version of the Quick Start. Do not change."
-    Default: "1.0"
+    Default: "1.1"
 
 Conditions:
 
@@ -813,7 +826,7 @@ Conditions:
     - !Equals [ !Ref Section3InstallCloudTrailMonitoringAnalyticsApp, 'Yes' ]
     - !Equals [ !Ref Section3InstallCloudTrailSecOpsApp, 'Yes' ]
     - !Equals [ !Ref Section3CloudTrailCreateS3LogsSource, 'Yes' ]
-    - !Equals [ !Ref Section3InstallAWSCloudTrail, 'Yes' ]
+    - !Equals [ !Ref Section3EnableAWSCloudTrail, 'Yes' ]
 
   call_security_hub_stack: !Or
     - !Equals [ !Ref Section4SecurityHubEnableSecurityHub, 'Yes']
@@ -844,7 +857,7 @@ Resources:
         - Key: "version"
           Value: !Ref QSVersion
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-management.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-management.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -889,7 +902,7 @@ Resources:
         - Key: "version"
           Value: !Ref QSVersion
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-master.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-master.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -955,7 +968,7 @@ Resources:
         - Key: "version"
           Value: !Ref QSVersion
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-main.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-main.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -1006,7 +1019,7 @@ Resources:
         - Key: "version"
           Value: !Ref QSVersion
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-configuration.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-configuration.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -1059,7 +1072,7 @@ Resources:
         - Key: "version"
           Value: !Ref QSVersion
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/cloudtrail-org/cloudtrail-main.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/cloudtrail-org/cloudtrail-main.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -1070,8 +1083,8 @@ Resources:
         SumoLogicResourceRemoveOnDeleteStack: !Ref Section1SumoLogicResourceRemoveOnDeleteStack
         CollectorID: !GetAtt CommonOrgManagement.Outputs.SumoCollectorID
         ExecutionRoleRuleName: !GetAtt CommonOrgManagement.Outputs.ExecutionRoleRuleName
-        InstallAWSCloudTrail: !Ref Section3InstallAWSCloudTrail
-        CloudTrailRegions: !Ref Section3CloudTrailRegions
+        EnableAWSCloudTrail: !Ref Section3EnableAWSCloudTrail
+        CloudTrailRegion: !Ref Section3CloudTrailRegion
         InstallCloudTrailApp: 'No'
         InstallPCICloudTrailApp: !Ref Section3InstallPCICloudTrailApp
         InstallCISFoundationApp: !Ref Section3InstallCISFoundationApp
@@ -1083,6 +1096,7 @@ Resources:
         SNSTopicArn: !GetAtt CommonOrgManagement.Outputs.SNSTopicArn
         CloudTrailLogsBucketName: !If [ create_bucket, !GetAtt CommonOrgManagement.Outputs.OrgDeliveryS3BucketArn, !Ref Section3CloudTrailExistsS3BucketName ]
         KMSArn: !GetAtt CommonOrgManagement.Outputs.OrgDeliveryKMSKeyArn
+        DelegatedAdminAccountId: !Ref Section1SecurityToolingAccountId
         SumoRoleArn: !GetAtt CommonOrgManagement.Outputs.SumoRoleArn
         CloudTrailS3Region: !Ref Section1ToolingAndLoggingRegion
         QSS3BucketName: !Ref QSS3BucketName
@@ -1092,3 +1106,4 @@ Resources:
         ResourcePrefix: !Ref "AWS::StackName"
         ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
         EnableForwardDataToCloudSIEM: !Ref Section3EnableForwardDataToCloudSIEM
+        DisassociateAdminAccountOnDeleteStack: !Ref Section3DisassociateAdminAccountOnDeleteStack

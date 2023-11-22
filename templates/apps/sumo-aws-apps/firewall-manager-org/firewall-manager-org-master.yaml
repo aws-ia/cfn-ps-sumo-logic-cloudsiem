@@ -490,7 +490,7 @@ Resources:
             Accounts:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-disassociate-iam-role.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-disassociate-iam-role.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -500,10 +500,16 @@ Resources:
           ParameterValue: !Ref AWS::AccountId
         - ParameterKey: 'OrgManagementLambdaRoleName'
           ParameterValue: !Select [1, !Split ["/", !Ref SumoLogicHelperRoleARN]]
+          
+  AWSS3RandomID:
+    Type: Custom::AWSS3RandomID
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      BUCKET_PREFIX: !Sub '${DeliveryBucketPrefix}-orgs'
 
   CustomLambdaFirewallManagerSetup:
     DependsOn:
-        - FirewallManagerOrgDisassociateIamRoleStackSet  
+        - FirewallManagerOrgDisassociateIamRoleStackSet 
     Condition: enable_firewall_config
     Type: Custom::AWSFirewallManagerSetup
     Version: '1.0'
@@ -557,7 +563,7 @@ Resources:
             Accounts:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sg-policy.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sg-policy.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -593,7 +599,7 @@ Resources:
             Accounts:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-waf-network-firewall-policy.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-waf-network-firewall-policy.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -606,7 +612,7 @@ Resources:
         - ParameterKey: 'SumoLogicKinesisLogsURL'
           ParameterValue: !If [ install_delivery_stream_source ,!GetAtt SumoDeliveryStreamSource.SUMO_ENDPOINT,'']
         - ParameterKey: 'LogsS3BucketName'
-          ParameterValue: !If [create_s3_bucket, !Ref DeliveryBucketPrefix, !Ref NetworkFirewallExistsS3BucketName]
+          ParameterValue: !If [create_s3_bucket, !GetAtt AWSS3RandomID.BucketPrefixRandomID, !Ref NetworkFirewallExistsS3BucketName]
 
   FirewallManagerOrgSumoLogSourceStackSet:
     Condition: create_s3_bucket_or_s3_source
@@ -630,14 +636,14 @@ Resources:
             Accounts:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-logsource.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-logsource.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'CreateS3Bucket'
           ParameterValue: !Ref CreateS3Bucket        
         - ParameterKey: 'LogsS3BucketName'
-          ParameterValue: !If [create_s3_bucket, !Ref DeliveryBucketPrefix, !Ref NetworkFirewallExistsS3BucketName]
+          ParameterValue: !If [create_s3_bucket, !GetAtt AWSS3RandomID.BucketPrefixRandomID, !Ref NetworkFirewallExistsS3BucketName]
         - ParameterKey: 'SumoDeployment'
           ParameterValue: !Ref SumoDeployment
         - ParameterKey: 'DeliveryKMSKeyArn'
@@ -685,7 +691,7 @@ Resources:
       SumoAccessID: !Ref SumoAccessID
       SumoAccessKey: !Ref SumoAccessKey
       SumoDeployment: !Ref SumoDeployment
-      TargetBucketName: !If [create_s3_bucket, !Ref DeliveryBucketPrefix, !Ref NetworkFirewallExistsS3BucketName]
+      TargetBucketName: !If [create_s3_bucket, !GetAtt AWSS3RandomID.BucketPrefixRandomID, !Ref NetworkFirewallExistsS3BucketName]
       PathExpression: '*'
       RoleArn: !GetAtt SumoRoleArn.ARN
 
@@ -754,7 +760,7 @@ Resources:
             Accounts:
               - !Ref SecurityAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-subscription.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/firewall-manager-org/firewall-manager-org-sumo-subscription.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:

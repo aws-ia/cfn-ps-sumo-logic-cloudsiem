@@ -27,6 +27,12 @@ Parameters:
     Description: CloudTrail name
     Type: String
 
+  pDelegatedAdminAccountId:
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: Must be 12 digits
+    Description: Delegated administrator account ID
+    Type: String
+
   pCloudTrailS3BucketName:
     AllowedPattern: "^$|^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
     ConstraintDescription:
@@ -58,6 +64,18 @@ Parameters:
     Description: KMS Key ARN to use for encrypting logs
     Type: String
 
+  DisassociateAdminAccountOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: "To disassociate admin account in CloudTrail Org when stack is deleted, set this parameter to true. Default is false.
+                  Disassociate admin account in CloudTrail Org will be skipped."
+    Type: String
+
+  ParentHelperFunctionArn:
+    Type: String
+    Description: ARN of Parent Helper Funtion
 
   pTagKey1:
     AllowedPattern: '^([\p{L}\p{Z}\p{N}_.:/=+\-@]*)$'
@@ -76,9 +94,11 @@ Parameters:
     Description: Tag key value
     Type: String
     Default: aspin
+
   ResourcePrefix:
     Type: String
     Description: "Resouce prefix for auto deployment"
+    MaxLength: 38
 
 Conditions:
   cCreateCloudWatchLogGroup: !Equals [!Ref pCreateCloudWatchLogGroup, true]
@@ -96,7 +116,7 @@ Resources:
           - id: W28
             reason: The role name is defined to identify automation resources
     Properties:
-      RoleName: !Sub ${ResourcePrefix}-cloudtrail-cloudwatch-logs-${AWS::Region}
+      RoleName: !Sub ${ResourcePrefix}-ctcw-logs-${AWS::Region}
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -108,7 +128,7 @@ Resources:
             - sts:AssumeRole
       Path: "/"
       Policies:
-        - PolicyName: !Sub ${ResourcePrefix}-cloudtrail-cloudwatch-logs-${AWS::Region}
+        - PolicyName: !Sub ${ResourcePrefix}-ctcw-logs-${AWS::Region}
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -136,28 +156,19 @@ Resources:
       LogGroupName: !Sub "CloudTrail/${pCloudTrailName}-${ResourcePrefix}-${AWS::Region}"
 
   rCloudtrailResource:
-    Type: AWS::CloudTrail::Trail
-    Metadata:
-      cfn-lint:
-        config:
-          ignore_checks:
-            - E3002 # Invalid Property IsOrganizationTrail
+    Type: Custom::AWSCloudTrailOrg
+    Version: '1.1'
     Condition: cCreateCloudWatchLogGroup
     Properties:
-      CloudWatchLogsLogGroupArn: !GetAtt rCloudTrailLogGroup.Arn
-      CloudWatchLogsRoleArn: !GetAtt  rCloudTrailLogGroupRole.Arn
-      EnableLogFileValidation: true
-      IncludeGlobalServiceEvents: true
-      IsLogging: true
-      IsMultiRegionTrail: true
-# IsOrganizationTrail new property
-# cfn-lint not support IsOrganizationTrail property, pls use --ignore-checks E3002
-      IsOrganizationTrail: true
-##################################################################################
-      KMSKeyId: !Ref pOrganizationCloudTrailKMSKey
-      S3BucketName: !Ref pCloudTrailS3BucketName
-      S3KeyPrefix: !If [cCreateS3KeyPrefix, !Ref pCloudTrailS3KeyPrefix, '']
-      Tags:
-        - Key: !Ref pTagKey1
-          Value: !Ref pTagValue1
-      TrailName: !Sub "${pCloudTrailName}-${ResourcePrefix}-${AWS::Region}"
+      ServiceToken: !Ref ParentHelperFunctionArn
+      AWS_PARTITION: !Sub ${AWS::Partition}
+      CLOUDTRAIL_NAME: !Sub "${pCloudTrailName}-${ResourcePrefix}-${AWS::Region}"
+      CLOUDWATCH_LOG_GROUP_ARN: !GetAtt rCloudTrailLogGroup.Arn
+      CLOUDWATCH_LOG_GROUP_ROLE_ARN: !GetAtt  rCloudTrailLogGroupRole.Arn
+      KMS_KEY_ID: !Ref pOrganizationCloudTrailKMSKey
+      S3_BUCKET_NAME: !Ref pCloudTrailS3BucketName
+      S3_KEY_PREFIX: !If [cCreateS3KeyPrefix, !Ref pCloudTrailS3KeyPrefix, '']
+      TAG_KEY1: !Ref pTagKey1
+      TAG_VALUE1: !Ref pTagValue1      
+      DELEGATED_ADMIN_ACCOUNT_ID: !Ref pDelegatedAdminAccountId
+      REMOVE_ON_DELETE_STACK: !Ref DisassociateAdminAccountOnDeleteStack
