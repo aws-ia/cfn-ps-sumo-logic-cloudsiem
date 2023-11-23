@@ -788,7 +788,7 @@ Parameters:
 
     Type: "String"
   QSS3KeyPrefix:
-    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    AllowedPattern: "^([0-9a-zA-Z-/]+/)*$"
     ConstraintDescription: "The Quick Start S3 key prefix can include numbers, lowercase letters,
       uppercase letters, hyphens (-), and forward slashes (/). The prefix should
       end with a forward slash (/)."
