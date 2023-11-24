@@ -1,5 +1,5 @@
 project:
-  name: cfn-ps-sumo-logic-cloudsiem
+  name: quickstart-sumo-logic-cloudsiem/2
   shorten_stack_name: true
   s3_regional_buckets: true
   regions:
@@ -15,6 +15,7 @@ tests:
       QSS3KeyPrefix: "quickstart-sumo-logic-cloudsiem/"
       QSS3BucketName:  "$[taskcat_autobucket_prefix]"
       QSS3BucketRegion: "us-east-2"
+      QSVersion: "2"
       # Section1SumoLogicDeployment: "us1"
       # Section1SumoLogicAccessID: ""
       # Section1SumoLogicAccessKey: ""
@@ -23,7 +24,7 @@ tests:
       Section1ToolingAndLoggingRegion: "us-east-2"
       Section1LogArchivingAccountId: ""
       Section1OrganizationRootID: ""
-      Section1DeliveryBucketPrefix: logs-delivery-$[taskcat_random-string]
+      Section1DeliveryBucketPrefix: logs-delivery
 
       Section2InstallSumoGlobalGuardDutyApp: "No"
       Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp: "Yes"
@@ -31,14 +32,15 @@ tests:
       Section2AdditionalConfigurationFeatures: "MalwareProtection,S3Logs"
       Section2GuardDutyCreateHttpLogsSource: "Yes"
       
-      Section3CloudTrailRegions: "us-east-2"
-      Section3InstallAWSCloudTrail: "Yes"
+      Section3CloudTrailRegion: "us-east-2"
+      Section3EnableAWSCloudTrail: "Yes"
       Section3InstallPCICloudTrailApp: "No"
       Section3InstallCISFoundationApp: "No"
       Section3InstallCloudTrailMonitoringAnalyticsApp: "Yes"
       Section3InstallCloudTrailSecOpsApp: "No"
       Section3CloudTrailCreateS3LogsSource: "Yes"
       Section3CreateCloudTrailS3Bucket: "Yes"
+      Section3DisassociateAdminAccountOnDeleteStack: "false"
       
       Section4SecurityHubEnableSecurityHub: "Yes"
       Section4SecurityHubRegionLinkingMode: "SPECIFIED_REGIONS"
@@ -56,5 +58,5 @@ tests:
       Section6DeliveryStreamName: $[taskcat_random-string]
       Section6CreateS3Source: "Yes"
       Section6CreateS3Bucket: "Yes"
-      Section6DeliveryBucketPrefix: nw-logs-delivery-$[taskcat_random-string]
+      Section6DeliveryBucketPrefix: nw-logs-delivery
       

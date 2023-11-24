@@ -16,9 +16,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from mypy_boto3_sns import SNSClient
 from mypy_boto3_organizations import OrganizationsClient
 from mypy_boto3_sns.type_defs import PublishBatchResponseTypeDef
+from mypy_boto3_guardduty.type_defs import (
+        CreateMembersResponseTypeDef,
+        ListOrganizationAdminAccountsResponseTypeDef,
+        UpdateMemberDetectorsResponseTypeDef,
+    )
 import common
 from time import sleep
 import securityhub
+import uuid
+import math
 
 # Setup Default Logger
 logging.basicConfig(level=logging.DEBUG)
@@ -63,7 +70,26 @@ class AWSTimeToWait(AWSResource):
         return {
             "params": props
         }  
-
+class AWSS3RandomID(AWSResource):
+    def __init__(self, props,  *args, **kwargs):
+        pass
+    def create(self, params, *args, **kwargs):
+        RandomID = str(uuid.uuid4())[0:8]
+        BucketPrefix = params["BUCKET_PREFIX"]
+        BucketPrefixRandomID = BucketPrefix + "-" + RandomID
+        return {"BucketPrefixRandomID": BucketPrefixRandomID}, BucketPrefixRandomID
+        
+    def update(self, params, *args, **kwargs):
+        pass
+    def delete(self, params, *args, **kwargs):
+        pass    
+    def extract_params(self, event):
+        self.EVENT = event
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }  
+    
 class AWSFirewallManagerSetup(AWSResource):
     def __init__(self, props,  *args, **kwargs):
         self.STS_CLIENT = boto3.client("sts")
@@ -435,8 +461,74 @@ class AWSCloudTrailOrg(AWSResource):
         self.CLOUDFORMATION_PARAMETERS = ["AWS_PARTITION", "CLOUDTRAIL_NAME", "CLOUDWATCH_LOG_GROUP_ARN",
                              "CLOUDWATCH_LOG_GROUP_ROLE_ARN", "ENABLE_DATA_EVENTS_ONLY", "ENABLE_LAMBDA_DATA_EVENTS",
                              "ENABLE_S3_DATA_EVENTS", "KMS_KEY_ID", "S3_BUCKET_NAME", "S3_KEY_PREFIX", "TAG_KEY1",
-                             "TAG_VALUE1"]  
+                             "TAG_VALUE1","DELEGATED_ADMIN_ACCOUNT_ID","REMOVE_ON_DELETE_STACK"]  
         self.CLOUDTRAIL_CLIENT = boto3.client("cloudtrail")
+        self.ORG_CLIENT = boto3.client("organizations")
+
+    def list_delegated_administrator(self,delegated_admin_account_id: str, service_principal: str) -> None:
+        """Check if the delegated administrator account for the provided service principal exists.
+
+        Args:
+            delegated_admin_account_id: Delegated Administrator Account ID
+            service_principal: AWS Service Principal
+
+        Raises:
+            ValueError: Error registering the delegated administrator account
+        """
+        logger.info(f"Checking if delegated administrator already registered for: {service_principal}")
+
+        try:
+            delegated_administrators = self.ORG_CLIENT.list_delegated_administrators(ServicePrincipal=service_principal)
+
+            if not delegated_administrators:
+                logger.info(f"The delegated administrator {service_principal} was not registered")
+                raise ValueError("Error registering the delegated administrator account")
+        except self.ORG_CLIENT.exceptions.AccountAlreadyRegisteredException:
+            logger.debug(f"Account: {delegated_admin_account_id} already registered for {service_principal}")
+
+    def set_delegated_admin(self,delegated_admin_account_id: str) -> None:
+        """Set the delegated admin account.
+
+        Args:
+            delegated_admin_account_id: Admin account ID
+
+        Raises:
+            Exception: raises exception as e
+        """
+        try:
+            delegated_admin_response = self.CLOUDTRAIL_CLIENT.register_organization_delegated_admin(MemberAccountId=delegated_admin_account_id)
+            api_call_details = {"API_Call": "cloudtrail:RegisterOrganizationDelegatedAdmin", "API_Response": delegated_admin_response}
+            logger.info(api_call_details)
+            logger.info(f"Delegated admin ({delegated_admin_account_id}) enabled")
+        except self.CLOUDTRAIL_CLIENT.exceptions.AccountRegisteredException:
+            logger.info("Delegated admin already registered")
+        except Exception as e:
+            logger.error(f"Failed to enable delegated admin. {e}")
+            raise
+    def deregister_delegated_administrator(self,delegated_admin_account_id: str, service_principal: str) -> None:
+        """Deregister the delegated administrator account for the provided service principal.
+
+        Args:
+            delegated_admin_account_id: Delegated Administrator Account ID
+            service_principal: AWS Service Principal format: service_name.amazonaws.com
+
+        """
+        logger.info(f"Deregistering AWS Service Access for: {service_principal}")
+
+        try:
+            delegated_admin_response =self. CLOUDTRAIL_CLIENT.deregister_organization_delegated_admin(DelegatedAdminAccountId=delegated_admin_account_id)
+            api_call_details = {"API_Call": "cloudtrail:DeregisterOrganizationDelegatedAdmin", "API_Response": delegated_admin_response}
+            logger.info(api_call_details)
+            logger.info(f"Delegated admin ({delegated_admin_account_id}) deregistered")
+            delegated_administrators = self.ORG_CLIENT.list_delegated_administrators(ServicePrincipal=service_principal)
+
+            logger.debug(str(delegated_administrators))
+
+            if not delegated_administrators:
+                logger.info(f"The deregister was successful for the {service_principal} delegated administrator")
+        except self.ORG_CLIENT.exceptions.AccountNotRegisteredException:
+            logger.info(f"Account: {delegated_admin_account_id} not registered for {service_principal}")
+
     def get_data_event_config(self,**params) -> dict:
         """
         Creates the CloudTrail event selectors configuration
@@ -474,6 +566,7 @@ class AWSCloudTrailOrg(AWSResource):
             logger.info("Lambda Data Events Added to Event Selectors")
 
         return event_selectors
+    
     def enable_aws_service_access(self,service_principal: str):
         """
         Enables the AWS Service Access for the provided service principal
@@ -491,6 +584,7 @@ class AWSCloudTrailOrg(AWSResource):
         except Exception as exc:
             logger.error(f"Exception: {str(exc)}")
             raise
+
     def get_cloudtrail_parameters(self, is_create: bool, **params) -> dict:
         """
         Dynamically creates a parameter dict for the CloudTrail create_trail and update_trail API calls.
@@ -519,6 +613,7 @@ class AWSCloudTrailOrg(AWSResource):
             cloudtrail_params["CloudWatchLogsRoleArn"] = params["cloudwatch_log_group_role_arn"]
 
         return cloudtrail_params
+    
     def check_parameters(self, event: dict):
         """
         Check event for required parameters in the ResourceProperties
@@ -539,6 +634,7 @@ class AWSCloudTrailOrg(AWSResource):
         except Exception as error:
             logger.error(f"Exception checking parameters {error}")
             raise ValueError("Error checking parameters")
+        
     def create(self, params, *args, **kwargs):
         """
         CloudFormation Create Event. Creates a CloudTrail with the provided parameters
@@ -549,6 +645,9 @@ class AWSCloudTrailOrg(AWSResource):
         logger.info("Create Event")
         try:
             self.enable_aws_service_access(self.AWS_SERVICE_PRINCIPAL)
+            self.list_delegated_administrator(params["DELEGATED_ADMIN_ACCOUNT_ID"], self.AWS_SERVICE_PRINCIPAL)
+            self.set_delegated_admin(params["DELEGATED_ADMIN_ACCOUNT_ID"])
+
             cloudtrail_name = params.get("CLOUDTRAIL_NAME")
 
             self.CLOUDTRAIL_CLIENT.create_trail(
@@ -562,6 +661,7 @@ class AWSCloudTrailOrg(AWSResource):
                                             tag_key1=params.get("TAG_KEY1"),
                                             tag_value1=params.get("TAG_VALUE1")
                                             ))
+            
             logger.info("Created an Organization CloudTrail")
 
             event_selectors = self.get_data_event_config(
@@ -600,7 +700,10 @@ class AWSCloudTrailOrg(AWSResource):
         """
         logger.info("Delete Event")
         try:
+            remove_on_delete_stack=(params.get("REMOVE_ON_DELETE_STACK", "false")).lower() in "true"
             self.CLOUDTRAIL_CLIENT.delete_trail(Name=params.get("CLOUDTRAIL_NAME"))
+            if remove_on_delete_stack:
+                self.deregister_delegated_administrator(params.get("DELEGATED_ADMIN_ACCOUNT_ID", ""), self.AWS_SERVICE_PRINCIPAL)
         except ClientError as ce:
             if ce.response["Error"]["Code"] == "TrailNotFoundException":
                 logger.error(f"Trail Does Not Exist {str(ce)}")
@@ -870,7 +973,8 @@ class GuardDuty(AWSResource):
         self.SLEEP_SECONDS = 10
         self.MAX_THREADS = 10
         self.STS_CLIENT = boto3.client('sts')
-        
+        self.CHECK_ACCT_MEMBER_RETRIES = 10
+        self.MAX_RETRY = 5
 
     def get_service_client(self,aws_service: str, aws_region: str, session=None):
         if aws_region:
@@ -959,43 +1063,106 @@ class GuardDuty(AWSResource):
             logger.error(f"Unexpected error: {exc}")
             raise ValueError("Error assuming role")
 
-    def gd_create_members(self,guardduty_client, detector_id: str, accounts: list):
-        try:
-            logger.info("Creating members")
-            create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=accounts)
+    def get_unprocessed_account_details(self,create_members_response: CreateMembersResponseTypeDef, accounts: list) -> list:
+        """Get unprocessed account details.
 
+        Args:
+            create_members_response: CreateMembersResponseTypeDef
+            accounts: list
+
+        Raises:
+            ValueError: Internal Error creating member accounts
+
+        Returns:
+            remaining account list
+        """
+        remaining_accounts = []
+
+        for unprocessed_account in create_members_response["UnprocessedAccounts"]:
+            if "error" in unprocessed_account["Result"]:
+                logger.error(f"{unprocessed_account}")
+                raise ValueError(f"Internal Error creating member accounts: {unprocessed_account['Result']}") from None
+            for account_record in accounts:
+                if account_record["AccountId"] == unprocessed_account["AccountId"]:
+                    remaining_accounts.append(account_record)
+        return remaining_accounts
+        
+    def check_members(self,guardduty_client, detector_id: str, accounts: list) -> list:
+        """Check all accounts in the organization are member accounts.
+
+        Args:
+            guardduty_client: boto3 guardduty client
+            detector_id: detectorId of the delegated admin account
+            accounts: list of accounts in the organization
+
+        Returns:
+            any account in the organization that isn't a member
+        """
+        logger.info("check_members begin")
+        retries = 0
+        missing_members: list = []
+        confirmed_members: list = []
+        while retries < self.CHECK_ACCT_MEMBER_RETRIES:
+            confirmed_members = []
+            missing_members = []
+            member_paginator = guardduty_client.get_paginator("list_members")
+            page_iterator = member_paginator.paginate(DetectorId=detector_id)
+            for page in page_iterator:
+                for member in page["Members"]:
+                    confirmed_members.append(member["AccountId"])
+            for account in accounts:
+                if account["AccountId"] not in confirmed_members:
+                    missing_members.append(account)
+            if len(missing_members) > 0:
+                logger.info(f"missing {len(missing_members)} members: {missing_members}")
+                retries += 1
+                logger.info(f"sleep for {self.SLEEP_SECONDS} retry number {retries}")
+                sleep(self.SLEEP_SECONDS)
+            else:
+                logger.info("All accounts in the organization are members")
+                break
+        logger.info("check_members end")
+        return missing_members
+    
+    def create_members(self,guardduty_client, detector_id: str, accounts: list):
+        logger.info("Creating members")
+        create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=accounts)
+        number_of_create_members_calls = math.ceil(len(accounts) / 50)
+        for api_call_number in range(0, number_of_create_members_calls):
+            account_details = accounts[api_call_number * 50 : (api_call_number * 50) + 50]
+            logger.info(f"Calling create_member, api_call_number {api_call_number} with detector_id: {detector_id}")
+            logger.info(f"Create member account_details: {account_details}, account_details length: {len(account_details)}")
+            create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=account_details) 
             if "UnprocessedAccounts" in create_members_response and create_members_response["UnprocessedAccounts"]:
                 unprocessed = True
                 retry_count = 0
                 unprocessed_accounts = []
+                logger.info(f"Retry number; {retry_count} for unprocessed accounts")
+                logger.info(f"Sleeping for {self.SLEEP_SECONDS} before retry")                
                 while unprocessed:
                     retry_count += 1
                     logger.info(f"Unprocessed Accounts: {create_members_response['UnprocessedAccounts']}")
-                    remaining_accounts = []
+                    remaining_accounts = self.get_unprocessed_account_details(create_members_response, accounts)
 
-                    for unprocessed_account in create_members_response["UnprocessedAccounts"]:
-                        account_id = unprocessed_account["AccountId"]
-                        account_info = [account_record for account_record in accounts if
-                                        account_record["AccountId"] == account_id]
-                        remaining_accounts.append(account_info[0])
-
-                    if remaining_accounts:
-                        create_members_response = guardduty_client.create_members(DetectorId=detector_id,
-                                                                                AccountDetails=remaining_accounts)
-                        if "UnprocessedAccounts" in create_members_response \
-                                and create_members_response["UnprocessedAccounts"]:
-                            unprocessed_accounts = create_members_response["UnprocessedAccounts"]
-                            if retry_count == 2:
-                                unprocessed = False
-                        else:
+                if len(remaining_accounts) > 0:
+                    logger.info("Remaining accounts found during create members")
+                    logger.info(f"Calling create_member, api_call_number {api_call_number} with detector_id: {detector_id}")
+                    logger.info(f"Create member account_details: {remaining_accounts}, remaining_accounts length: {len(remaining_accounts)}")
+                    create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=remaining_accounts)
+                    if "UnprocessedAccounts" in create_members_response and create_members_response["UnprocessedAccounts"]:
+                        logger.info("Unprocessed accounts found during retry")
+                        unprocessed_accounts = create_members_response["UnprocessedAccounts"]
+                        if retry_count == self.MAX_RETRY:
                             unprocessed = False
 
                 if unprocessed_accounts:
                     logger.info(f"Unprocessed Member Accounts: {unprocessed_accounts}")
-                    raise ValueError(f"Unprocessed Member Accounts")
-        except Exception as exc:
-            logger.error(f"{exc}")
-            raise ValueError(f"Error Creating Member Accounts")
+                    raise ValueError(f"Unprocessed Member Accounts while Creating Members")
+            
+        missing_members: list = self.check_members(guardduty_client, detector_id, accounts)
+        if len(missing_members) > 0:
+            logger.info(f"Check members failure: {missing_members}")
+            raise ValueError("Check members failure")        
 
     def update_member_detectors(self,guardduty_client, detector_id: str, account_ids: list, features: str):
         try:
@@ -1132,9 +1299,10 @@ class GuardDuty(AWSResource):
                 if detectors["DetectorIds"]:
                     detector_id = detectors["DetectorIds"][0]
                     logger.info(f"DetectorID: {detector_id} Region: {region}")
+
                     # Create members for existing Organization accounts
                     logger.info(f"Members created for existing accounts: {accounts} in {region}")
-                    self.gd_create_members(regional_guardduty, detector_id, accounts)
+                    self.create_members(regional_guardduty, detector_id, accounts)
                     logger.info(f"Waiting {self.SLEEP_SECONDS} seconds")
                     time.sleep(self.SLEEP_SECONDS)
                     self.update_guardduty_configuration(regional_guardduty, auto_enable_s3_logs, detector_id,

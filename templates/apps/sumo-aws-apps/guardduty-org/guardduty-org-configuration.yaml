@@ -316,7 +316,7 @@ Resources:
               OrganizationalUnitIds:
                 - !Ref OrganizationRootID
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-delete-detector-role.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-delete-detector-role.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AutoDeployment:
@@ -366,7 +366,7 @@ Resources:
             Accounts:
               - !Ref DelegatedAdminAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-cloudwatch-event.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-cloudwatch-event.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -385,9 +385,7 @@ Resources:
       AWS_PARTITION: !Sub ${AWS::Partition}
       CONFIGURATION_ROLE_NAME: !Ref ConfigurationRoleName
       DELEGATED_ADMIN_ACCOUNT_ID: !Ref DelegatedAdminAccountId
-      DELETE_DETECTOR_ROLE_NAME: !Sub
-        - "DeleteDetectorRole-${StackName}"
-        - StackName: !Select [0, !Split ["-", !Ref "AWS::StackName"]]
+      DELETE_DETECTOR_ROLE_NAME: !Sub "ddr-${ParentStackName}"
       ENABLED_REGIONS: !Ref EnabledRegions
       FINDING_PUBLISHING_FREQUENCY: !Ref FindingPublishingFrequency
       FEATURES: !Ref AdditionalConfigurationFeatures
