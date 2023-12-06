@@ -922,11 +922,10 @@ class AWSConfig(AWSResource):
                     if not config_recorder['recording']:
                         logger.info(f'account: {account_id} on region: {region} Config enabled, but not recording')
                         channels = session_config.describe_delivery_channels()
-                        bucket_name==None
+                        bucket_name=None
                         if "DeliveryChannels" in channels:
                             for channel in channels["DeliveryChannels"]:
                                 bucket_name = channel["s3BucketName"] if "s3BucketName" in channel else None
-                                name = channel["name"]
                                 break
                         if bucket_name==None:
                             response = session_config.put_delivery_channel(
