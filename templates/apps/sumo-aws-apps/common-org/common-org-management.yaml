@@ -26,9 +26,14 @@ Metadata:
           - OrganizationRootID
           - SecurityToolingAccountRegion
       - Label:
+          default: AWS Config Attributes
+        Parameters:
+          - CreateConfigRecorderRole
+          - ConfigRegions
+      - Label:
           default: Delivery S3 Attributes
         Parameters:
-          - DeliveryBucketPrefix
+          - DeliveryBucketPrefix          
       - Label:
           default: "Sumo Hosted Collector Name"
         Parameters:
@@ -64,6 +69,10 @@ Metadata:
         default: "Delete Sumo Logic Resources when stack is deleted"
       CollectorName:
         default: "Name of Sumo Hosted Collector"
+      CreateConfigRecorderRole:
+        default: "Create Config Recorder Role"
+      ConfigRegions:
+        default: "Config regions"
       QSS3BucketName:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
@@ -130,6 +139,19 @@ Parameters:
     AllowedValues:
       - 'Yes'
       - 'No'
+  CreateConfigRecorderRole:
+    Type: String
+    Description: "Yes: Create Config Rocorder role.
+                  No: Skip creation of the ConfigRecorder role."
+    Default: 'No'
+    AllowedValues:
+      - 'Yes'
+      - 'No'  
+  ConfigRegions:
+    Type: String
+    Description: Comma delimited list of regions for AWS Config.
+    Default: us-east-1
+
   CloudTrailExistsS3BucketName:
     Type: String
     Description: "Required when flag is set to Yes. Provide an existing S3 Bucket name which contains CloudTrail Logs"
@@ -188,6 +210,10 @@ Conditions:
   create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'Yes' ]
   not_create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'No' ]
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  create_config_recorder_role: !Equals [ !Ref CreateConfigRecorderRole, 'Yes' ]
+  NotGlobalRegionUsEast1: !And 
+    - !Not [!Equals [!Ref 'AWS::Region', us-east-1]]
+    - !Equals [ !Ref CreateConfigRecorderRole, 'Yes' ]
 Resources:
 
   rExecutionRole:
@@ -403,6 +429,7 @@ Resources:
                 Action:
                   - lambda:ListTags
                   - lambda:GetFunctionConfiguration
+                  - lambda:UpdateFunctionConfiguration
                 Resource:
                   - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*
 
@@ -577,10 +604,6 @@ Resources:
                       - cloudtrail.amazonaws.com
                       - config.amazonaws.com
                       - config-multiaccountsetup.amazonaws.com
-                      - auditmanager.amazonaws.com
-                      - macie.amazonaws.com
-                      - storage-lens.s3.amazonaws.com
-                      - stacksets.cloudformation.amazonaws.com
                       - access-analyzer.amazonaws.com
                       - securityhub.amazonaws.com
                       - malware-protection.guardduty.amazonaws.com
@@ -685,7 +708,10 @@ Resources:
                 Condition:
                   StringEqualsIfExists:
                     iam:PassedToService:
-                      - cloudtrail.amazonaws.com                  
+                      - cloudtrail.amazonaws.com
+                      - config.amazonaws.com
+                      - config-multiaccountsetup.amazonaws.com
+                      - resource-groups.amazonaws.com
 
   rSumoLogicLambdaHelper:
 
@@ -700,6 +726,7 @@ Resources:
     Properties:
       Handler: main.handler
       Runtime: python3.11
+      FunctionName: !Sub CommonOrgManagement-SumoLogicLambdaHelper-${ParentStackName}
       CodeUri:
         Bucket: !Sub
                 - "${S3Bucket}"
@@ -719,9 +746,7 @@ Resources:
         SecurityGroupIds:
           - !Ref AWS::NoValue
         SubnetIds:
-          - !Ref AWS::NoValue
-
-
+          - !Ref AWS::NoValue        
 
   OrgTrustAllStackset:
     DependsOn:
@@ -952,6 +977,158 @@ Resources:
       SumoAccessKey: !Ref SumoAccessKey
       SumoDeployment: !Ref SumoDeployment
 
+  OrganizationsRule:
+    Condition: create_config_recorder_role  
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${ParentStackName}-org-update
+      Description: Config Trigger on Organizations update
+      EventPattern:
+        source:
+          - aws.organizations
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventSource:
+            - organizations.amazonaws.com
+          eventName:
+            - AcceptHandshake
+            - CreateAccountResult
+            - RemoveAccountFromOrganization
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt rSumoLogicLambdaHelper.Arn
+          Id: !Sub CommonOrgManagement-SumoLogicLambdaHelper-${ParentStackName}
+
+  PermissionForOrganizationsRuleToInvokeLambda:
+    Condition: create_config_recorder_role  
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt rSumoLogicLambdaHelper.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt OrganizationsRule.Arn
+
+  CrossRegionEventRuleRole:
+    Type: AWS::IAM::Role
+    Condition: NotGlobalRegionUsEast1
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Specific role name provided
+    Properties:
+      RoleName: !Sub "config-recorder-start-${ParentStackName}"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - events.amazonaws.com
+      Policies:
+        - PolicyName: config-events
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+
+  ConfigRecorderRoleStackset:
+    Condition: create_config_recorder_role
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'CommonOrgConfigRecorderRole-${ParentStackName}'
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      Parameters:
+        - ParameterKey: ConfigRecorderRoleName
+          ParameterValue: !Sub "ConfigRecorderRole-${ParentStackName}"
+        - ParameterKey: BucketName
+          ParameterValue: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName]
+        - ParameterKey: ManagementAccountId
+          ParameterValue: !Ref AWS::AccountId
+        - ParameterKey: ConfigAssumeRoleName
+          ParameterValue: !Sub "Config-Recorder-${ParentStackName}"
+        - ParameterKey: OrgLambdaRoleName
+          ParameterValue: !Select [1, !Split ["/", !GetAtt rSumoLogicHelperRole.Arn]]
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions:
+            - !Ref AWS::Region
+          DeploymentTargets:
+              OrganizationalUnitIds:
+                - !Ref OrganizationRootID
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-configrecorder-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+
+  ConfigRecorderRoleStack:
+    Condition: create_config_recorder_role
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-configrecorder-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        ConfigRecorderRoleName: !Sub "ConfigRecorderRole-${ParentStackName}"
+        BucketName: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName]
+        ManagementAccountId: !Ref AWS::AccountId
+        ConfigAssumeRoleName: !Sub "Config-Recorder-${ParentStackName}"
+        OrgLambdaRoleName: !Select [1, !Split ["/", !GetAtt rSumoLogicHelperRole.Arn]]
+
+  #Get AWS Config regions
+  AWSConfigCustomResource:
+    Type: Custom::AWSConfig
+    Condition: create_config_recorder_role    
+    DependsOn:
+      - "ConfigRecorderRoleStackset"
+      - "ConfigRecorderRoleStack"
+    Properties:
+      ServiceToken: !GetAtt rSumoLogicLambdaHelper.Arn
+      ENABLED_REGIONS: !Ref ConfigRegions
+      CONFIG_ASSUME_ROLE_NAME: !Sub "Config-Recorder-${ParentStackName}"
+      CONFIG_ROLE_NAME: !Sub "ConfigRecorderRole-${ParentStackName}"
+      ALL_SUPPORTED: True
+      INCLUDE_GLOBAL_RESOURCE_TYPES: False
+      RESOURCE_TYPES: ""
+      FREQUENCY: "TwentyFour_Hours"
+      CONFIG_BUCKET: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName] 
+
+  AWSUpdateLambdaVariablesResource:
+    Type: Custom::AWSUpdateLambdaVariables
+    Condition: create_config_recorder_role    
+    DependsOn:
+      - "ConfigRecorderRoleStackset"
+      - "ConfigRecorderRoleStack"
+    Properties:
+      ServiceToken: !GetAtt rSumoLogicLambdaHelper.Arn
+      VARIABLES: {"CONFIG_ROLE_NAME": !Sub "ConfigRecorderRole-${ParentStackName}",
+                  "ALL_SUPPORTED": "True",
+                  "INCLUDE_GLOBAL_RESOURCE_TYPES": "True",
+                  "RESOURCE_TYPES": "",
+                  "FREQUENCY": "TwentyFour_Hours",
+                  "CONFIG_BUCKET": !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName],
+                  "ENABLED_REGIONS": !Sub "${ConfigRegions}",
+                  "CONFIG_ASSUME_ROLE_NAME": !Sub "Config-Recorder-${ParentStackName}"
+                  }
+      FUNCTION_NAME: !GetAtt rSumoLogicLambdaHelper.Arn
+      REGION: !Ref 'AWS::Region'
 
 Outputs:
   StackName:

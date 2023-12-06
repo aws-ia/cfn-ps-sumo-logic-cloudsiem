@@ -525,7 +525,7 @@ Parameters:
   Section3CloudTrailBucketPathExpression:
     Type: String
     Description: "The path expression must match the folder structure for CloudTrail logs (e.g., AWSLogs/*/CloudTrail/*)."
-    Default: "CloudTrail/AWSLogs/*/CloudTrail/*"
+    Default: "CloudTrail/AWSLogs/*/*/*"
   Section3CreateCloudTrailS3Bucket:
     Type: String
     Description: "Choose Yes to create an S3 bucket for CloudTrail logs."
@@ -839,6 +839,9 @@ Conditions:
     - !Equals [ !Ref Section6InstallSumoAWSNetworkFirewallApp, 'Yes']
     - !Equals [ !Ref Section6CreateS3Source, 'Yes']
 
+  enable_aws_config: !Or 
+    - !Equals [ !Ref Section6EnableFirewallManager, 'Yes']
+    - !Equals [ !Ref Section4SecurityHubEnableSecurityHub, 'Yes']
 
   #condition for create bucket
   create_bucket: !Equals [ !Ref Section3CreateCloudTrailS3Bucket, 'Yes' ]
@@ -880,6 +883,9 @@ Resources:
         SecurityToolingAccountRegion: !Ref Section1ToolingAndLoggingRegion
         LogArchivingAccountRegion: !Ref Section1ToolingAndLoggingRegion
         OrganizationRootID: !Ref Section1OrganizationRootID
+        CreateConfigRecorderRole: !If [ enable_aws_config, 'Yes','No' ]
+        ConfigRegions: !Sub '${Section4SecurityHubRegionsToEnable},${Section6FirewallManagerPolicyRegions}'
+
   SumoFirewallManagerStackWaitHandle:
     Condition: call_security_hub_stack
     DependsOn: SecurityHubStack

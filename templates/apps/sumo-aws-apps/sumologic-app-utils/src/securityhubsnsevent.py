@@ -5,9 +5,8 @@ import json
 import logging
 
 # Setup Default Logger
-LOGGER = logging.getLogger("sra")
-log_level: str = os.environ.get("LOG_LEVEL", "ERROR")
-LOGGER.setLevel(log_level)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 

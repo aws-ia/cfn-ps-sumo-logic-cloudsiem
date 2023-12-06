@@ -16,11 +16,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from mypy_boto3_sns import SNSClient
 from mypy_boto3_organizations import OrganizationsClient
 from mypy_boto3_sns.type_defs import PublishBatchResponseTypeDef
+from mypy_boto3_sts.client import STSClient
 from mypy_boto3_guardduty.type_defs import (
         CreateMembersResponseTypeDef,
         ListOrganizationAdminAccountsResponseTypeDef,
         UpdateMemberDetectorsResponseTypeDef,
     )
+from mypy_boto3_config import ConfigServiceClient
+from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from typing import TYPE_CHECKING, Any
+
 import common
 from time import sleep
 import securityhub
@@ -88,7 +93,36 @@ class AWSS3RandomID(AWSResource):
         props = event.get("ResourceProperties")
         return {
             "params": props
-        }  
+        }
+    
+class AWSUpdateLambdaVariables(AWSResource):  
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["FUNCTION_NAME","REGION", "VARIABLES"]
+        
+    def create(self, params, *args, **kwargs):
+        lambda_client = boto3.client("lambda", region_name=params["REGION"])
+        try:
+            response = lambda_client.update_function_configuration(
+                FunctionName = params["FUNCTION_NAME"],
+                Environment={
+                    'Variables': params["VARIABLES"]
+                }
+            )
+            return {"VariablesId": "VariablesId"}, "VariablesId"
+        except Exception as exc:
+            logger.error(f"Unexpected error: {exc}")
+            raise ValueError("Error update variables")    
+                
+    def update(self, params, *args, **kwargs):
+        pass
+    def delete(self, params, *args, **kwargs):
+        pass           
+    def extract_params(self, event):
+        self.EVENT = event
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }
     
 class AWSFirewallManagerSetup(AWSResource):
     def __init__(self, props,  *args, **kwargs):
@@ -721,8 +755,360 @@ class AWSCloudTrailOrg(AWSResource):
         props = event.get("ResourceProperties")
         return {
             "params": props
-        }                                                                                 
+        }   
+                                                                                  
+class AWSConfig(AWSResource):
 
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["CONFIG_ROLE_NAME", "ALL_SUPPORTED", "INCLUDE_GLOBAL_RESOURCE_TYPES",
+                                    "RESOURCE_TYPES", "FREQUENCY",
+                                    "CONFIG_BUCKET", "ENABLED_REGIONS", "CONFIG_ASSUME_ROLE_NAME"]
+        self.UNEXPECTED = "Unexpected!"
+        self.MAX_THREADS = 20
+        self.ORG_PAGE_SIZE = 20  # Max page size for list_accounts
+        self.ORG_THROTTLE_PERIOD = 0.2        
+        self.BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"}) 
+        try:
+
+            MANAGEMENT_ACCOUNT_SESSION = boto3.Session()
+            self.ORG_CLIENT: OrganizationsClient = MANAGEMENT_ACCOUNT_SESSION.client("organizations", config=self.BOTO3_CONFIG)
+            self.RESOURCE_GROUP_CLIENT: OrganizationsClient = MANAGEMENT_ACCOUNT_SESSION.client("resource-groups", config=self.BOTO3_CONFIG)
+
+        except Exception:
+
+            logger.exception(self.UNEXPECTED)
+            raise ValueError("Unexpected error executing Lambda function. Review CloudWatch logs for details.") from None   
+         
+    def assume_role(self, role: str, role_session_name: str, account: str = None, session: boto3.Session = None) -> boto3.Session:
+        if not session:
+            session = boto3.Session()
+        sts_client: STSClient = session.client("sts", config=self.BOTO3_CONFIG)
+        sts_arn = sts_client.get_caller_identity()["Arn"]
+        logger.info(f"USER: {sts_arn}")
+        if not account:
+            account = sts_arn.split(":")[4]
+        partition = sts_arn.split(":")[1]
+        role_arn = f"arn:{partition}:iam::{account}:role/{role}"
+
+        response = sts_client.assume_role(RoleArn=role_arn, RoleSessionName=role_session_name)
+        logger.info(f"ASSUMED ROLE: {response['AssumedRoleUser']['Arn']}")
+
+        return boto3.Session(
+            aws_access_key_id=response["Credentials"]["AccessKeyId"],
+            aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
+            aws_session_token=response["Credentials"]["SessionToken"],
+        )
+    
+    def get_all_organization_accounts(self) -> list:
+        """Get all the active AWS Organization accounts.
+        Returns:
+            List of active account IDs
+        """
+        account_ids = []
+        paginator = self.ORG_CLIENT.get_paginator("list_accounts")
+
+        for page in paginator.paginate(PaginationConfig={"PageSize": self.ORG_PAGE_SIZE}):
+            for acct in page["Accounts"]:
+                if acct["Status"] == "ACTIVE":  # Store active accounts in a dict
+                    account_ids.append(acct["Id"])
+            sleep(self.ORG_THROTTLE_PERIOD)
+
+        return account_ids
+                  
+    def create_account_config(self, account_id: str, regions: list, config_assume_role_name: str, RoleARN: str, AllSupported: str,
+                       IncludeGlobalResourceTypes: str, ResourceTypes: str, Frequency: str,
+                       ConfigBucket: str):
+        
+        account_session = self.assume_role(config_assume_role_name, "sumo-aws-config-recorder-check", account_id)
+
+        for region in regions:
+            session_config = account_session.client("config", region_name=region, config=self.BOTO3_CONFIG)
+            resource_groups_client = account_session.client('resource-groups',region_name=region, config=self.BOTO3_CONFIG)
+            config_recorder_response = session_config.describe_configuration_recorder_status()
+            logger.info(f'config recorder response:{config_recorder_response}')
+
+            try:
+                resource_groups_response = resource_groups_client.get_group(
+                    GroupName="sumologic"
+                )
+                if 'Group' not in resource_groups_response or len(resource_groups_response['Group'])<1:
+                    resource_groups_response = resource_groups_client.create_group(
+                        Name='sumologic',
+                        Description='Group resource create by sumologic auto. pls do not remove or add tag in group',
+                        ResourceQuery={
+                            "Type": "TAG_FILTERS_1_0",
+                            "Query": json.dumps(
+                                {
+                                    "ResourceTypeFilters": ["AWS::AllSupported"],
+                                    "TagFilters": [
+                                        {"Key": "sumologic", "Values": ["©2023 Sumo Logic"]}
+                                    ]
+                                }
+                            )
+                        }
+                    )
+                    resource_group_arn = resource_groups_response['Group']['GroupArn']
+                else:
+                    resource_group_arn = resource_groups_response['Group']['GroupArn']                
+            except Exception:
+                resource_groups_response = resource_groups_client.create_group(
+                    Name='sumologic',
+                    Description='Group resource create by sumologic auto. pls do not remove or add tag in group',
+                    ResourceQuery={
+                        "Type": "TAG_FILTERS_1_0",
+                        "Query": json.dumps(
+                            {
+                                "ResourceTypeFilters": ["AWS::AllSupported"],
+                                "TagFilters": [
+                                    {"Key": "sumologic", "Values": ["©2023 Sumo Logic"]}
+                                ]
+                            }
+                        )
+                    }                    
+                )
+                resource_group_arn = resource_groups_response['Group']['GroupArn']  
+                                                                       
+            if 'ConfigurationRecordersStatus' not in config_recorder_response or \
+                    len(config_recorder_response['ConfigurationRecordersStatus']) < 1:
+                logger.info(f'account: {account_id} on region: {region} Config not enabled')
+                if AllSupported:
+                    ConfigurationRecorder={
+                        "name":'default',
+                        "roleARN": f"{RoleARN}" ,
+                        "recordingGroup":{
+                            "allSupported": AllSupported,
+                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes
+                        }
+                    }
+                else:
+                    ConfigurationRecorder={
+                        "name":'default',
+                        "roleARN": f"{RoleARN}" ,
+                        "recordingGroup":{
+                            "allSupported": AllSupported,
+                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes,
+                            "resourceTypes": [
+                                    ResourceTypes
+                            ]
+                        }
+                    } 
+
+                response = session_config.put_configuration_recorder(
+                    ConfigurationRecorder = ConfigurationRecorder                 
+                )
+
+                response = session_config.put_delivery_channel(
+                    DeliveryChannel={
+                        "name":"default",
+                        "s3BucketName": f"{ConfigBucket}",
+                        "configSnapshotDeliveryProperties": {
+                            "deliveryFrequency":f"{Frequency}"
+                        }
+                    }
+                )
+
+                response = session_config.start_configuration_recorder(
+                    ConfigurationRecorderName="default"
+                )
+
+                resource_groups_response = resource_groups_client.tag(
+                    Arn=f"{resource_group_arn}",
+                    Tags={
+                        'disable-awsconfig-when-remove-cfn':'true'
+                    }
+                )
+            else:
+                for config_recorder in config_recorder_response['ConfigurationRecordersStatus']:
+                    if not config_recorder['recording']:
+                        logger.info(f'account: {account_id} on region: {region} Config enabled, but not recording')
+                        channels = session_config.describe_delivery_channels()
+                        bucket_name==None
+                        if "DeliveryChannels" in channels:
+                            for channel in channels["DeliveryChannels"]:
+                                bucket_name = channel["s3BucketName"] if "s3BucketName" in channel else None
+                                name = channel["name"]
+                                break
+                        if bucket_name==None:
+                            response = session_config.put_delivery_channel(
+                                DeliveryChannel={
+                                    "name":"default",
+                                    "s3BucketName": f"{ConfigBucket}",
+                                    "configSnapshotDeliveryProperties": {
+                                        "deliveryFrequency":f"{Frequency}"
+                                    }
+                                }
+                            )
+                            resource_groups_response = resource_groups_client.tag(
+                                Arn=f"{resource_group_arn}",
+                                Tags={
+                                    'remove-s3-in-delivery-channel-when-remove-cfn':'true'
+                                }
+                            )                        
+                        resource_groups_response = resource_groups_client.tag(
+                            Arn=f"{resource_group_arn}",
+                            Tags={
+                                'stop-delivery-channel-when-remove-cfn':'true'
+                            }
+                        )
+                        response = session_config.start_configuration_recorder(
+                            ConfigurationRecorderName="default"
+                        ) 
+    def delete_account_config(self, account_id: str, regions: list, config_assume_role_name: str):
+        
+        account_session = self.assume_role(config_assume_role_name, "sumo-aws-config-recorder-check", account_id)
+
+        for region in regions:
+            session_config = account_session.client("config", region_name=region, config=self.BOTO3_CONFIG)
+            resource_groups_client = account_session.client('resource-groups',region_name=region, config=self.BOTO3_CONFIG)
+            config_recorder_response = session_config.describe_configuration_recorder_status()
+            logger.info(f'config recorder response:{config_recorder_response}')
+            try:
+                resource_groups_response = resource_groups_client.get_group(
+                    GroupName="sumologic"
+                )
+                if 'Group' in resource_groups_response or len(resource_groups_response['Group'])>=1:
+                    resource_group_arn = resource_groups_response['Group']['GroupArn']
+                    logger.info(f"Resource group arn: {resource_group_arn}")
+                    tags_response = resource_groups_client.get_tags(
+                        Arn=f"{resource_group_arn}"
+                    )
+                    logger.info(f"Tags response: {tags_response}")
+                    if len(tags_response["Tags"])>=1:
+                        if "disable-awsconfig-when-remove-cfn" in tags_response["Tags"]:
+                            if "true" in tags_response["Tags"]["disable-awsconfig-when-remove-cfn"]:
+                                config_recorder_response = session_config.delete_configuration_recorder(
+                                    ConfigurationRecorderName='default'
+                                )
+                        if "remove-s3-in-delivery-channel-when-remove-cfn" in tags_response["Tags"]:
+                            if "true" in tags_response["Tags"]["remove-s3-in-delivery-channel-when-remove-cfn"]:
+                                response = session_config.put_delivery_channel(
+                                    DeliveryChannel={
+                                        "name":f"default",
+                                        "s3BucketName": "",
+                                        "configSnapshotDeliveryProperties": {
+                                            "deliveryFrequency":"TwentyFour_Hours"
+                                        }
+                                    }
+                                )
+                        if "stop-delivery-channel-when-remove-cfn" in tags_response["Tags"]:        
+                            if "true" in tags_response["Tags"]["stop-delivery-channel-when-remove-cfn"]:
+                                response = session_config.stop_configuration_recorder(
+                                    ConfigurationRecorderName="default"
+                                )
+                    response = resource_groups_client.delete_group(GroupName="sumologic") 
+            except Exception as exc: 
+                logger.error(f'Delete config recorder error:{exc}')                
+
+    def is_region_available(self,region):
+
+        regional_sts = boto3.client('sts', region_name=region)
+        try:
+            regional_sts.get_caller_identity()
+            return True
+        except ClientError as error:
+            if "InvalidClientTokenId" in str(error):
+                logger.info(f"Region: {region} is not available")
+                return False
+            else:
+                logger.error(f"{error}") 
+
+    def get_available_service_regions(self, user_regions: str, aws_service: str) -> list:
+        available_regions = []
+        try:
+            if user_regions.strip():
+                logger.info(f"USER REGIONS: {str(user_regions)}")
+                service_regions = [value.strip() for value in user_regions.split(",") if value != '']
+            else:
+                service_regions = boto3.session.Session().get_available_regions(
+                    aws_service
+                )
+            logger.info(f"SERVICE REGIONS: {service_regions}")
+        except ClientError as ce:
+            logger.error(f"get_available_service_regions error: {ce}")
+            raise ValueError("Error getting service regions")
+        
+        for region in service_regions:
+            if self.is_region_available(region):
+                available_regions.append(region)
+
+        set_res = set(available_regions)
+        logger.info(f"AVAILABLE REGIONS: {list(set_res)}")
+
+        return list(set_res)
+
+
+    def create(self, params, *args, **kwargs):
+        logger.info("Create Event")
+        try:
+            account_ids = self.get_all_organization_accounts()
+            available_regions = self.get_available_service_regions(params["ENABLED_REGIONS"],"config")
+            AllSupported = (params.get("ALL_SUPPORTED", "false")).lower() in "true"
+            IncludeGlobalResourceTypes = (params.get("INCLUDE_GLOBAL_RESOURCE_TYPES", "false")).lower() in "true" 
+            ResourceTypes = params["RESOURCE_TYPES"]
+            Frequency = params["FREQUENCY"]
+            ConfigBucket = params["CONFIG_BUCKET"]                    
+            if len(available_regions) > 0:
+                for account in account_ids:
+                    RoleARN = f'arn:aws:iam::{account}:role/{params["CONFIG_ROLE_NAME"]}'
+                    logger.info(f"Account: {account} in process")
+                    self.create_account_config(account, available_regions, params["CONFIG_ASSUME_ROLE_NAME"], RoleARN, 
+                                               AllSupported, IncludeGlobalResourceTypes, ResourceTypes, Frequency, ConfigBucket)
+                    sleep(5)  
+
+            return {'AWSConfigId': "AWSConfigId"}, "AWSConfigId"
+
+        except Exception as error:
+            logger.error(f"Create process error: {error}")
+            raise ValueError("API Exception. Review logs for details.")
+        
+    def update(self, params, *args, **kwargs):
+        logger.info("Update Event")
+        try:
+            account_ids = self.get_all_organization_accounts()
+            available_regions = self.get_available_service_regions(params["ENABLED_REGIONS"],"config")
+            AllSupported = (params.get("ALL_SUPPORTED", "false")).lower() in "true"
+            IncludeGlobalResourceTypes = (params.get("INCLUDE_GLOBAL_RESOURCE_TYPES", "false")).lower() in "true" 
+            ResourceTypes = params["RESOURCE_TYPES"]
+            Frequency = params["FREQUENCY"]
+            ConfigBucket = params["CONFIG_BUCKET"]               
+            if len(available_regions) > 0:
+                results=[]
+                for account in account_ids:
+                    logger.info(f"Account: {account} in process")
+                    RoleARN = f'arn:aws:iam::{account}:role/{params["CONFIG_ROLE_NAME"]}'
+                    self.create_account_config(account, available_regions, params["CONFIG_ASSUME_ROLE_NAME"], RoleARN, 
+                                               AllSupported, IncludeGlobalResourceTypes, ResourceTypes, Frequency, ConfigBucket)
+                    sleep(5)  
+
+            return {'AWSConfigId': "AWSConfigId"}, "AWSConfigId"
+
+        except Exception as error:
+            logger.error(f"Create process error: {error}")
+            raise ValueError("API Exception. Review logs for details.")
+
+    def delete(self, params, *args, **kwargs):
+        logger.info("Delete Event")
+        try:
+            account_ids = self.get_all_organization_accounts()
+            available_regions = self.get_available_service_regions(params["ENABLED_REGIONS"],"config")
+            if len(available_regions) > 0:
+                for account in account_ids:
+                    logger.info(f"Delete account: {account} in process")
+                    self.delete_account_config(account, available_regions, params["CONFIG_ASSUME_ROLE_NAME"])
+                    sleep(5)  
+
+            return {'AWSConfigId': "AWSConfigId"}, "AWSConfigId"
+
+        except Exception as error:
+            logger.error(f"Delete process error: {error}")
+            pass    
+
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        } 
+                        
 class AWSSecurityHub(AWSResource):
     
     def __init__(self, props,  *args, **kwargs):
@@ -945,7 +1331,10 @@ class GetAvailableServiceRegions(AWSResource):
     
     def create(self, params, *args, **kwargs):
         available_regions = self.get_available_service_regions(params.get("ENABLED_REGIONS", ""), params.get("AWS_SERVICE", "guardduty"))
-        regions = ','.join([str(regions) for regions in available_regions])
+        set_res = set(available_regions)
+        list_regions = (list(set_res))
+        regions = ','.join([str(regions) for regions in list_regions])
+        
         return {'REGIONS': regions}, regions
         
     def update(self, params, *args, **kwargs):
