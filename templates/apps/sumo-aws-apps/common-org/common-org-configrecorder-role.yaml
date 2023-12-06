@@ -145,6 +145,11 @@ Resources:
                   - !Sub 'arn:${AWS::Partition}:resource-groups:*:${AWS::AccountId}:group/*'
 
   ConfigRecorderRole:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Resource found with an explicit name, this disallows updates that require replacement of this resource
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Ref ConfigRecorderRoleName
