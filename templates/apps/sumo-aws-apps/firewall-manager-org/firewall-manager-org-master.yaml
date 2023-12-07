@@ -63,7 +63,6 @@ Metadata:
           - SecurityAccountRegion
           - AdministrationRoleArn
           - ExecutionRoleRuleName
-          - KMSArn
       - Label:
           default: "AWS Quick Start configuration"
         Parameters:
@@ -139,8 +138,6 @@ Metadata:
         default: Arn of Administration Role
       ExecutionRoleRuleName:
         default: Execution Role Name
-      KMSArn:
-        default: "ARN of KMS"
       QSS3BucketName:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
@@ -378,10 +375,6 @@ Parameters:
     Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
     Type: String
 
-  KMSArn:
-    Type: String
-    Description: "ARN of KMS"
-
   CreateS3Source:
     Type: String
     Description: "Yes - to create Sumo Logic Amazon S3 Log Source with provided bucket Name.
@@ -507,9 +500,18 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       BUCKET_PREFIX: !Sub '${DeliveryBucketPrefix}-orgs'
 
-  CustomLambdaFirewallManagerSetup:
+  CustomLambdaAWSOrgEnableSharing:
     DependsOn:
         - FirewallManagerOrgDisassociateIamRoleStackSet 
+    Condition: enable_firewall_config
+    Type: Custom::AWSOrgEnableSharing
+    Version: '1.0'
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+
+  CustomLambdaFirewallManagerSetup:
+    DependsOn:
+        - CustomLambdaAWSOrgEnableSharing 
     Condition: enable_firewall_config
     Type: Custom::AWSFirewallManagerSetup
     Version: '1.0'
@@ -646,8 +648,6 @@ Resources:
           ParameterValue: !If [create_s3_bucket, !GetAtt AWSS3RandomID.BucketPrefixRandomID, !Ref NetworkFirewallExistsS3BucketName]
         - ParameterKey: 'SumoDeployment'
           ParameterValue: !Ref SumoDeployment
-        - ParameterKey: 'DeliveryKMSKeyArn'
-          ParameterValue: !Ref KMSArn
         - ParameterKey: 'SumoOrganizationId'
           ParameterValue: !Ref SumoOrganizationId      
 

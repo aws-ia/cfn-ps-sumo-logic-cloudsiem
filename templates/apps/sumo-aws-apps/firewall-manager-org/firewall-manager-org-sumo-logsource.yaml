@@ -43,14 +43,6 @@ Parameters:
     AllowedPattern: ".+"
     ConstraintDescription: "Sumo Logic Organization Id can not be empty."
 
-  DeliveryKMSKeyArn:
-    AllowedPattern:
-      '^arn:(aws[a-zA-Z-]*)?:kms:[a-z0-9-]+:\d{12}:key\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
-    ConstraintDescription:
-      'Key ARN example:  arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'
-    Description: KMS Key ARN to use for encrypting data findings sent to S3
-    Type: String
-
 Conditions:
   create_target_s3_bucket: !Equals [!Ref CreateS3Bucket, 'Yes'] 
      
@@ -92,7 +84,7 @@ Resources:
             reason: SNS Topic should specify KmsMasterKeyId property
     Type: "AWS::SNS::Topic"
     Properties:
-      KmsMasterKeyId: !Ref DeliveryKMSKeyArn
+      KmsMasterKeyId: !Ref AWS::NoValue
 
   SumoSNSpolicy:
     Type: "AWS::SNS::TopicPolicy"
@@ -122,17 +114,14 @@ Resources:
           - id: W35
             reason: S3 access logging not enabled
           - id: W51
-            reason: S3 bucket should likely have a bucket policy            
+            reason: S3 bucket should likely have a bucket policy    
+          - id: W41
+            reason: S3 Bucket should have encryption option set                     
     Condition: create_target_s3_bucket
     DependsOn:
       - SumoSNSpolicy
     Type: AWS::S3::Bucket
     Properties:
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              KMSMasterKeyID: !Ref DeliveryKMSKeyArn
-              SSEAlgorithm: aws:kms
       LoggingConfiguration: 
         DestinationBucketName: !Ref AWS::NoValue
         LogFilePrefix: !Ref AWS::NoValue

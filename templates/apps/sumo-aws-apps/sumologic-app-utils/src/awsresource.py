@@ -451,6 +451,31 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
         return {
             "params": props
         }
+#class for enable sharing with aws organization.
+class AWSOrgEnableSharing(AWSResource):
+    def __init__(self, props,  *args, **kwargs):
+        self.ORG_CLIENT = boto3.client("ram")
+    def create(self, params, *args, **kwargs):
+        try:
+            self.ORG_CLIENT.enable_sharing_with_aws_organization()
+        except ClientError as ce:
+            logger.error(f"Client Error: {str(ce)}")
+            raise
+        except Exception as exc:
+            logger.error(f"Exception: {str(exc)}")
+            raise
+        return {"OrgEnableSharingId": "OrgEnableSharingId"}, "OrgEnableSharingId"
+
+    def update(self, params, *args, **kwargs):
+        pass
+    def delete(self, params, *args, **kwargs):
+        pass
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }
+    
 #class for anable trusted service in org.
 class AWSOrgEnableServiceAccess(AWSResource):
     def __init__(self, props,  *args, **kwargs):

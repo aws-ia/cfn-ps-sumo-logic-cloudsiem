@@ -947,7 +947,6 @@ Resources:
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
         SumoLogicHelperRoleARN: !GetAtt CommonOrgManagement.Outputs.SumoLogicHelperRoleARN
-        KMSArn: !GetAtt CommonOrgManagement.Outputs.OrgDeliveryKMSKeyArn
         ParentStackName: !Ref AWS::StackName
         EnableForwardDataToCloudSIEM: !Ref Section6EnableForwardDataToCloudSIEM
         DisassociateAdminAccountOnDeleteStack: !Ref Section6DisassociateAdminAccountOnDeleteStack
