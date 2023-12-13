@@ -10,12 +10,14 @@ import boto3
 from mypy_boto3_sts.client import STSClient
 from botocore.exceptions import ClientError
 from botocore.config import Config
+import uuid
 
 # Setup Default Logger
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"}) 
+ID = str(uuid.uuid4())[0:8]
 
 def parameter_pattern_validator(parameter_name: str, parameter_value: Optional[str], pattern: str, is_optional: bool = False) -> dict:
     """Validate CloudFormation Custom Resource Properties and/or Lambda Function Environment Variables.
@@ -84,7 +86,7 @@ def create_account_config(account_id: str, regions: list, config_assume_role_nam
                     IncludeGlobalResourceTypes: str, ResourceTypes: str, Frequency: str,
                     ConfigBucket: str):
     
-    account_session = assume_role(config_assume_role_name, "sumo-aws-config-recorder-check", account_id)
+    account_session = assume_role(config_assume_role_name, f"sumo-aws-config-recorder-check-{ID}", account_id)
 
     for region in regions:
         session_config = account_session.client("config", region_name=region, config=BOTO3_CONFIG)

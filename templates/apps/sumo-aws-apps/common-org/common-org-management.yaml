@@ -350,11 +350,6 @@ Resources:
                 Resource:
                   - !Sub arn:${AWS::Partition}:iam::*:role/*
 
-              - Sid: AllowReadIamActions
-                Effect: Allow
-                Action: iam:GetRole
-                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*
-
               - Sid: AllowCreateServiceLinkedRole
                 Effect: Allow
                 Action: iam:CreateServiceLinkedRole
@@ -393,7 +388,6 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - organizations:ListAccounts
                   - s3:GetAccountPublicAccessBlock
                   - s3:ListAllMyBuckets
                 Resource: "*"
@@ -416,16 +410,6 @@ Resources:
                   - lambda:UpdateFunctionConfiguration
                 Resource:
                   - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*
-
-              - Effect: Allow
-                Action:
-                  - organizations:DescribeAccount
-                Resource:
-                  - !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:account/*/*
-
-              - Effect: Allow
-                Action: iam:GetRole
-                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/*AWSServiceRoleForAmazonGuardDutyMalwareProtection"
 
               - Effect: Allow
                 Action: iam:CreateServiceLinkedRole
@@ -900,6 +884,39 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt OrganizationsRule.Arn
 
+  ForwardOrganizationsEventsRuleStackset:
+    Condition: NotGlobalRegionUsEast1
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'CommonOrgForwardEventsRule-${ParentStackName}'
+      AdministrationRoleARN: !GetAtt rAdministrationRole.Arn
+      ExecutionRoleName: !Select [1, !Split ["/", !GetAtt rExecutionRole.Arn]]
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions:
+            - us-east-1
+          DeploymentTargets:
+            Accounts:
+              - !Ref AWS::AccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-global-events.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        - ParameterKey: 'HomeRegion'
+          ParameterValue: !Ref AWS::Region
+        - ParameterKey: 'EventRuleRoleName'
+          ParameterValue: !Sub "Global-Events-${ParentStackName}"
+        - ParameterKey: 'ParentStackName'
+          ParameterValue: !Ref ParentStackName                   
+
   CrossRegionEventRuleRole:
     Type: AWS::IAM::Role
     Condition: NotGlobalRegionUsEast1
@@ -909,7 +926,7 @@ Resources:
           - id: W28
             reason: Specific role name provided
     Properties:
-      RoleName: !Sub "config-recorder-start-${ParentStackName}"
+      RoleName: !Sub "Global-Events-${ParentStackName}"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

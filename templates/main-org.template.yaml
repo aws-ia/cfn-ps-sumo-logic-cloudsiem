@@ -525,7 +525,7 @@ Parameters:
   Section3CloudTrailBucketPathExpression:
     Type: String
     Description: "The path expression must match the folder structure for CloudTrail logs (e.g., AWSLogs/*/CloudTrail/*)."
-    Default: "CloudTrail/AWSLogs/*/*/*"
+    Default: "CloudTrail/AWSLogs/*"
   Section3CreateCloudTrailS3Bucket:
     Type: String
     Description: "Choose Yes to create an S3 bucket for CloudTrail logs."
@@ -947,6 +947,7 @@ Resources:
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
         SumoLogicHelperRoleARN: !GetAtt CommonOrgManagement.Outputs.SumoLogicHelperRoleARN
+        KMSArn: !GetAtt CommonOrgManagement.Outputs.OrgDeliveryKMSKeyArn
         ParentStackName: !Ref AWS::StackName
         EnableForwardDataToCloudSIEM: !Ref Section6EnableForwardDataToCloudSIEM
         DisassociateAdminAccountOnDeleteStack: !Ref Section6DisassociateAdminAccountOnDeleteStack

@@ -792,7 +792,8 @@ class AWSConfig(AWSResource):
         self.MAX_THREADS = 20
         self.ORG_PAGE_SIZE = 20  # Max page size for list_accounts
         self.ORG_THROTTLE_PERIOD = 0.2        
-        self.BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"}) 
+        self.BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
+        self.ID = str(uuid.uuid4())[0:8]
         try:
 
             MANAGEMENT_ACCOUNT_SESSION = boto3.Session()
@@ -844,7 +845,7 @@ class AWSConfig(AWSResource):
                        IncludeGlobalResourceTypes: str, ResourceTypes: str, Frequency: str,
                        ConfigBucket: str):
         
-        account_session = self.assume_role(config_assume_role_name, "sumo-aws-config-recorder-check", account_id)
+        account_session = self.assume_role(config_assume_role_name, f"sumo-aws-config-recorder-check-{self.ID}", account_id)
 
         for region in regions:
             session_config = account_session.client("config", region_name=region, config=self.BOTO3_CONFIG)
