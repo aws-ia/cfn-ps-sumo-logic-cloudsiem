@@ -184,4 +184,4 @@ Resources:
                 Action: 
                   - config:PutConfigurationRecorder
                   - config:PutDeliveryChannel
-                Resource: !Sub 'arn:${AWS::Partition}:config:${AWS::Region}:${AWS::AccountId}:*'        
+                Resource: !Sub 'arn:${AWS::Partition}:config:*:${AWS::AccountId}:*'        
