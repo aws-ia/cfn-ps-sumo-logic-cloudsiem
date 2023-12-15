@@ -4,7 +4,7 @@
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
 Description:
-  This template creates an event rule to send organization events to the home region.
+  This template creates an event rule to send organization events to the home region.(qs-1sfibuu7n)
 Metadata:
   SRA:
     Version: 1.0
@@ -38,7 +38,7 @@ Parameters:
   ParentStackName:
     Type: String
     Default: "ParentStackName"
-    Description: Parent Stack Name. Do Not Edit the value.
+    Description: Parent Stack Name. Do Not Edit the value. (qs-template)
 
 Resources:
   rOrganizationsRule:
