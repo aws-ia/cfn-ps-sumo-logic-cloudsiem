@@ -122,7 +122,7 @@ Resources:
           - id: W35
             reason: S3 access logging not enabled
           - id: W51
-            reason: S3 bucket should likely have a bucket policy            
+            reason: S3 bucket should likely have a bucket policy                   
     Condition: create_target_s3_bucket
     DependsOn:
       - SumoSNSpolicy
@@ -132,7 +132,7 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               KMSMasterKeyID: !Ref DeliveryKMSKeyArn
-              SSEAlgorithm: aws:kms
+              SSEAlgorithm: aws:kms    
       LoggingConfiguration: 
         DestinationBucketName: !Ref AWS::NoValue
         LogFilePrefix: !Ref AWS::NoValue

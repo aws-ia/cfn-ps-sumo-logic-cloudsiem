@@ -140,7 +140,7 @@ Metadata:
       ExecutionRoleRuleName:
         default: Execution Role Name
       KMSArn:
-        default: "ARN of KMS"
+        default: "ARN of KMS"        
       QSS3BucketName:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
@@ -377,7 +377,7 @@ Parameters:
     AllowedPattern: "^[0-9a-zA-Z-/]*$"
     Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
     Type: String
-
+    
   KMSArn:
     Type: String
     Description: "ARN of KMS"
@@ -507,9 +507,18 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       BUCKET_PREFIX: !Sub '${DeliveryBucketPrefix}-orgs'
 
-  CustomLambdaFirewallManagerSetup:
+  CustomLambdaAWSOrgEnableSharing:
     DependsOn:
         - FirewallManagerOrgDisassociateIamRoleStackSet 
+    Condition: enable_firewall_config
+    Type: Custom::AWSOrgEnableSharing
+    Version: '1.0'
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+
+  CustomLambdaFirewallManagerSetup:
+    DependsOn:
+        - CustomLambdaAWSOrgEnableSharing 
     Condition: enable_firewall_config
     Type: Custom::AWSFirewallManagerSetup
     Version: '1.0'
@@ -647,7 +656,7 @@ Resources:
         - ParameterKey: 'SumoDeployment'
           ParameterValue: !Ref SumoDeployment
         - ParameterKey: 'DeliveryKMSKeyArn'
-          ParameterValue: !Ref KMSArn
+          ParameterValue: !Ref KMSArn          
         - ParameterKey: 'SumoOrganizationId'
           ParameterValue: !Ref SumoOrganizationId      
 
