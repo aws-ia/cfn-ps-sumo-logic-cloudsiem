@@ -74,6 +74,14 @@ image::../docs/deployment_guide/images/SRAQSCollector.png[Sumo Logic Hosted Coll
 
 ** https://docs.aws.amazon.com/awscloudtrail/latest/userguide/creating-trail-organization.html[Creating a trail for an organization]
 
+* https://docs.aws.amazon.com/firewall-manager/[AWS Firewall Manager]
+
+* https://docs.aws.amazon.com/config/[AWS Config]
+
+* https://docs.aws.amazon.com/guardduty/[Amazon GuardDuty]
+
+* https://docs.aws.amazon.com/securityhub/[AWS Security Hub] 
+
 === Other AWS documentation
 * https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/welcome.html[AWS Security Reference Architecture (AWS SRA)^]
 
