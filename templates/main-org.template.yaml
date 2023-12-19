@@ -548,7 +548,7 @@ Parameters:
   Section3CloudTrailLogsSourceCategoryName:
     Type: String
     Description: "Required when the flag is set to No. Provide the name of an existing Sumo Logic source category that's collecting CloudTrail logs. This is also used for Threat Intel for AWS app installation."
-    Default: "AWS/Cloudtrail/Logs"
+    Default: "aws/quickstart/cloudtrail/logs"
 
 
 # Security Hub parameters
@@ -724,7 +724,7 @@ Parameters:
     Type: String
     Description: "Existing - Change to an existing Source Category from Sumo Logic if Amazon S3 Source is not created.
                   New - Default will be used if Amazon S3 Source is Created."
-    Default: AWS/NFW/Logs
+    Default: "aws/quickstart/nfw/logs"
 
   Section6CreateS3Bucket:
     Type: String
@@ -753,7 +753,7 @@ Parameters:
     Type: String
     Description: "Existing - Change to an existing Source Category from Sumo Logic if AWS Kinesis Firehose Source is not created.
                   New - Default will be used if AWS Kinesis Firehose Source is Created."
-    Default: AWS/WAF/Logs
+    Default: "aws/quickstart/waf/logs"
 
   Section6DeliveryStreamName:
     Type: String
@@ -778,7 +778,7 @@ Parameters:
     ConstraintDescription: "The Quick Start bucket name can include numbers, lowercase
       letters, uppercase letters, and hyphens (-). It cannot start or end with a
       hyphen (-)."
-    Default: "aws-quickstart"
+    Default: "aws-ia"
     Description: "Name of the S3 bucket for your copy of the Quick Start assets.
       Keep the default name unless you are customizing the template.
       Changing the name updates code references to point to a new Quick
@@ -792,7 +792,7 @@ Parameters:
     ConstraintDescription: "The Quick Start S3 key prefix can include numbers, lowercase letters,
       uppercase letters, hyphens (-), and forward slashes (/). The prefix should
       end with a forward slash (/)."
-    Default: "quickstart-sumo-logic-cloudsiem/"
+    Default: "cfn-ps-sumo-logic-cloudsiem/"
     Description: "S3 key prefix that is used to simulate a directory for your copy of the
       Quick Start assets. Keep the default prefix unless you are customizing
       the template. Changing this prefix updates code references to point to
@@ -810,7 +810,7 @@ Parameters:
   QSVersion:
     Type: String
     Description: "Version of the Quick Start. Do not change."
-    Default: "1.1"
+    Default: "2"
 
 Conditions:
 
@@ -846,7 +846,7 @@ Conditions:
   #condition for create bucket
   create_bucket: !Equals [ !Ref Section3CreateCloudTrailS3Bucket, 'Yes' ]
 
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
 
 
 Resources:
@@ -933,11 +933,11 @@ Resources:
         NetworkFirewallExistsS3BucketName: !Ref Section6NetworkFirewallExistsS3BucketName
         CreateDeliveryStreamSource: !Ref Section6CreateDeliveryStreamSource
         DeliveryStreamName: !Ref Section6DeliveryStreamName
-        DeliveryStreamSourceName: !Sub "AWS-WAF-Source"
+        DeliveryStreamSourceName: !Sub "aws-quickstart-waf"
         DeliveryStreamSourceCategoryName: !Ref Section6DeliveryStreamSourceCategoryName
         SecurityAccountRegion: !Ref Section1ToolingAndLoggingRegion
         CreateS3Source: !Ref Section6CreateS3Source
-        S3SourceName: !Sub "AWS-NFW-Source"
+        S3SourceName: !Sub "aws-quickstart-networkfirewall"
         S3SourceCategoryName: !Ref Section6S3SourceCategoryName
         SecurityAccountId: !Ref Section1SecurityToolingAccountId
         AdministrationRoleArn: !GetAtt CommonOrgManagement.Outputs.AdministrationRoleArn
