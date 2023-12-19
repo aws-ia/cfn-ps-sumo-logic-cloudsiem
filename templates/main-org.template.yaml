@@ -529,7 +529,7 @@ Parameters:
   Section3CreateCloudTrailS3Bucket:
     Type: String
     Description: "Choose Yes to create an S3 bucket for CloudTrail logs."
-    Default: 'No'
+    Default: 'Yes'
     AllowedValues:
       - 'Yes'
       - 'No'
@@ -574,7 +574,7 @@ Parameters:
     Type: String
     Description: "Yes -> Security Hub must be enabled in AWS for AWS Quick Start Solution.
                   No -> Skip enable of the app."
-    Default: 'No'
+    Default: 'Yes'
     AllowedValues:
       - 'Yes'
       - 'No'
