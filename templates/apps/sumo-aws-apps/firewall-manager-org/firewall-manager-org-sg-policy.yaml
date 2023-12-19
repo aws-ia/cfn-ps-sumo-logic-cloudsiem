@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cloudformation Stack to create a security group policy. (qs-1t29c970i)
+Description: Cloudformation Stack to create a security group policy. (qs-1urq119up)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:

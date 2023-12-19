@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "This CloudFormation template sets up AWS Cloudtrail Org and Sumo Logic resources for all of the Sumo Logic cloudtrail apps. (qs-1sfibuu78)"
+Description: "This CloudFormation template sets up AWS Cloudtrail Org and Sumo Logic resources for all of the Sumo Logic cloudtrail apps. (qs-1urq0tabq)"
 
 Metadata:
   cfn-lint:

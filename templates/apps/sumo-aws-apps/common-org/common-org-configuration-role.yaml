@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
-Description: Create an IAM role for configuration in the delegated administrator account. (qs-1sfibuu7n)
+Description: Create an IAM role for configuration in the delegated administrator account. (qs-1urq0qanr)
 
 Metadata:
   cfn-lint:

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: "Template to Configure the Execution Role to enable use of your account as a target account in AWS CloudFormation StackSets. (qs-1sfibuu95)"
+Description: "Template to Configure the Execution Role to enable use of your account as a target account in AWS CloudFormation StackSets. (qs-1urq0o87r)"
 
 Metadata:
   cfn-lint:

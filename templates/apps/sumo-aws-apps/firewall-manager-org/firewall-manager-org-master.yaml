@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: Template to setup the AWS Firewall Manager app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1t29c970a)
+Description: Template to setup the AWS Firewall Manager app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq106k9)
 
 Metadata:
   AWS::CloudFormation::Interface:

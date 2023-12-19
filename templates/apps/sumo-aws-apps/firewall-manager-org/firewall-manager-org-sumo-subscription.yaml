@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: A template to create a subscription with the endpoint of the Sumo Logic source. (qs-1t29c971h)
+Description: A template to create a subscription with the endpoint of the Sumo Logic source. (qs-1urq12jhr)
 Parameters:
 
   SumoSNSTopicArn:
