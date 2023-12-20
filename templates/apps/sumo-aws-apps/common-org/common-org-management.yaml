@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: "Template to setup the common AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu8p)"
+Description: "Template to setup the common AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq0n814)"
 Metadata:
   cfn-lint:
     config:

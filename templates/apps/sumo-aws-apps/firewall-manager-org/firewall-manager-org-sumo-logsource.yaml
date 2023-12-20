@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: A template to create a topic and a S3 bucket for Network Firewall Log collection, create a role for authenticating with Sumo’s AWS integrations. (qs-1t29c9717)
+Description: A template to create a topic and a S3 bucket for Network Firewall Log collection, create a role for authenticating with Sumo’s AWS integrations. (qs-1urq11qjt)
 Parameters:
 
   CreateS3Bucket:

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Creates the Security Hub enabler IAM role. (qs-1t29c972u)
+Description: Creates the Security Hub enabler IAM role. (qs-1urq27o8p)
 
 Metadata:
   AWS::CloudFormation::Interface:

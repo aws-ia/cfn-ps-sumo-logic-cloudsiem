@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
-Description: Builds a Firewall Manager WAF v2, Network Firewall policy and deploys it . (qs-1t29c971t)
+Description: Builds a Firewall Manager WAF v2, Network Firewall policy and deploys it . (qs-1urq1345n)
 
 Parameters:
   CreateDeliveryStream:

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description:  Organization GuardDuty delegated admin template for to setup the Amazon GuardDuty, Global Intelligence for Amazon GuardDuty with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu9l)
+Description:  Organization GuardDuty delegated admin template for to setup the Amazon GuardDuty, Global Intelligence for Amazon GuardDuty with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq1407e)
 
 Metadata:
    cfn-lint:
