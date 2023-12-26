@@ -48,15 +48,11 @@ tests:
       
       Section4SecurityHubEnableSecurityHub: "Yes"
       Section4SecurityHubRegionLinkingMode: "SPECIFIED_REGIONS"
-      Section4SecurityHubLinkedRegions: "us-east-2"
+      Section4SecurityHubLinkedRegions: "us-east-1"
       Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp: "Yes"
-      Section4SecurityHubRegionsToEnable: "us-east-2"
       Section4SecurityHubCreateHttpLogsSource: "Yes"
       Section4SecurityHubHttpLogsSourceCategoryName: "aws/quickstart/securityhub/logs"
-      Section2FindingPublishingFrequency: "FIFTEEN_MINUTES"
-      Section4SecurityHubEnableCISStandard: "true"
-      Section4SecurityHubEnablePCIStandard: "true"
-      Section4SecurityHubEnableSBPStandard: "true"
+      Section4SecurityHubSecurityStandards: "FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0"
 
       Section6EnableFirewallManager: "Yes"
       Section6DisassociateAdminAccountOnDeleteStack: "false"

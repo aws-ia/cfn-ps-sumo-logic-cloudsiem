@@ -11,7 +11,7 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: "Sumo Logic configuration"
+          default: "1.1 Sumo Logic configuration"
         Parameters:
           - Section1SumoLogicDeployment
           - Section1SumoLogicAccessID
@@ -19,7 +19,7 @@ Metadata:
           - Section1SumoLogicOrganizationId
           - Section1SumoLogicResourceRemoveOnDeleteStack
       - Label:
-          default: "AWS Organizations configuration"
+          default: "1.2 AWS Organizations configuration"
         Parameters:
           - Section1SecurityToolingAccountId
           - Section1LogArchivingAccountId
@@ -27,20 +27,20 @@ Metadata:
           - Section1OrganizationRootID
 
       - Label:
-          default: "GuardDuty app configuration"
+          default: "2.1 GuardDuty app configuration"
         Parameters:
           - Section2InstallSumoGlobalGuardDutyApp
           - Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp
 
       - Label:
-          default: "GuardDuty service configuration"
+          default: "2.2 GuardDuty service configuration"
         Parameters:
           - Section2FindingPublishingFrequency
           - Section2AdditionalConfigurationFeatures
           - Section2GuardDutyRegions
 
       - Label:
-          default: "GuardDuty Sumo log source configuration"
+          default: "2.3 GuardDuty Sumo log source configuration"
         Parameters:
           - Section2GuardDutyCreateHttpLogsSource
           - Section2EnableForwardDataToCloudSIEM
@@ -48,14 +48,14 @@ Metadata:
 
       # CloudTrail parameters
       - Label:
-          default: "CloudTrail service configuration"
+          default: "3.1 CloudTrail service configuration"
         Parameters:
           - Section3CloudTrailRegion
           - Section3EnableAWSCloudTrail
           - Section3DisassociateAdminAccountOnDeleteStack
 
       - Label:
-          default: "CloudTrail app configuration"
+          default: "3.2 CloudTrail app configuration"
         Parameters:
           - Section3InstallPCICloudTrailApp
           - Section3InstallCISFoundationApp
@@ -63,7 +63,7 @@ Metadata:
           - Section3InstallCloudTrailSecOpsApp
 
       - Label:
-          default: "CloudTrail Sumo log source configuration"
+          default: "3.3 CloudTrail Sumo log source configuration"
         Parameters:
           - Section3CloudTrailCreateS3LogsSource
           - Section3CloudTrailBucketPathExpression
@@ -71,7 +71,7 @@ Metadata:
           - Section3EnableForwardDataToCloudSIEM
 
       - Label:
-          default: "CloudTrail S3 bucket configuration"
+          default: "3.4 CloudTrail S3 bucket configuration"
         Parameters:
           - Section3CreateCloudTrailS3Bucket
           - Section3CloudTrailExistsS3BucketName
@@ -85,12 +85,9 @@ Metadata:
       - Label:
           default: "4.2 Security Hub Service Configuration"
         Parameters:
-          - Section4SecurityHubRegionsToEnable
           - Section4SecurityHubRegionLinkingMode
           - Section4SecurityHubLinkedRegions
-          - Section4SecurityHubEnableCISStandard
-          - Section4SecurityHubEnablePCIStandard
-          - Section4SecurityHubEnableSBPStandard
+          - Section4SecurityHubSecurityStandards
       - Label:
           default: "4.3 Security Hub Sumo Log Source configuration"
         Parameters:
@@ -223,14 +220,8 @@ Metadata:
         default: "Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics"
       Section4SecurityHubEnableSecurityHub:
         default: Enable Security Hub for the Regions
-      Section4SecurityHubEnableCISStandard:
-        default: Enable CIS AWS Foundations Benchmark v1.2.0
-      Section4SecurityHubEnablePCIStandard:
-        default: Enable PCI DSS v3.2.1
-      Section4SecurityHubEnableSBPStandard:
-        default: Enable AWS Foundational Security Best Practices v1.0.0
-      Section4SecurityHubRegionsToEnable:
-        default: Regions to Enable
+      Section4SecurityHubSecurityStandards:
+        default: Standards in AWS Security Hub
       Section4SecurityHubRegionLinkingMode:
         default: Region Linking Mode
       Section4SecurityHubLinkedRegions:
@@ -579,34 +570,14 @@ Parameters:
       - 'Yes'
       - 'No'
 
-  Section4SecurityHubEnableCISStandard:
+  Section4SecurityHubSecurityStandards:
     Type: String
-    Description: CIS AWS Foundations Standard
-    Default: 'true'
-    AllowedValues:
-      - 'true'
-      - 'false'
-
-  Section4SecurityHubEnablePCIStandard:
-    Type: String
-    Description: Payment Card Industry Data Security Standard (PCI DSS)
-    Default: 'true'
-    AllowedValues:
-      - 'true'
-      - 'false'
-
-  Section4SecurityHubEnableSBPStandard:
-    Type: String
-    Description: Security Best Practices Standard
-    Default: 'true'
-    AllowedValues:
-      - 'true'
-      - 'false'
-
-  Section4SecurityHubRegionsToEnable:
-    Type: String
-    Description: Comma delimited list of regions to enable Security Hub.
-    Default: us-east-1,us-east-2
+    Description: 
+      "AWS Security Hub currently supports the security standards detailed in this section. 
+      Choose a standard to view more details about it and the controls that apply to it. Comma delimited list of standards (e.g. FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0)
+      Supports: FSBP_v1.0.0 (AWS Foundational Security Best Practices v1.0.0 standard), CIS_v1.2.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0 standard),
+      CIS_v1.4.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0 standard), NIST_v5.0.0 (National Institute of Standards and Technology SP 800-53 Rev. 5)"
+    Default: "FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1"
 
   Section4SecurityHubLinkedRegions:
     Default: us-east-2, us-west-1
@@ -614,11 +585,14 @@ Parameters:
     Type: String
 
   Section4SecurityHubRegionLinkingMode:
-    AllowedValues: [SPECIFIED_REGIONS, ALL_REGIONS]
+    AllowedValues: [SPECIFIED_REGIONS, ALL_REGIONS, ALL_REGIONS_EXCEPT_SPECIFIED ]
     Default: SPECIFIED_REGIONS
     Description:
-      Indicates whether to aggregate findings from all of the available Regions in the current partition. Also determines whether to automatically
+      "Indicates whether to aggregate findings from all of the available Regions in the current partition. Also determines whether to automatically
       aggregate findings from new Regions as Security Hub supports them and you opt into them.
+      ALL_REGIONS – Security Hub aggregates data from all Regions. Security Hub also aggregates data from new Regions as they are supported and you opt into them.
+      ALL_REGIONS_EXCEPT_SPECIFIED – Security Hub aggregates data from all Regions except for Regions that you want to exclude. Security Hub also aggregates data from new Regions as they are supported and you opt into them. Use Regions to provide the list of Regions to exclude from aggregation.
+      SPECIFIED_REGIONS – Security Hub aggregates data from a selected list of Regions. Security Hub does not aggregate data automatically from new Regions. Use Regions to provide the list of Regions to aggregate from."
     Type: String
 
   Section4SecurityHubCreateHttpLogsSource:
@@ -850,8 +824,6 @@ Conditions:
 
 
 Resources:
-  WaitHandle:
-    Type: "AWS::CloudFormation::WaitConditionHandle"
 
   CommonOrgManagement:
     Type: AWS::CloudFormation::Stack
@@ -884,24 +856,12 @@ Resources:
         LogArchivingAccountRegion: !Ref Section1ToolingAndLoggingRegion
         OrganizationRootID: !Ref Section1OrganizationRootID
         CreateConfigRecorderRole: !If [ enable_aws_config, 'Yes','No' ]
-        ConfigRegions: !Sub '${Section4SecurityHubRegionsToEnable},${Section6FirewallManagerPolicyRegions}'
+        ConfigRegions: !Sub '${Section4SecurityHubLinkedRegions},${Section6FirewallManagerPolicyRegions}'
 
-  SumoFirewallManagerStackWaitHandle:
-    Condition: call_security_hub_stack
-    DependsOn: SecurityHubStack
-    Type: "AWS::CloudFormation::WaitConditionHandle"
-
-  SumoFirewallManagerStackWaitCondition:
-    Type: "AWS::CloudFormation::WaitCondition"
-    Properties:
-      Handle: !If [call_security_hub_stack, !Ref SumoFirewallManagerStackWaitHandle, !Ref WaitHandle]
-      Timeout: "5"
-      Count: 0
       
 #Stack for Firewall Manager
   FirewallManagerStack:
-    Condition: call_firewall_manager_stack
-    DependsOn: SumoFirewallManagerStackWaitCondition    
+    Condition: call_firewall_manager_stack    
     Type: 'AWS::CloudFormation::Stack'
     Properties:
       Tags:
@@ -948,26 +908,16 @@ Resources:
         ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
         SumoLogicHelperRoleARN: !GetAtt CommonOrgManagement.Outputs.SumoLogicHelperRoleARN
         KMSArn: !GetAtt CommonOrgManagement.Outputs.OrgDeliveryKMSKeyArn
-        ParentStackName: !Ref AWS::StackName
+        ParentStackName: !If [ call_security_hub_stack, !GetAtt SecurityHubStack.Outputs.ParentStackName,
+                            !If [ call_cloudtrail_stack, !GetAtt CloudtrailStack.Outputs.ParentStackName,
+                              !If [call_guardduty_stack, !GetAtt GuardDutyConfigurationStack.Outputs.ParentStackName, !Ref AWS::StackName]]] 
         EnableForwardDataToCloudSIEM: !Ref Section6EnableForwardDataToCloudSIEM
         DisassociateAdminAccountOnDeleteStack: !Ref Section6DisassociateAdminAccountOnDeleteStack
 
-  SumoSecurityHubStackWaitHandle:
-    Condition: call_cloudtrail_stack
-    DependsOn: CloudtrailStack
-    Type: "AWS::CloudFormation::WaitConditionHandle"
-
-  SumoSecurityHubStackWaitCondition:
-    Type: "AWS::CloudFormation::WaitCondition"
-    Properties:
-      Handle: !If [call_cloudtrail_stack, !Ref SumoSecurityHubStackWaitHandle, !Ref WaitHandle]
-      Timeout: "5"
-      Count: 0
 
 #Stack for Security Hub
   SecurityHubStack:
-    Condition: call_security_hub_stack
-    DependsOn: SumoSecurityHubStackWaitCondition    
+    Condition: call_security_hub_stack  
     Type: 'AWS::CloudFormation::Stack'
     Properties:
       Tags:
@@ -979,7 +929,8 @@ Resources:
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         QSVersion: !Ref QSVersion
-        ParentStackName: !Ref AWS::StackName
+        ParentStackName:  !If [ call_cloudtrail_stack, !GetAtt CloudtrailStack.Outputs.ParentStackName,
+                            !If [call_guardduty_stack, !GetAtt GuardDutyConfigurationStack.Outputs.ParentStackName, !Ref AWS::StackName]]
         AdministrationRoleArn: !GetAtt CommonOrgManagement.Outputs.AdministrationRoleArn
         ExecutionRoleRuleName: !GetAtt CommonOrgManagement.Outputs.ExecutionRoleRuleName
         OrganizationRootID: !Ref Section1OrganizationRootID
@@ -990,15 +941,6 @@ Resources:
         InstallAWSSecurityHubApp: !Ref Section4SecurityHubEnableSecurityHub
         InstallSumoSecurityHubApp: 'No'
         InstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp: !Ref Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp
-        RegionsToEnable: !Ref Section4SecurityHubRegionsToEnable
-        SecurityAccountId: !Ref Section1SecurityToolingAccountId
-        EnableCISStandard: !Ref Section4SecurityHubEnableCISStandard
-        CISStandardVersion: '1.2.0'
-        EnablePCIStandard: !Ref Section4SecurityHubEnablePCIStandard
-        PCIStandardVersion: '3.2.1'
-        EnableSBPStandard: !Ref Section4SecurityHubEnableSBPStandard
-        SBPStandardVersion: '1.0.0'
-        ControlTowerRegionsOnly: 'false'
         SumoLogicHelperRoleARN: !GetAtt CommonOrgManagement.Outputs.SumoLogicHelperRoleARN
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
@@ -1009,9 +951,9 @@ Resources:
         CreateHttpLogsSource: !Ref Section4SecurityHubCreateHttpLogsSource
         RegionLinkingMode: !Ref Section4SecurityHubRegionLinkingMode
         LinkedRegions: !Ref Section4SecurityHubLinkedRegions
-        HttpLogsSourceName: !Sub
-          - "aws-quickstart-securityhub-${Region}"
-          - Region: !Select [0, !Split [",", !Ref Section4SecurityHubRegionsToEnable]]
+        SecurityAccountId: !Ref Section1SecurityToolingAccountId
+        SecurityStandards: !Ref Section4SecurityHubSecurityStandards
+        HttpLogsSourceName: !Sub "aws-quickstart-securityhub-${AWS::Region}"
         HttpLogsSourceCategoryName: !Ref Section4SecurityHubHttpLogsSourceCategoryName
         EnableForwardDataToCloudSIEM: !Ref Section4EnableForwardDataToCloudSIEM
 
@@ -1056,23 +998,10 @@ Resources:
         ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
         EnableForwardDataToCloudSIEM: !Ref Section2EnableForwardDataToCloudSIEM
 
-  SumoCloudtrailStackWaitHandle:
-    Condition: call_guardduty_stack
-    DependsOn: GuardDutyConfigurationStack
-    Type: "AWS::CloudFormation::WaitConditionHandle"
-
-  SumoCloudtrailStackWaitCondition:
-    Type: "AWS::CloudFormation::WaitCondition"
-    Properties:
-      Handle: !If [call_guardduty_stack, !Ref SumoCloudtrailStackWaitHandle, !Ref WaitHandle]
-      Timeout: "5"
-      Count: 0
-
 # Stack for Cloudtrail
   CloudtrailStack:
     Type: AWS::CloudFormation::Stack
-    Condition: call_cloudtrail_stack
-    DependsOn: SumoCloudtrailStackWaitCondition    
+    Condition: call_cloudtrail_stack  
     Properties:
       Tags:
         - Key: "version"
@@ -1108,7 +1037,7 @@ Resources:
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
-        ParentStackName: !Ref AWS::StackName
+        ParentStackName: !If [call_guardduty_stack, !GetAtt GuardDutyConfigurationStack.Outputs.ParentStackName, !Ref AWS::StackName]
         ResourcePrefix: !Ref "AWS::StackName"
         ParentHelperFunctionArn: !GetAtt CommonOrgManagement.Outputs.SumoLogicLambdaHelperARN
         EnableForwardDataToCloudSIEM: !Ref Section3EnableForwardDataToCloudSIEM

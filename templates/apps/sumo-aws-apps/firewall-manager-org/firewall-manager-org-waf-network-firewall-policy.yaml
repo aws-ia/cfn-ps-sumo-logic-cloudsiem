@@ -24,7 +24,7 @@ Parameters:
     Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
     Default: "sumologic"
     AllowedPattern: "[a-zA-Z0-9._-]+"
-    MaxLength: 16
+    MaxLength: 36
 
   SumoLogicKinesisLogsURL:
     Type: String
@@ -138,9 +138,7 @@ Resources:
           ErrorOutputPrefix: "SumoLogic-Kinesis-Failed-Logs/"
           RoleARN: !GetAtt KinesisRole.Arn
 
-  rFmsRegionalWafDefaultPolicy:
-    DependsOn:
-      - KinesisFirehoseDeliveryStream    
+  rFmsRegionalWafDefaultPolicy:   
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-${ParentStackName}-policy'
@@ -206,9 +204,7 @@ Resources:
                 - ''
             
 
-  rFmsCloudFrontDefaultPolicy:
-    DependsOn:
-      - KinesisFirehoseDeliveryStream    
+  rFmsCloudFrontDefaultPolicy:   
     Type: AWS::FMS::Policy
     Condition: cCreateCFRuleGroup
     Properties:
@@ -271,9 +267,7 @@ Resources:
                     - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
                 - ''
           
-  rFmsRegionalWafWindowsPolicy:
-    DependsOn:
-      - KinesisFirehoseDeliveryStream    
+  rFmsRegionalWafWindowsPolicy:  
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-windows-${ParentStackName}-policy'
@@ -316,9 +310,7 @@ Resources:
                     - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
                 - ''
  
-  rFmsRegionalWafLinuxPolicy:
-    DependsOn:
-      - KinesisFirehoseDeliveryStream  
+  rFmsRegionalWafLinuxPolicy: 
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-linux-${ParentStackName}-policy'
@@ -361,9 +353,7 @@ Resources:
                     - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
                 - ''
   
-  rFmsRegionalWafPosixPolicy:
-    DependsOn:
-      - KinesisFirehoseDeliveryStream    
+  rFmsRegionalWafPosixPolicy:   
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-posix-${ParentStackName}-policy'

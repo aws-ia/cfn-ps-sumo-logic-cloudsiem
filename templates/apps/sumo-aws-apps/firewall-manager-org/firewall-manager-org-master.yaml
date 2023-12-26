@@ -188,7 +188,7 @@ Parameters:
     Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
     Default: "sumologic"
     AllowedPattern: "[a-zA-Z0-9._-]+"
-    MaxLength: 16
+    MaxLength: 27
     
   FirewallManagerPolicyRegions:
     Type: String
@@ -584,7 +584,14 @@ Resources:
           ParameterValue: !Ref VPCCidrBlock
         - ParameterKey: 'VpcId'
           ParameterValue: !Ref VpcId
-  
+
+  DeliveryStreamRandomID:
+    Condition: enable_firewall_config
+    Type: Custom::AWSS3RandomID
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      BUCKET_PREFIX: !Ref DeliveryStreamName
+
   FirewallManagerOrgWafNetworkFirewallPolicyStackSet:
     DependsOn:
         - WaitTenStepTwoMinutesFirewallManagerSetup
@@ -617,7 +624,7 @@ Resources:
         - ParameterKey: 'ParentStackName'
           ParameterValue: !Ref ParentStackName
         - ParameterKey: 'DeliveryStreamName'
-          ParameterValue: !Ref DeliveryStreamName
+          ParameterValue: !GetAtt DeliveryStreamRandomID.BucketPrefixRandomID
         - ParameterKey: 'SumoLogicKinesisLogsURL'
           ParameterValue: !If [ install_delivery_stream_source ,!GetAtt SumoDeliveryStreamSource.SUMO_ENDPOINT,'']
         - ParameterKey: 'LogsS3BucketName'
@@ -822,3 +829,8 @@ Resources:
       SumoAccessID: !Ref SumoAccessID
       SumoAccessKey: !Ref SumoAccessKey
       SumoDeployment: !Ref SumoDeployment
+
+Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName
