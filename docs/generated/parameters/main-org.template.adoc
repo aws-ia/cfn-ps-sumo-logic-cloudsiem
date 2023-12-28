@@ -18,6 +18,7 @@
 (`Section1ToolingAndLoggingRegion`)|`us-east-1`|Enter your security-tooling and log-archiving account Region if it's different from the default.|AWS Organization root ID
 (`Section1OrganizationRootID`)|`**__Requires input__**`|Enter the ID for your organization root. This string requires r- followed by from 4 to 32 lowercase letters or digits.
 
+
 |===
 .2.1 GuardDuty app configuration
 [width="100%",cols="16%,11%,73%",options="header",]
