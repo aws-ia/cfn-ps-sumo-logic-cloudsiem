@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: Template to setup the AWS Security Hub app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1t29c972h)
+Description: Template to setup the AWS Security Hub app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq26s73)
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -22,18 +22,12 @@ Metadata:
       - Label:
           default: AWS Security Hub Attributes
         Parameters:
-          - RegionsToEnable
           - SecurityAccountId
           - ConnectionName
-          - EnableCISStandard
-          - CISStandardVersion
-          - EnablePCIStandard
-          - PCIStandardVersion
-          - EnableSBPStandard
-          - SBPStandardVersion
+          - AggregationRegion          
+          - SecurityStandards
           - RegionLinkingMode
           - LinkedRegions
-          - ControlTowerRegionsOnly
       - Label:
           default: "App Details - HTTP Logs Source Configuration"
         Parameters:
@@ -85,26 +79,14 @@ Metadata:
 
       SecurityAccountId:
         default: Security Account ID
-      EnableCISStandard:
-        default: Enable CIS Standard
-      CISStandardVersion:
-        default: CIS Standard Version
-      EnablePCIStandard:
-        default: Enabld PCI Standard
-      PCIStandardVersion:
-        default: PCI Standard Version
-      EnableSBPStandard:
-        default: ENABLE Security Best Practices Standard
-      SBPStandardVersion:
-        default: Security Best Practices Standard Version
-      RegionsToEnable:
-        default: Regions to Enable
+      AggregationRegion:
+        default: AWS Security Hub aggregation region
+      SecurityStandards:
+        default: Standards in AWS Security Hub
       RegionLinkingMode:
         default: Region Linking Mode
       LinkedRegions:
         default: Linked Regions
-      ControlTowerRegionsOnly:
-        default: Control Tower Regions Only
       AdministrationRoleArn:
         default: Arn of Administration Role
       ExecutionRoleRuleName:
@@ -222,75 +204,61 @@ Parameters:
     MinLength: 12
     MaxLength: 12
 
-  EnableCISStandard:
-    Type: String
-    Description: CIS AWS Foundations Standard
-    Default: true
+  AggregationRegion:
+    Description:
+      "A region aggregator is configured within the Home region to aggregate findings from the configured regions, if more than one region is configured.
+      A parameter is provided to aggregate all configured Security Hub regions including any future regions."
+    Type: String 
+    Default: us-east-1
     AllowedValues:
-      - true
-      - false
+      - 'us-east-1'
+      - 'us-east-2'
+      - 'us-west-1'
+      - 'us-west-2'
+      - 'af-south-1'
+      - 'ap-east-1'
+      - 'ap-south-1'
+      - 'ap-northeast-3'
+      - 'ap-northeast-2'
+      - 'ap-southeast-1'
+      - 'ap-southeast-2'
+      - 'ap-northeast-1'
+      - 'ca-central-1'
+      - 'eu-central-1'
+      - 'eu-west-1'
+      - 'eu-west-2'
+      - 'eu-south-1'
+      - 'eu-west-3'
+      - 'eu-north-1'
+      - 'me-south-1'
+      - 'sa-east-1'
 
-  CISStandardVersion:
-    Type: String
-    Description: CIS Standard Version
-    Default: '1.2.0'
-
-  EnablePCIStandard:
-    Type: String
-    Description: Payment Card Industry Data Security Standard (PCI DSS)
-    Default: true
-    AllowedValues:
-      - true
-      - false
-
-  PCIStandardVersion:
-    Type: String
-    Description: PCI Standard Version
-    Default: '3.2.1'
-
-  EnableSBPStandard:
-    Type: String
-    Description: Security Best Practices Standard
-    Default: true
-    AllowedValues:
-      - true
-      - false
-
-  SBPStandardVersion:
-    Type: String
-    Description: Security Best Practices Standard Version
-    Default: '1.0.0'
-
-  RegionsToEnable:
-    Type: String
-    Description: Comma delimited list of regions to enable Security Hub.
-    Default: us-west-1
+  SecurityStandards:
+    Type: CommaDelimitedList
+    Description: 
+      "AWS Security Hub currently supports the security standards detailed in this section. 
+      Choose a standard to view more details about it and the controls that apply to it. Comma delimited list of standards (e.g. FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0)
+      Supports: FSBP_v1.0.0 (AWS Foundational Security Best Practices v1.0.0 standard), CIS_v1.2.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0 standard),
+      CIS_v1.4.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0 standard), NIST_v5.0.0 (National Institute of Standards and Technology SP 800-53 Rev. 5)"
+    Default: FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1
 
   RegionLinkingMode:
     AllowedValues: [SPECIFIED_REGIONS, ALL_REGIONS]
     Default: SPECIFIED_REGIONS
     Description:
-      Indicates whether to aggregate findings from all of the available Regions in the current partition. Also determines whether to automatically
-      aggregate findings from new Regions as Security Hub supports them and you opt into them.
+      "If RegionLinkedMode is ALL_REGIONS, then Security Hub aggregates data from all Regions. Security Hub also aggregates data from new Regions as they are supported and you opt into them.
+      If RegionLinkingMode is SPECIFIED_REGIONS, then enter comma separated list of regions from where Security Hub aggregates findings to the aggregation Region. Security Hub does not aggregate data automatically from new Regions."
     Type: String
     
   LinkedRegions:
     Default: us-east-2, us-west-1
-    Description: Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region.
+    Description: "Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region. Required if the RegionLinkingMode is SPECIFIED_REGIONS."
     Type: String
-
-  ControlTowerRegionsOnly:
-    Type: String
-    Description: Only enable Security Hub in the Control Tower regions
-    Default: false
-    AllowedValues:
-      - true
-      - false
 
   QSS3BucketName:
     AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
     ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    Default: "aws-quickstart"
+    Default: "aws-ia"
     Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     Type: "String"
 
@@ -370,7 +338,7 @@ Conditions:
   enable_forward_data_to_cloudsiem: !And
     - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
     - !Condition install_http_log_source
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
 
 Resources:
 
@@ -421,7 +389,7 @@ Resources:
         - 'CAPABILITY_AUTO_EXPAND'
       StackInstancesGroup:
         - Regions:
-          - !Ref 'AWS::Region'
+          - !Ref AggregationRegion
           DeploymentTargets:
             Accounts:
               - !Ref SecurityAccountId
@@ -442,7 +410,7 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       accountID: !Ref SecurityAccountId
       roleName: !Ref ExecutionRoleRuleName
-      region: !Ref AWS::Region
+      region: !Ref AggregationRegion
       stackName:  !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
       outputKey: 'oSecurityHubSecretAccessKey'
 
@@ -455,7 +423,7 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       accountID: !Ref SecurityAccountId
       roleName: !Ref ExecutionRoleRuleName
-      region: !Ref AWS::Region
+      region: !Ref AggregationRegion
       stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
       outputKey: 'oSecurityHubUserKey'
 
@@ -468,7 +436,7 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       accountID: !Ref SecurityAccountId
       roleName: !Ref ExecutionRoleRuleName
-      region: !Ref AWS::Region
+      region: !Ref AggregationRegion
       stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
       outputKey: 'oSecurityHubForwarderApiUrl'
 
@@ -480,12 +448,12 @@ Resources:
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
       Type: "WebhookDefinition"
-      Name: !Sub '${ConnectionName}-${AWS::Region}'
+      Name: !Sub '${ConnectionName}-${AggregationRegion}'
       Description: "Webhook Lambda connection for SecurityHub"
       URL: !GetAtt SumoSecurityHubForwarderApiUrl.ARN
       UserName: !GetAtt SumoSecurityHubUserKey.ARN
       Password: !GetAtt SumoSecurityHubSecretAccessKey.ARN
-      Region: !Ref "AWS::Region"
+      Region: !Ref AggregationRegion
       ServiceName: 'execute-api'
       WebhookType: 'AWSLambda'
       SumoAccessID: !Ref SumoAccessID
@@ -497,7 +465,7 @@ Resources:
     Condition: install_sumo_security_hub_app
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
-      Region: !Select [0, !Split [",", !Ref RegionsToEnable]]
+      Region: !Ref AggregationRegion
       AppName: "Amazon QuickStart - AWS Security Hub"
       AppId: "246cf87b-99b6-47cb-bde0-3fe1cb76c6b4"
       RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
@@ -513,7 +481,7 @@ Resources:
     Condition: install_sumo_security_hub_cloud_security_monitoring_and_analytics_app  
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
-      Region: !Select [0, !Split [",", !Ref RegionsToEnable]]
+      Region: !Ref AggregationRegion
       AppName: "Amazon QuickStart - AWS Security Hub - Cloud Security Monitoring and Analytics"
       AppId: "a0c8257c-b1eb-4dac-8ce9-6d5f2cf09aea"
       RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
@@ -587,20 +555,17 @@ Resources:
     Properties:
       Version: '1.0'
       ServiceToken: !Ref ParentHelperFunctionArn
-      CIS_VERSION: !Sub ${CISStandardVersion}
       CONFIGURATION_ROLE_NAME: !Sub "SHERole-${ParentStackName}"
-      CONTROL_TOWER_REGIONS_ONLY: !Sub ${ControlTowerRegionsOnly}
       DELEGATED_ADMIN_ACCOUNT_ID: !Ref SecurityAccountId
-      DISABLE_SECURITY_HUB: 'false'
-      ENABLED_REGIONS: !Sub ${RegionsToEnable}
-      ENABLE_CIS_STANDARD: !Sub ${EnableCISStandard}
-      ENABLE_PCI_STANDARD: !Sub ${EnablePCIStandard}
-      ENABLE_SECURITY_BEST_PRACTICES_STANDARD: !Sub ${EnableSBPStandard}
-      PCI_VERSION: !Sub ${PCIStandardVersion}
+      CONFIGURATION_POLICY_NAME: !Sub "Sumologic-SecurityHub-${ParentStackName}"
       REGION_LINKING_MODE: !Ref RegionLinkingMode
       LINKED_REGIONS: !Ref LinkedRegions
-      SECURITY_BEST_PRACTICES_VERSION: !Sub ${SBPStandardVersion}
-      MANAGEMENT_ACCOUNT_ID: !Ref AWS::AccountId
-      AWS_PARTITION: !Ref AWS::Partition
-      HOME_REGION: !Ref AWS::Region
+      SECURITY_STANDARDS: !Ref SecurityStandards
+      ORGANIZATION_ROOT_ID: !Ref OrganizationRootID
+      DISABLE_SECURITY_HUB: 'false'
+      HOME_REGION: !Ref AggregationRegion
 
+Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName  

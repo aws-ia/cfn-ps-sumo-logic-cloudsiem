@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
-Description: Create an IAM role to disassociate the administrator account (qs-1t29c96s5)
+Description: Create an IAM role to disassociate the administrator account (qs-1urq10qd6)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:

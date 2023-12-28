@@ -4,7 +4,7 @@
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
 Description:
-  This template creates an event rule to send organization events to the home region. (qs-1sfibuu7n)
+  This template creates an event rule to send organization events to the home region. (qs-1urq0rmde)
 Metadata:
   SRA:
     Version: 1.0

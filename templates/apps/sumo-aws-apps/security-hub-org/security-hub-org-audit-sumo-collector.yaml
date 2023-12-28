@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: This solution consists of a lambda function which which gets triggered by CloudWatch events with findings as payload which are then ingested to Sumo Logic via S3 source. (qs-1t29c9726)
+Description: This solution consists of a lambda function which which gets triggered by CloudWatch events with findings as payload which are then ingested to Sumo Logic via S3 source. (qs-1urq28kag)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:

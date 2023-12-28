@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: Creates the Delivery S3 bucket. (qs-1sfibuu8c)
+Description: Creates the Delivery S3 bucket. (qs-1urq0p15p)
 
 Metadata:
   cfn-lint:

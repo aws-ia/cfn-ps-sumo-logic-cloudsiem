@@ -1,5 +1,5 @@
 project:
-  name: quickstart-sumo-logic-cloudsiem/2
+  name: cfn-ps-sumo-logic-cloudsiem/2
   shorten_stack_name: true
   s3_regional_buckets: true
   regions:
@@ -12,7 +12,7 @@ tests:
     regions:
     - us-east-2
     parameters:
-      QSS3KeyPrefix: "quickstart-sumo-logic-cloudsiem/"
+      QSS3KeyPrefix: "cfn-ps-sumo-logic-cloudsiem/"
       QSS3BucketName:  "$[taskcat_autobucket_prefix]"
       QSS3BucketRegion: "us-east-2"
       QSVersion: "2"
@@ -25,38 +25,47 @@ tests:
       Section1LogArchivingAccountId: ""
       Section1OrganizationRootID: ""
       Section1DeliveryBucketPrefix: logs-delivery
+      Section1SumoLogicResourceRemoveOnDeleteStack: "true"
 
-      Section2InstallSumoGlobalGuardDutyApp: "No"
+      Section2InstallSumoGlobalGuardDutyApp: "Yes"
       Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp: "Yes"
       Section2GuardDutyRegions: "us-east-2"
       Section2AdditionalConfigurationFeatures: "MalwareProtection,S3Logs"
       Section2GuardDutyCreateHttpLogsSource: "Yes"
-      
+      Section2GuardDutyHttpLogsSourceCategoryName: "aws/quickstart/guardduty/logs"
+
       Section3CloudTrailRegion: "us-east-2"
       Section3EnableAWSCloudTrail: "Yes"
-      Section3InstallPCICloudTrailApp: "No"
-      Section3InstallCISFoundationApp: "No"
+      Section3InstallPCICloudTrailApp: "Yes"
+      Section3InstallCISFoundationApp: "Yes"
       Section3InstallCloudTrailMonitoringAnalyticsApp: "Yes"
-      Section3InstallCloudTrailSecOpsApp: "No"
+      Section3InstallCloudTrailSecOpsApp: "Yes"
       Section3CloudTrailCreateS3LogsSource: "Yes"
       Section3CreateCloudTrailS3Bucket: "Yes"
       Section3DisassociateAdminAccountOnDeleteStack: "false"
+      Section3CloudTrailLogsSourceCategoryName: "aws/quickstart/cloudtrail/logs"
+      Section3CloudTrailBucketPathExpression: "CloudTrail/AWSLogs/*"
       
       Section4SecurityHubEnableSecurityHub: "Yes"
+      Section4SecurityHubAggregationRegion: "us-east-2"
       Section4SecurityHubRegionLinkingMode: "SPECIFIED_REGIONS"
-      Section4SecurityHubLinkedRegions: "us-east-2,us-west-1"
+      Section4SecurityHubLinkedRegions: "us-east-1"
       Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp: "Yes"
-      Section4SecurityHubRegionsToEnable: "us-east-2,us-west-1"
       Section4SecurityHubCreateHttpLogsSource: "Yes"
+      Section4SecurityHubHttpLogsSourceCategoryName: "aws/quickstart/securityhub/logs"
+      Section4SecurityHubSecurityStandards: "FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0"
 
       Section6EnableFirewallManager: "Yes"
       Section6DisassociateAdminAccountOnDeleteStack: "false"
       Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp: "Yes"
-      Section6InstallSumoAWSNetworkFirewallApp: "No"
+      Section6InstallSumoAWSNetworkFirewallApp: "Yes"
       Section6FirewallManagerPolicyRegions: "us-east-2"
       Section6CreateDeliveryStreamSource: "Yes"
-      Section6DeliveryStreamName: $[taskcat_random-string]
+      Section6DeliveryStreamName: sumologic-kinesis-$[taskcat_random-string]
       Section6CreateS3Source: "Yes"
       Section6CreateS3Bucket: "Yes"
       Section6DeliveryBucketPrefix: nw-logs-delivery
+      Section6S3SourceCategoryName: "aws/quickstart/nfw/logs"
+      Section6DeliveryStreamSourceCategoryName: "aws/quickstart/waf/logs"
+      Section6CreateVpcForSG: "true"
       

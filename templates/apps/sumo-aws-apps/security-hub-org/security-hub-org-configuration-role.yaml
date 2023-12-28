@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Creates the Security Hub enabler IAM role. (qs-1t29c972u)
+Description: Creates the Security Hub enabler IAM role. (qs-1urq27o8p)
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -111,12 +111,6 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Sid: SecurityHubListFindingAggregators
-                Effect: Allow
-                Action:
-                  - securityhub:ListFindingAggregators
-                Resource: !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/findingAggregator/list
-
               - Sid: SecurityHubWithResource
                 Effect: Allow
                 Action:
@@ -136,21 +130,27 @@ Resources:
                   - securityhub:UntagResource
                   - securityhub:UpdateSecurityHubConfiguration
                   - securityhub:UpdateStandardsControl
+                  - securityhub:UpdateConfigurationPolicy
+                  - securityhub:DeleteConfigurationPolicy
+                  - securityhub:StartConfigurationPolicyAssociation
+                  - securityhub:StartConfigurationPolicyDisassociation
+                  - securityhub:ListConfigurationPolicies
+                  - securityhub:CreateConfigurationPolicy
                 Resource:
                   - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
                   - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
-
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:configuration-policy/*
               - Sid: SecurityHubFindingAggregator
                 Effect: Allow
                 Action:
                   - securityhub:CreateFindingAggregator
                   - securityhub:DeleteFindingAggregator
                   - securityhub:GetFindingAggregator
+                  - securityhub:ListFindingAggregators
                   - securityhub:UpdateFindingAggregator
                 Resource:
                   - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:finding-aggregator/*
                   - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/findingAggregator/*
-
               - !If
                 - DelegatedAdminAccount
                 - Sid: SecurityHubDelegatedAdminActions

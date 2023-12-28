@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
-Description: Create an IAM role for config recorder. (qs-1sfibuu7n)
+Description: Create an IAM role for config recorder. (qs-1urq0r0i1)
 
 Metadata:
   cfn-lint:

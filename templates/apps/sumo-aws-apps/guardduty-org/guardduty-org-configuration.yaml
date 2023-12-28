@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description:  Organization GuardDuty delegated admin template for to setup the Amazon GuardDuty, Global Intelligence for Amazon GuardDuty with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu9l)
+Description:  Organization GuardDuty delegated admin template for to setup the Amazon GuardDuty, Global Intelligence for Amazon GuardDuty with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq1407e)
 
 Metadata:
    cfn-lint:
@@ -255,7 +255,7 @@ Parameters:
   QSS3BucketName:
     AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
     ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    Default: "aws-quickstart"
+    Default: "aws-ia"
     Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     Type: "String"
   QSS3KeyPrefix:
@@ -292,7 +292,7 @@ Conditions:
   enable_forward_data_to_cloudsiem: !And
     - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
     - !Condition install_http_logs_source
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']  
+  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
 
 Resources:
 
@@ -327,6 +327,20 @@ Resources:
           ParameterValue: !Sub "ddr-${ParentStackName}"
         - ParameterKey: 'OrgPrimaryAccountId'
           ParameterValue: !Ref "AWS::AccountId"
+
+  GuardDutyDeleteDetectorRoleStack:
+    Condition: install_http_logs_source
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-delete-detector-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        DeleteDetectorRoleName: !Sub "ddr-${ParentStackName}"
+        OrgPrimaryAccountId: !Ref "AWS::AccountId"
 
   AvailableServiceRegionsCustomResource:
     Condition: install_http_logs_source
@@ -377,6 +391,7 @@ Resources:
     Type: Custom::GuardDuty
     DependsOn:
       - "GuardDutyDeleteDetectorRoleStackset"
+      - "GuardDutyDeleteDetectorRoleStack"
     Condition: install_http_logs_source
     Version: "1.0.1"
     Properties:
@@ -449,6 +464,9 @@ Resources:
       SumoDeployment: !Ref SumoDeployment
 
 Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName
 
   SumoEndpoint:
     Description: GuardDuty HTTP Endpoint

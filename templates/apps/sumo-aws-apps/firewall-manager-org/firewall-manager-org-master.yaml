@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: Template to setup the AWS Firewall Manager app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1t29c970a)
+Description: Template to setup the AWS Firewall Manager app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq106k9)
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -188,7 +188,7 @@ Parameters:
     Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
     Default: "sumologic"
     AllowedPattern: "[a-zA-Z0-9._-]+"
-    MaxLength: 16
+    MaxLength: 27
     
   FirewallManagerPolicyRegions:
     Type: String
@@ -461,7 +461,7 @@ Conditions:
     - !Condition install_s3_source
     - !Equals [!Ref CreateS3Bucket, 'Yes']
   create_s3_bucket: !Equals [!Ref CreateS3Bucket, 'Yes']
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
   #create_delivery_stream: !And 
   #  - !Equals [!Ref CreateDeliveryStream, 'Yes']
   #  - !Condition install_s3_source
@@ -584,7 +584,14 @@ Resources:
           ParameterValue: !Ref VPCCidrBlock
         - ParameterKey: 'VpcId'
           ParameterValue: !Ref VpcId
-  
+
+  DeliveryStreamRandomID:
+    Condition: enable_firewall_config
+    Type: Custom::AWSS3RandomID
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      BUCKET_PREFIX: !Ref DeliveryStreamName
+
   FirewallManagerOrgWafNetworkFirewallPolicyStackSet:
     DependsOn:
         - WaitTenStepTwoMinutesFirewallManagerSetup
@@ -617,7 +624,7 @@ Resources:
         - ParameterKey: 'ParentStackName'
           ParameterValue: !Ref ParentStackName
         - ParameterKey: 'DeliveryStreamName'
-          ParameterValue: !Ref DeliveryStreamName
+          ParameterValue: !GetAtt DeliveryStreamRandomID.BucketPrefixRandomID
         - ParameterKey: 'SumoLogicKinesisLogsURL'
           ParameterValue: !If [ install_delivery_stream_source ,!GetAtt SumoDeliveryStreamSource.SUMO_ENDPOINT,'']
         - ParameterKey: 'LogsS3BucketName'
@@ -822,3 +829,8 @@ Resources:
       SumoAccessID: !Ref SumoAccessID
       SumoAccessKey: !Ref SumoAccessKey
       SumoDeployment: !Ref SumoDeployment
+
+Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: "Template to setup the common AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu8p)"
+Description: "Template to setup the common AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq0n814)"
 Metadata:
   cfn-lint:
     config:
@@ -33,7 +33,7 @@ Metadata:
       - Label:
           default: Delivery S3 Attributes
         Parameters:
-          - DeliveryBucketPrefix          
+          - DeliveryBucketPrefix
       - Label:
           default: "Sumo Hosted Collector Name"
         Parameters:
@@ -146,7 +146,7 @@ Parameters:
     Default: 'No'
     AllowedValues:
       - 'Yes'
-      - 'No'  
+      - 'No'
   ConfigRegions:
     Type: String
     Description: Comma delimited list of regions for AWS Config.
@@ -173,7 +173,7 @@ Parameters:
   QSS3BucketName:
     AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
     ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    Default: "aws-quickstart"
+    Default: "aws-ia"
     Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     Type: "String"
   QSS3KeyPrefix:
@@ -209,9 +209,9 @@ Parameters:
 Conditions:
   create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'Yes' ]
   not_create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'No' ]
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
   create_config_recorder_role: !Equals [ !Ref CreateConfigRecorderRole, 'Yes' ]
-  NotGlobalRegionUsEast1: !And 
+  NotGlobalRegionUsEast1: !And
     - !Not [!Equals [!Ref 'AWS::Region', us-east-1]]
     - !Equals [ !Ref CreateConfigRecorderRole, 'Yes' ]
 Resources:
@@ -281,7 +281,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Path: /
-      Policies:
+      Policies:      
         - PolicyName: firewall-manager-org-policy-iam
           PolicyDocument:
             Version: 2012-10-17
@@ -418,7 +418,7 @@ Resources:
                   StringEquals:
                     iam:AWSServiceName: 
                       - malware-protection.guardduty.amazonaws.com
-                      - guardduty.amazonaws.com                 
+                      - guardduty.amazonaws.com
         - PolicyName: !Sub 'management-org-policy-logs-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
@@ -621,7 +621,7 @@ Resources:
         SecurityGroupIds:
           - !Ref AWS::NoValue
         SubnetIds:
-          - !Ref AWS::NoValue        
+          - !Ref AWS::NoValue
 
   OrgTrustAllStackset:
     DependsOn:
@@ -853,7 +853,7 @@ Resources:
       SumoDeployment: !Ref SumoDeployment
 
   OrganizationsRule:
-    Condition: create_config_recorder_role  
+    Condition: create_config_recorder_role
     Type: AWS::Events::Rule
     Properties:
       Name: !Sub ${ParentStackName}-org-update
@@ -876,7 +876,7 @@ Resources:
           Id: !Sub CommonOrgManagement-SumoLogicLambdaHelper-${ParentStackName}
 
   PermissionForOrganizationsRuleToInvokeLambda:
-    Condition: create_config_recorder_role  
+    Condition: create_config_recorder_role
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt rSumoLogicLambdaHelper.Arn
@@ -915,7 +915,7 @@ Resources:
         - ParameterKey: 'EventRuleRoleName'
           ParameterValue: !Sub "Global-Events-${ParentStackName}"
         - ParameterKey: 'ParentStackName'
-          ParameterValue: !Ref ParentStackName                   
+          ParameterValue: !Ref ParentStackName
 
   CrossRegionEventRuleRole:
     Type: AWS::IAM::Role
@@ -1003,7 +1003,7 @@ Resources:
   #Get AWS Config regions
   AWSConfigCustomResource:
     Type: Custom::AWSConfig
-    Condition: create_config_recorder_role    
+    Condition: create_config_recorder_role
     DependsOn:
       - "ConfigRecorderRoleStackset"
       - "ConfigRecorderRoleStack"
@@ -1016,11 +1016,11 @@ Resources:
       INCLUDE_GLOBAL_RESOURCE_TYPES: False
       RESOURCE_TYPES: ""
       FREQUENCY: "TwentyFour_Hours"
-      CONFIG_BUCKET: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName] 
+      CONFIG_BUCKET: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName]
 
   AWSUpdateLambdaVariablesResource:
     Type: Custom::AWSUpdateLambdaVariables
-    Condition: create_config_recorder_role    
+    Condition: create_config_recorder_role
     DependsOn:
       - "ConfigRecorderRoleStackset"
       - "ConfigRecorderRoleStack"
