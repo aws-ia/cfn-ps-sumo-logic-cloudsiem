@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="Asciidoctor 2.0.16">
-<title>Sumo Logic Security Integrations for AWS Organizations on the AWS Cloud</title>
+<meta name="generator" content="Asciidoctor 2.0.20">
+<meta name="description" content="Sumo Logic Security Integrations for AWS Organizations Deployment Guide on AWS">
+<meta name="keywords" content="Partner Solution, AWS, Sumo Logic Security Integrations for AWS Organizations">
+<title>Sumo Logic Security Integrations for AWS Organizations on AWS</title>
 <style>
-
 /* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
 /* Uncomment @import statement to use as custom stylesheet */
 @import "https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700";*/
@@ -749,7 +750,7 @@ p {
 
 /* image layout */
 #toc.toc2 #toctitle {
-  background-image: url("images/AWS-Logo.svg");
+  background-image: url("docs/boilerplate/.images/AWS-Logo.svg");
   background-repeat: no-repeat;
   background-size: 50%;
   background-position: center;
@@ -814,8 +815,37 @@ a img {
   background:#ffffb3;
 }
 
+.watermark {
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  color:#00f;
+  cursor: default;
+  display: block;
+  font-size: 400px;
+  font-weight: 1000;
+  margin: 0;
+  opacity:0.05;
+  top: 30%;
+  position: fixed;
+  text-align: center;
+  transform: rotate(-30deg);
+  user-select: none;
+  z-index: -1;
+}
+
 .footer-text{color:rgba(255,255,255,.8);line-height:1.44;background:#1c222a;padding:1.25em;max-width:100%;margin-bottom:unset}
-p.footer-text a{color:#d7d8d8}
+p.footer-text a{color:#d7d8d8}
+
+/* This is for the 'dummy' image in the docs to help with reporting on guide views. */
+/* DO NOT MODIFY */
+.image-container img {
+  width: 1px;
+  height: 1px;
+  }
+/* END dummy image */
+
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
@@ -825,44 +855,43 @@ p.footer-text a{color:#d7d8d8}
 <div id="toctitle"></div>
 <ul class="sectlevel1">
 <li><a href="#_overview">Overview</a></li>
-<li><a href="#_sumo_logic_security_integrations_for_aws_organizations_on_aws">Sumo Logic Security Integrations for AWS Organizations on AWS</a></li>
-<li><a href="#_aws_costs">AWS costs</a></li>
-<li><a href="#_software_licenses">Software licenses</a></li>
+<li><a href="#_costs_and_licenses">Costs and licenses</a></li>
 <li><a href="#_architecture">Architecture</a></li>
-<li><a href="#_planning_the_deployment">Planning the deployment</a>
+<li><a href="#_deployment_options">Deployment options</a>
 <ul class="sectlevel2">
-<li><a href="#_specialized_knowledge">Specialized knowledge</a></li>
-<li><a href="#_aws_organizations">AWS Organizations</a></li>
+<li><a href="#_scenarios_supported_by_this_quick_start">Scenarios supported by this Quick Start</a></li>
+</ul>
+</li>
+<li><a href="#_predeployment_steps">Predeployment steps</a>
+<ul class="sectlevel2">
+<li><a href="#_existing_aws_security_service_configurations">Existing AWS security service configurations</a></li>
+</ul>
+</li>
+<li><a href="#_deployment_steps">Deployment steps</a></li>
+<li><a href="#_postdeployment_steps">Postdeployment steps</a>
+<ul class="sectlevel2">
+<li><a href="#_if_using_an_existing_s3_bucket">If using an existing S3 bucket</a></li>
+<li><a href="#_view_the_sumo_logic_dashboards">View the Sumo Logic dashboards</a></li>
+<li><a href="#_firewall_manager_security_group">Firewall Manager security group</a></li>
+<li><a href="#_kinesis_data_firehose_delivery_stream">Kinesis Data Firehose delivery stream</a></li>
+</ul>
+</li>
+<li><a href="#_test_the_deployment">Test the deployment</a>
+<ul class="sectlevel2">
 <li><a href="#_aws_account">AWS account</a></li>
-<li><a href="#_technical_requirements">Technical requirements</a></li>
+<li><a href="#_sumo_logic_account">Sumo Logic account</a></li>
 </ul>
 </li>
-<li><a href="#_deployment_steps">Deployment steps</a>
-<ul class="sectlevel2">
-<li><a href="#_prepare_your_sumo_logic_account">Prepare your Sumo Logic account</a></li>
-<li><a href="#_confirm_your_aws_account_configuration">Confirm your AWS account configuration</a></li>
-<li><a href="#_launch_the_quick_start">Launch the Quick Start</a></li>
-</ul>
-</li>
-<li><a href="#_test_the_deployment">Test the deployment</a></li>
-<li><a href="#_postdeployment_steps">Postdeployment steps</a></li>
 <li><a href="#_additional_resources">Additional resources</a>
 <ul class="sectlevel2">
-<li><a href="#_aws_resources">AWS resources</a></li>
-<li><a href="#_aws_services_used_by_the_deployment">AWS services used by the deployment</a></li>
 <li><a href="#_sumo_logic_documentation">Sumo Logic documentation</a></li>
-<li><a href="#_other_quick_start_reference_deployments">Other Quick Start reference deployments</a></li>
+<li><a href="#_aws_services">AWS services</a></li>
+<li><a href="#_other_aws_documentation">Other AWS documentation</a></li>
 </ul>
 </li>
-<li><a href="#_faq">FAQ</a></li>
+<li><a href="#_troubleshooting">Troubleshooting</a></li>
 <li><a href="#_customer_responsibility">Customer responsibility</a></li>
-<li><a href="#_parameter_reference">Parameter reference</a>
-<ul class="sectlevel2">
-<li><a href="#_parameters_for_deploying_the_quick_start">Parameters for deploying the Quick Start</a></li>
-</ul>
-</li>
-<li><a href="#_send_us_feedback">Send us feedback</a></li>
-<li><a href="#_quick_start_reference_deployments">Quick Start reference deployments</a></li>
+<li><a href="#_feedback">Feedback</a></li>
 <li><a href="#_notices">Notices</a></li>
 </ul>
 </div>
@@ -870,21 +899,25 @@ p.footer-text a{color:#d7d8d8}
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
-<h2 id="_sumo_logic_security_integrations_for_aws_organizations_on_the_aws_cloud" class="discrete text-center">Sumo Logic Security Integrations for AWS Organizations on the AWS Cloud</h2>
-<h2 id="_quick_start_reference_deployment" class="discrete text-left text-center">Quick Start Reference Deployment</h2>
+<h2 id="_sumo_logic_security_integrations_for_aws_organizations_on_aws" class="discrete text-center">Sumo Logic Security Integrations for AWS Organizations on AWS</h2>
+<h2 id="_partner_solution_deployment_guide" class="discrete text-left text-center">Partner Solution Deployment Guide</h2>
 <div class="imageblock text-center">
 <div class="content">
-<img src="https://aws-quickstart.s3.amazonaws.com/quickstart-sumo-logic-cloudsiem/docs/boilerplate/.images/aws-quickstart-graphic.png" alt="QS" width="80" height="80">
+<img src="https://aws-quickstart.s3.amazonaws.com/docs/deployment-guide/aws-quickstart-deployment-graphic.png" alt="QS" width="80" height="80">
 </div>
 </div>
 <div class="paragraph text-center">
-<p><strong>March 2022</strong><br>
+<p><strong>June 2022</strong><br>
 <em>Arun Patyal and Himanshu Pal, Sumo Logic</em><br>
-<em>Dilip Rajan and Vinay Maddi, AWS Data &amp; Analytics Partner SA team</em><br>
-<em>Shivansh Singh and Suresh Veeragoni, AWS Integration &amp; Automation team</em></p>
+<em>Dilip Rajan, Suresh Veeragoni, and Vinay Maddi, AWS Data &amp; Analytics Partner SA team</em><br></p>
 </div>
-<div class="paragraph text-left text-left">
-<p>This Quick Start was created by Sumo Logic in collaboration with Amazon Web Services (AWS). <a href="http://aws.amazon.com/quickstart/" target="_blank" rel="noopener">Quick Starts</a> are automated reference deployments that use AWS CloudFormation templates to deploy key technologies on AWS, following AWS best practices.</p>
+<div class="imageblock text-left image-container">
+<div class="content">
+<img src="https://aws-quickstart.s3.amazonaws.com/cfn-ps-sumo-logic-cloudsiem/docs/boilerplate/.images/aws-quickstart-graphic.png" alt="">
+</div>
+</div>
+<div class="paragraph text-left">
+<p>This Partner Solution was created by Sumo Logic in collaboration with Amazon Web Services (AWS). <a href="https://aws.amazon.com/solutions/partners/" target="_blank" rel="noopener">Partner Solutions</a> are automated reference deployments that help people deploy popular technologies on AWS according to AWS best practices. If you&#8217;re unfamiliar with AWS Partner Solutions, refer to the <a href="https://fwd.aws/rA69w?" target="_blank" rel="noopener">AWS Partner Solution General Information Guide</a>.</p>
 </div>
 </div>
 </div>
@@ -892,90 +925,18 @@ p.footer-text a{color:#d7d8d8}
 <h2 id="_overview">Overview</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>This Quick Start automatically deploys Sumo Logic Security Integrations on the AWS Cloud. It&#8217;s for people who want to provide security analytics across multiple AWS accounts.</p>
+<p>This Quick Start deploys Sumo Logic Security Integrations for AWS Organizations on the AWS Cloud. It&#8217;s for DevOps and IT operations that want to provide Sumo Logic security analytics across multiple AWS accounts. If you are unfamiliar with AWS Quick Starts, refer to the <a href="https://fwd.aws/rA69w?" target="_blank" rel="noopener">AWS Quick Start General Information Guide</a>.</p>
 </div>
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-note" title="Note"></i>
-</td>
-<td class="content">
-Amazon may share user-deployment information with the AWS Partner that collaborated with AWS on the Quick Start.
-</td>
-</tr>
-</table>
+<div class="paragraph">
+<p>Deploying this Quick Start does not guarantee an organization’s compliance with any laws, certifications, policies, or other regulations.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_sumo_logic_security_integrations_for_aws_organizations_on_aws">Sumo Logic Security Integrations for AWS Organizations on AWS</h2>
+<h2 id="_costs_and_licenses">Costs and licenses</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>With this Quick Start, you increase your time to value by configuring the Sumo Logic console for Amazon GuardDuty and AWS CloudTrail at the organization level in AWS Organizations instead of repeating the deployment in each account. With this serverless architecture, you can improve threat detection and response across your organization while adhering to the best practices outlined in the <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/welcome.html" target="_blank" rel="noopener">AWS Security Reference Architecture (AWS SRA)</a>.</p>
-</div>
-<div class="paragraph">
-<p>Sumo Logic is focused on continuous intelligence, a category of software that addresses data challenges presented by digital transformations, modern applications, and cloud computing. The Sumo Logic Continuous Intelligence Platform automates the collection, ingestion, and analysis of applications, infrastructure, security, and Internet of Things (IoT) data to derive actionable insights.</p>
-</div>
-<div class="paragraph">
-<p>This Quick Start uses Sumo Logic <a href="https://assets-www.sumologic.com/resources/brief/Cloud_SIEM_Powered_by_AWS.pdf" target="_blank" rel="noopener">Cloud SIEM (security information and incident management) powered by AWS</a>. Sumo Logic Cloud SIEM uses apps to collect security events generated by AWS and other security services to provide an aggregate view of overall security and compliance posture.</p>
-</div>
-<div class="paragraph">
-<p>Sumo Logic has apps for each AWS security service (for example, the Sumo Logic app for AWS CloudTrail) and apps that support multiple AWS services (for example, Threat Intel for AWS). Sumo Logic customers can track user activity, monitor threats, and understand how their
-security posture compares with global benchmarks. Sumo Logic also uses apps to audit and help maintain compliance with the
-Payment Card Industry (PCI) Data Security Standard (DSS) and Center for Internet
-Security (CIS).</p>
-</div>
-<div class="paragraph">
-<p>The included template automatically creates resources that use various AWS services to
-collect logs, which are sent to your preregistered Sumo Logic account.</p>
-</div>
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-note" title="Note"></i>
-</td>
-<td class="content">
-Deploying this Quick Start does not guarantee an organization&#8217;s compliance with any laws, certifications, policies, or other regulations.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_aws_costs">AWS costs</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>You are responsible for the cost of the AWS services and any third-party licenses used while running this Quick Start. There is no additional cost for
-using the Quick Start.</p>
-</div>
-<div class="paragraph">
-<p>The AWS CloudFormation templates for Quick Starts include
-configuration parameters that you can customize. Some of the settings,
-such as the instance type, affect the cost of deployment. For cost estimates,
-see the pricing pages for each AWS service you use. Prices are subject to change.</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-tip" title="Tip"></i>
-</td>
-<td class="content">
-After you deploy the Quick Start, create <a href="https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-reports-gettingstarted-turnonreports.html" target="_blank" rel="noopener">AWS Cost and Usage Reports</a> to deliver billing metrics to an Amazon Simple Storage Service (Amazon S3) bucket in your account. These reports provide cost estimates based on usage throughout each month and aggregate the data at the end of the month. For more information, see <a href="https://docs.aws.amazon.com/cur/latest/userguide/what-is-cur.html" target="_blank" rel="noopener">What are AWS Cost and Usage Reports?</a>
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_software_licenses">Software licenses</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Sumo Logic provides a free tier with unlimited queries and 30-day free trials for various licensing options. For details on pricing, visit the <a href="https://sumologic.com/pricing/" target="_blank" rel="noopener">Sumo Logic website</a>.</p>
+<p>Sumo Logic provides a free tier with unlimited queries and 30-day free trials for various licensing options. For more information, refer to the <a href="https://sumologic.com/pricing/" target="_blank" rel="noopener">Sumo Logic website</a>.</p>
 </div>
 </div>
 </div>
@@ -987,9 +948,9 @@ After you deploy the Quick Start, create <a href="https://docs.aws.amazon.com/aw
 </div>
 <div id="architecture1" class="imageblock">
 <div class="content">
-<img src="images/sumo-logic-aws-organizations-architecture-diagram.png" alt="architecture1" width="80%">
+<img src="docs/deployment_guide/images/sumo-logic-aws-organizations-architecture-diagram.png" alt="architecture1" width="80%">
 </div>
-<div class="title">Figure 1. Quick Start architecture for Sumo Logic for AWS Organizations</div>
+<div class="title">Figure 1. Quick Start architecture for Sumo Logic Security Integrations</div>
 </div>
 <div class="paragraph">
 <p>As shown in <a href="#architecture1">Figure 1</a>, the Quick Start sets up the following:</p>
@@ -997,63 +958,64 @@ After you deploy the Quick Start, create <a href="https://docs.aws.amazon.com/aw
 <div class="ulist">
 <ul>
 <li>
-<p>In all current and new AWS accounts and workloads across your organization in AWS Organizations:</p>
+<p>In all current and new AWS accounts in your AWS organization:</p>
 <div class="ulist">
 <ul>
 <li>
-<p>Amazon GuardDuty to help protect against malicious activity and behavior.</p>
+<p>Amazon GuardDuty to help protect AWS accounts and workloads from malicious activity and report security events to Amazon CloudWatch.</p>
 </li>
 <li>
-<p>Amazon Security Hub to collect security data from across AWS accounts, services, and supported third-party partner products and helps you analyze your security trends and identify the highest priority security issues.</p>
+<p>AWS Security Hub to assess security alerts and security posture across AWS accounts. Security Hub relays security events to CloudWatch.</p>
 </li>
 <li>
-<p>A security group is used by the Firewall Manager security group policy to define the maximum allowed rules and to verify that Security Groups created across the AWS Organization Unit adhere to the rules.</p>
+<p>AWS WAF for a web application firewall to help protect the resources in your organization from common web exploits.</p>
 </li>
 <li>
-<p>A VPC is required for creating the security group.</p>
+<p>AWS Network Firewall to deploy essential network protections for all your Amazon virtual private clouds (VPCs).</p>
 </li>
 <li>
-<p>The Firewall Manager Disassociate IAM role is deployed to the delegated administrator account to disassociate the account from Firewall Manager when the solution is deleted.</p>
-</li>
-<li>
-<p>A baseline set of AWS Managed WAF Rules deployed using Firewall manager to monitor and remediate the configured resources within the AWS Organization.The policies are enforced based on resource tags.</p>
-</li>
-<li>
-<p>Firewall Manager managed policies for enabling centralized logging for AWS WAF and Amazon Network Firewall.</p>
-</li>
-<li>
-<p>AWS Config will be enabled for every region where firewall manager managed policies will be deployed.</p>
+<p>AWS Firewall Manager to deploy AWS WAF and AWS Network Firewall rules across the VPCs in your organization, to control traffic leaving and entering your network.</p>
 </li>
 </ul>
 </div>
 </li>
 <li>
-<p>In your Security Tooling account:</p>
+<p>In your security tooling account:</p>
 <div class="ulist">
 <ul>
 <li>
-<p>Amazon CloudWatch to relay events to AWS Lambda functions.</p>
+<p>Amazon CloudWatch to relay security events to AWS Lambda integration functions.</p>
 </li>
 <li>
-<p>Lambda integration functions to create a collector and multiple sources and to install apps on your Sumo Logic account.</p>
+<p>Lambda integration functions to do two things. First, to create a Sumo collector and multiple sources. A collector is an agent that receives logs from a source before encrypting and forwarding them to a Sumo service. A source is a configuration that collects logs from your AWS services. Second, to install the security apps you select during deployment to your Sumo logic account.</p>
 </li>
 <li>
-<p>Firewall Manager creates the web ACL regardless of whether the account is in scope of the policy.</p>
+<p>Amazon Kinesis Data Firehose to forward AWS WAF logs to Sumo Logic.</p>
+</li>
+<li>
+<p>An Amazon Simple Storage Service (Amazon S3) bucket to store AWS Network Firewall logs.</p>
+</li>
+<li>
+<p>An Amazon Simple Notification Service (Amazon SNS) topic to publish logs to Sumo Logic when Network Firewall saves logs to the S3 bucket.</p>
 </li>
 </ul>
 </div>
 </li>
 <li>
-<p>In your Org Management account, AWS CloudTrail to track user activity and API (application programming interface) usage across your entire organization.</p>
+<p>In your organization management account, AWS CloudTrail to track user activity and API usage in the organization.</p>
 </li>
 <li>
-<p>In your Log Archive account, an Amazon S3 bucket to capture logs from AWS CloudTrail.</p>
+<p>In your log archive account:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>An Amazon Simple Storage Service (Amazon S3) bucket to store CloudTrail logs.</p>
 </li>
 <li>
-<p>Amazon Simple Notification Service (Amazon SNS) to send alerts when a new object is saved to an S3 bucket.</p>
+<p>An Amazon Simple Notification Service (Amazon SNS) topic to publish logs to Sumo Logic when CloudTrail saves logs to the S3 bucket.</p>
 </li>
-<li>
-<p>The Sumo Logic collector and sources to receive logs from the S3 bucket.</p>
+</ul>
+</div>
 </li>
 </ul>
 </div>
@@ -1072,356 +1034,83 @@ This Quick Start deploys Amazon GuardDuty and AWS CloudTrail across all accounts
 </div>
 </div>
 <div class="sect1">
-<h2 id="_planning_the_deployment">Planning the deployment</h2>
+<h2 id="_deployment_options">Deployment options</h2>
 <div class="sectionbody">
-<div class="sect2">
-<h3 id="_specialized_knowledge">Specialized knowledge</h3>
 <div class="paragraph">
-<p>This deployment requires a moderate level of familiarity with
-AWS services. If you’re new to AWS, see <a href="https://aws.amazon.com/getting-started/" target="_blank" rel="noopener">Getting Started Resource Center</a>
-and <a href="https://aws.amazon.com/training/" target="_blank" rel="noopener">AWS Training and Certification</a>. These sites provide materials for learning how to design,
-deploy, and operate your infrastructure and applications on the AWS Cloud.</p>
-</div>
-<div class="paragraph">
-<p>Before you deploy this Quick Start, also be familiar with the following:</p>
+<p>This Quick Start provides one deployment option:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>Sumo Logic. If you are new to Sumo Logic, see <a href="https://help.sumologic.com/01Start-Here/04Getting-Started" target="_blank" rel="noopener">Getting Started with Sumo Logic</a>.</p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/welcome.html" target="_blank" rel="noopener">AWS Security Reference Architecture (AWS SRA)</a>. This is a set of guidelines for deploying the full complement of AWS security services in a multiaccount environment.</p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/code-repo.html" target="_blank" rel="noopener">Code repository for AWS SRA examples</a>. This Quick Start builds an environment on top of patterns defined in that repository.</p>
-</li>
-<li>
-<p>AWS Organizations. For more information, see <a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html" target="_blank" rel="noopener">What is AWS Organizations?</a></p>
-</li>
-<li>
-<p>Organization trails. For more information, see <a href="https://docs.aws.amazon.com/awscloudtrail/latest/userguide/creating-trail-organization.html" target="_blank" rel="noopener">Creating a trail for an organization</a>.</p>
-</li>
-<li>
-<p>GuardDuty delegated administrators. For more information, see <a href="https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_organizations.html" target="_blank" rel="noopener">Managing GuardDuty accounts with AWS Organizations</a>.</p>
-</li>
-<li>
-<p>AWS CloudTrail and Amazon GuardDuty. <a href="#features_table">Table 1</a> shows how these two security services map to the corresponding apps in Sumo Logic.</p>
+<p><a href="https://fwd.aws/eW8wV?">Deploy Sumo Logic for AWS Organizations</a></p>
 </li>
 </ul>
 </div>
-<table id="features_table" class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 1. Mapping of AWS services to Sumo Logic apps</caption>
-<colgroup>
-<col style="width: 33.3333%;">
-<col style="width: 66.6667%;">
-</colgroup>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">AWS security service or feature</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic apps for the following AWS services or features</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="paragraph">
-<p><a href="https://aws.amazon.com/cloudtrail" target="_blank" rel="noopener">AWS CloudTrail</a></p>
-</div></div></td>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="ulist">
-<ul>
-<li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS/PCI_Compliance_for_AWS_CloudTrail_App" target="_blank" rel="noopener">PCI DSS compliance for AWS CloudTrail</a></p>
-</li>
-<li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS/CIS_AWS_Foundations_Benchmark_App" target="_blank" rel="noopener">CIS AWS Foundations Benchmark</a></p>
-</li>
-<li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/Cloud_Security_Monitoring_and_Analytics/Amazon_CloudTrail_-_Cloud_Security_Monitoring_and_Analytics" target="_blank" rel="noopener">AWS CloudTrail - Cloud Security Monitoring and Analytics</a></p>
-</li>
-<li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS/Global_Intelligence_for_AWS_CloudTrail" target="_blank" rel="noopener">Global Intelligence for AWS CloudTrail SecOps App</a></p>
-</li>
-</ul>
-</div></div></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="paragraph">
-<p><a href="https://aws.amazon.com/guardduty" target="_blank" rel="noopener">Amazon GuardDuty</a></p>
-</div></div></td>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="ulist">
-<ul>
-<li>
-<p><a href="https://help.sumologic.com/?cid=210817" target="_blank" rel="noopener">Amazon GuardDuty - Cloud Security Monitoring and Analytics</a></p>
-</li>
-</ul>
-</div></div></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="paragraph">
-<p><a href="https://aws.amazon.com/security-hub" target="_blank" rel="noopener">AWS Security Hub</a></p>
-</div></div></td>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="ulist">
-<ul>
-<li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/Cloud_Security_Monitoring_and_Analytics/AWS_Security_Hub_-_Cloud_Security_Monitoring_and_Analytics" target="_blank" rel="noopener">AWS Security Hub - Cloud Security Monitoring and Analytics</a></p>
-</li>
-</ul>
-</div></div></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="paragraph">
-<p><a href="https://aws.amazon.com/waf" target="_blank" rel="noopener">AWS WAF - Web Application Firewall</a></p>
-</div></div></td>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="ulist">
-<ul>
-<li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/Cloud_Security_Monitoring_and_Analytics/AWS_WAF_-_Cloud_Security_Monitoring_and_Analytics" target="_blank" rel="noopener">AWS WAF - Cloud Security Monitoring and Analytics</a></p>
-</li>
-</ul>
-</div></div></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="paragraph">
-<p><a href="https://aws.amazon.com/network-firewall" target="_blank" rel="noopener">AWS Network Firewall</a></p>
-</div></div></td>
-<td class="tableblock halign-left valign-top"><div class="content"><div class="ulist">
-<ul>
-<li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS/AWS_Network_Firewall" target="_blank" rel="noopener">AWS Network Firewall</a></p>
-</li>
-</ul>
-</div></div></td>
-</tr>
-</tbody>
-</table>
+<div class="paragraph">
+<p>This option builds new AWS environment that consists of the infrastructure resources required to provision applications to your Sumo Logic account and the necessary resources to your AWS account. During the deployment, you can choose which applications to install.</p>
 </div>
 <div class="sect2">
-<h3 id="_aws_organizations">AWS Organizations</h3>
-<div class="paragraph">
-<p><a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_getting-started_concepts.html" target="_blank" rel="noopener">AWS Organizations</a> is an account-management service that enables you to consolidate multiple AWS accounts into an organization that you create and centrally manage.
-If you don&#8217;t already have an organization, create one in the AWS Management Console using this tutorial: <a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_tutorials_basic.html" target="_blank" rel="noopener">Creating and configuring an organization</a>.</p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_aws_account">AWS account</h3>
-<div class="paragraph">
-<p>If you don’t already have an AWS account, create one at <a href="https://aws.amazon.com/" target="_blank" rel="noopener">https://aws.amazon.com</a> by following the on-screen instructions. Part of the sign-up process involves receiving a phone call and entering a PIN using the phone keypad.</p>
-</div>
-<div class="paragraph">
-<p>Your AWS account is automatically signed up for all AWS services. You are charged only for the services you use.</p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_technical_requirements">Technical requirements</h3>
-<div class="paragraph">
-<p>Before you launch the Quick Start, review the following information and ensure that your account is properly configured. Otherwise, deployment might fail.</p>
-</div>
-<div class="sect3">
-<h4 id="_resource_quotas">Resource quotas</h4>
-<div class="paragraph">
-<p>If necessary, request <a href="https://console.aws.amazon.com/servicequotas/home?region=us-east-2#!/" target="_blank" rel="noopener">service quota increases</a> for the following resources. You might need to request increases if your existing deployment currently uses these resources and if this Quick Start deployment could result in exceeding the default quotas. The <a href="https://console.aws.amazon.com/servicequotas/home?region=us-east-2#!/" target="_blank" rel="noopener">Service Quotas console</a> displays your usage and quotas for some aspects of some services. For more information, see <a href="https://docs.aws.amazon.com/servicequotas/latest/userguide/intro.html" target="_blank" rel="noopener">What is Service Quotas?</a> and <a href="https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html" target="_blank" rel="noopener">AWS service quotas</a>.</p>
-</div>
-<table class="tableblock frame-all grid-all stretch">
-<colgroup>
-<col style="width: 50%;">
-<col style="width: 50%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Resources</th>
-<th class="tableblock halign-left valign-top">This deployment uses</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">S3 buckets</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">2</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">SNS topics</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">2</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">AWS CloudTrail</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">AWS KMS Key</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">AWS Identity and Access Management (IAM) roles</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">8</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Lambda functions(per region)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">2</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Amazon CloudWatch events(per region)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Amazon Kinesis Data Firehose(per region)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Security policies(per region)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">7</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="sect3">
-<h4 id="_supported_aws_regions">Supported AWS Regions</h4>
-<div class="paragraph">
-<p>The following table represents the Regions that are supported by the Sumo Logic for AWS Organizations Quick Start. Customers can ingest data from any Region to any Sumo-supported Region.</p>
-</div>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 2. Supported AWS Regions</caption>
-<colgroup>
-<col style="width: 50%;">
-<col style="width: 50%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Code</th>
-<th class="tableblock halign-left valign-top">Name</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">us-east-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">US East (N. Virginia)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">us-east-2</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">US East (Ohio)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">us-west-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">US West (N. California)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">ca-central-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Canada (Central)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">eu-central-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Europe (Frankfurt)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">eu-west-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Europe (Ireland)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">ap-south-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Asia Pacific (Mumbai)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">ap-northeast-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Asia Pacific (Tokyo)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">ap-southeast-2</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Asia Pacific (Sydney)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">us-gov-east-1</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">AWS GovCloud (US-East)</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="sect3">
-<h4 id="_iam_permissions">IAM permissions</h4>
-<div class="paragraph">
-<p>Before launching the Quick Start, you must sign in to the AWS Management Console with IAM permissions for the resources that the templates deploy. The <em>AdministratorAccess</em> managed policy within IAM provides sufficient permissions, although your organization may choose to use a custom policy with more restrictions. For more information, see <a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html" target="_blank" rel="noopener">AWS managed policies for job functions</a>.</p>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_deployment_options">Deployment options</h4>
-<div class="paragraph">
-<p>This Quick Start provides one deployment option: build a new AWS environment. This environment consists of the infrastructure resources required to provision applications to your Sumo Logic account and the resources necessary for your AWS account. During the deployment, you can choose which applications to install.</p>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_scenarios_supported_by_this_quick_start">Scenarios supported by this Quick Start</h4>
+<h3 id="_scenarios_supported_by_this_quick_start">Scenarios supported by this Quick Start</h3>
 <div class="paragraph">
 <p>This Quick Start supports the following scenarios:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Scenario 1: You do not use AWS security services or Sumo Logic.</strong> You did not
-configure AWS to use one or more security services listed under <a href="#_specialized_knowledge">Specialized knowledge</a>,
-but you want to use Sumo Logic apps to collect and analyze data. For this scenario, use
-this Quick Start to set up AWS security services and configure Sumo Logic.</p>
+<p><strong>Scenario 1: You do not use AWS security services or Sumo Logic.</strong> You did not configure AWS to use AWS security services covered by this Quick Start, but you want to use Sumo Logic apps to collect and analyze data. For this scenario, use this Quick Start to set up AWS security services and configure Sumo Logic. This scenario creates a new Sumo Logic hosted collector called <code>awsorgs-quickstart-collector</code> installs sources for each app under it.</p>
 </li>
 <li>
-<p><strong>Scenario 2: You use AWS security services but not Sumo Logic.</strong> You use the AWS security services listed under <a href="#_specialized_knowledge">Specialized knowledge</a> but have not configured Sumo
-Logic to collect data from AWS or installed the corresponding Sumo Logic apps. For this
-scenario, configure the auxiliary AWS services and resources to send data to Sumo
-Logic. This scenario also installs the corresponding Sumo Logic apps.</p>
+<p><strong>Scenario 2: You use AWS security services but not Sumo Logic.</strong> You use the AWS security services covered by this Quick Start but have not configured Sumo Logic to collect data from AWS or installed the corresponding Sumo Logic apps. For this scenario, configure the auxiliary AWS services and resources to send data to Sumo Logic. This scenario also installs the corresponding Sumo Logic apps. You can reuse existing sources, and this scenario creates a new Sumo Logic hosted collector called <code>awsorgs-quickstart-collector</code> installs new sources for each app under it.</p>
 </li>
 <li>
-<p><strong>Scenario 3: You use AWS security services and Sumo Logic.</strong> You use the AWS
-security services listed under <a href="#_specialized_knowledge">Specialized knowledge</a> and you collect and analyze data
-from one or more of them in Sumo Logic. For this scenario, configure the auxiliary AWS
-services and resources to send data to Sumo Logic. This scenario is intended only for
-nonconfigured AWS security services and their corresponding Sumo Logic apps.</p>
+<p><strong>Scenario 3: You use AWS security services and Sumo Logic.</strong> You use the AWS security services covered by this Quick Start and you collect and analyze data from one or more of them in Sumo Logic. For this scenario, configure the auxiliary AWS services and resources to send data to Sumo Logic. This scenario is intended only for AWS security services that are not configured and their corresponding Sumo Logic apps. You can reuse existing sources, and this scenario creates a new Sumo Logic hosted collector called <code>awsorgs-quickstart-collector</code> installs new sources for each app under it.</p>
 </li>
 </ul>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_do_these_things_before_you_deploy_this_quick_start">Do these things before you deploy this Quick Start</h4>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_predeployment_steps">Predeployment steps</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before deploying this Quick Start, complete the following steps:</p>
+</div>
 <div class="ulist">
 <ul>
 <li>
 <p>If you don&#8217;t already have a Sumo Logic enterprise account, create one at <a href="https://sumologic.com" class="bare" target="_blank" rel="noopener">https://sumologic.com</a> by following the on-screen instructions.</p>
 </li>
 <li>
-<p>If you don&#8217;t already have them, create a Security Tooling account and a log-archival account. Per the <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/welcome.html" target="_blank" rel="noopener">AWS Security Reference Architecture (AWS SRA)</a>, use separate member accounts from your organization as Security Tooling and log-archival accounts.</p>
+<p>If you don&#8217;t already have an AWS organization, create one. For more information, refer to <a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_tutorials_basic.html" target="_blank" rel="noopener">Tutorial: Creating and configuring an organization</a>.</p>
 </li>
 <li>
-<p>Ensure that your IAM user has sufficient permissions for the IAM user or role in your Org Management account to create an organization trail and enable GuardDuty.</p>
+<p>Ensure that your IAM user has sufficient permissions for the IAM user or role in your <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/org-management.html">organization management account</a> to create an organization trail and enable GuardDuty.</p>
 </li>
 <li>
-<p>Ensure that GuardDuty has not been enabled by the Security Tooling account (delegated administrator). For more information, see <a href="https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_organizations.html" target="_blank" rel="noopener">Managing GuardDuty accounts with AWS Organizations</a>.</p>
+<p>Enable trusted access with AWS Organizations. For more information, refer to <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html" target="_blank" rel="noopener">Enable trusted access with AWS Organizations</a>. Otherwise, since this is a multi-account deployment, AWS CloudFormation won&#8217;t run.</p>
 </li>
 <li>
-<p>Enable trusted access with AWS Organizations. For more information, see <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html" target="_blank" rel="noopener">Enable trusted access with AWS Organizations</a>. Otherwise, since this is a multiaccount deployment, AWS CloudFormation won&#8217;t run.</p>
+<p>If you don&#8217;t already have them, create separate <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/security-tooling.html" target="_blank" rel="noopener">security tooling</a> and <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/log-archive.html" target="_blank" rel="noopener">log archive accounts</a> in your AWS organization.</p>
 </li>
 <li>
-<p>Understand how Sumo Logic resources are created for each scenario (as described earlier under <a href="#_scenarios_supported_by_this_quick_start">Scenarios supported by this Quick Start</a>).</p>
-<div class="ulist">
-<ul>
-<li>
-<p>For data collection, scenario 1, a new Sumo Logic hosted collector called <code>awsorgs-quickstart-collector</code> is created and sources for each app are installed under it.</p>
+<p>Ensure that GuardDuty has not been enabled by the security tooling account (delegated administrator). For more information, refer to <a href="https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_organizations.html" target="_blank" rel="noopener">Managing GuardDuty accounts with AWS Organizations</a>.</p>
 </li>
 <li>
-<p>For data collection, scenarios 2 and 3, all existing sources can be reused. All new sources are installed under a new Sumo Logic hosted collector called <code>awsorgs-quickstart-collector</code>.</p>
-</li>
-<li>
-<p>All Sumo Logic apps are installed in a personal folder called <code>SumoLogic Amazon QuickStart Apps for AWS Orgs</code>.</p>
+<p>Become familiar with the <a href="#_additional_resources">additional resources</a>, later in this guide.</p>
 </li>
 </ul>
 </div>
-</li>
-</ul>
+<div class="sect2">
+<h3 id="_existing_aws_security_service_configurations">Existing AWS security service configurations</h3>
+<div class="paragraph">
+<p>If you’re already sending Elastic Load Balancing (ELB) data to Sumo Logic, the Threat Intel for AWS app can report that data.</p>
 </div>
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-note" title="Note"></i>
-</td>
-<td class="content">
-If you&#8217;re already sending Elastic Load Balancing (ELB) data to Sumo Logic, the Threat Intel for AWS app can report that data. If you&#8217;ve already configured CloudTrail and GuardDuty before you launch the Quick Start, follow the steps in the following table. If you have not configured these services, this Quick Start automatically configures them when you install the Sumo Logic apps.
-</td>
-</tr>
-</table>
+<div class="paragraph">
+<p>If you’ve already configured one or more AWS services listed in <a href="#existing_configurations_table">Table 1</a>, follow the steps provided for that service in the table. If you have not configured these services, this Quick Start automatically configures them when you install the Sumo Logic apps.</p>
 </div>
-<table class="tableblock frame-all grid-all stretch">
+<table id="existing_configurations_table" class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Existing AWS security service configurations</caption>
 <colgroup>
 <col style="width: 20%;">
 <col style="width: 20%;">
@@ -1437,53 +1126,56 @@ If you&#8217;re already sending Elastic Load Balancing (ELB) data to Sumo Logic,
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">AWS CloudTrail</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Configured AWS CloudTrail to send its logs to an S3 bucket from member accounts</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1. Enable your member account to send logs to your organization trails. (Follow the instructions in the readme file in the GitHub repo <a href="https://github.com/aws-samples/aws-security-reference-architecture-examples/tree/main/solutions/cloudtrail/cloudtrail-org" target="_blank" rel="noopener">aws-security-reference-architecture-examples</a>.)</p>
-<p class="tableblock">2. Confirm that your organization trails are working.</p>
-<p class="tableblock">3. Delete the redundant Sumo Logic resources, such as collector, sources, and app folder. (For more information, see <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/log-archive.html" target="_blank" rel="noopener">Security OU – Log Archive account</a>.)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Configured AWS CloudTrail to send logs to an S3 bucket from member accounts.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1. Enable your member account to send logs to your organization trails. For more information, refer to <a href="https://github.com/aws-samples/aws-security-reference-architecture-examples/tree/main/aws_sra_examples/solutions/cloudtrail/cloudtrail_org#readme" target="_blank" rel="noopener">Organization CloudTrail</a>.</p>
+<p class="tableblock">2. Confirm that your organization trails work.</p>
+<p class="tableblock">3. Delete redundant Sumo Logic collector, sources, and app folder. For more information, refer to <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/log-archive.html" target="_blank" rel="noopener">Security OU – Log Archive account</a>.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Amazon GuardDuty</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Configured Amazon GuardDuty for individual member accounts with no delegated administrator account</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1. Ensure that the GuardDuty events are ingesting correctly in new SumoLogic sources created by the Quick Start template.</p>
-<p class="tableblock">2. Delete the redundant SumoLogic resources, such as collector, sources, and app folder.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Configured Amazon GuardDuty for individual member accounts with no delegated administrator account.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1. Ensure that new SumoLogic sources created by the Quick Start ingest GuardDuty events.</p>
+<p class="tableblock">2. Delete the redundant Sumo Logic resources, such as collector, sources, and app folder.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">AWS Security Hub</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Configured AWS Security Hub for individual member accounts with no delegated administrator account</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">•  If you have configured AWS Security Hub collection earlier, after ensuring the AWS Security Hub events are ingesting correctly in new SumoLogic sources created by quickstart template you can delete the redundant SumoLogic resources like collector, sources and app folder.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Configured AWS Security Hub for individual member accounts with no delegated administrator account.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1. Ensure that new SumoLogic sources created by the Quick Start ingest Security Hub events.</p>
+<p class="tableblock">2. Delete the redundant SumoLogic resources, such as collector, sources, and app folder.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">AWS WAF - Web Application Firewall</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Configured AWS WAF to send its logs to Amazon Kinesis Data Firehose from member accounts</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1. If you have configured AWS WAF policy collection earlier, after ensuring the AWS WAF events are ingesting correctly in new SumoLogic sources created by quickstart template you can delete the redundant SumoLogic resources like collector, sources and app folder.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1. Ensure that new SumoLogic sources created by the Quick Start ingest AWS WAF logs.</p>
+<p class="tableblock">2. Delete the redundant SumoLogic resources, such as collector, sources, and app folder.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">AWS Network Firewall</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Configured AWS Network Firewall to send its logs to an S3 bucket from member accounts</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1. If you have configured AWS Network Firewall policy collection earlier, after ensuring the AWS Network Firewall events are ingesting correctly in new SumoLogic sources created by quickstart template you can delete the redundant SumoLogic resources like collector, sources and app folder.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Configured AWS Network Firewall to send its logs to an S3 bucket from member accounts.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1. Ensure that new SumoLogic sources created by the Quick Start ingest Network Firewall events.</p>
+<p class="tableblock">2. Delete the redundant SumoLogic resources, such as collector, sources, and app folder.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
 </div>
-</div>
 <div class="sect1">
 <h2 id="_deployment_steps">Deployment steps</h2>
 <div class="sectionbody">
-<div class="sect2">
-<h3 id="_prepare_your_sumo_logic_account">Prepare your Sumo Logic account</h3>
 <div class="olist arabic">
 <ol class="arabic">
 <li>
-<p>If you don&#8217;t already have a Sumo Logic enterprise account, create one at <a href="https://sumologic.com" class="bare" target="_blank" rel="noopener">https://sumologic.com</a> by following the on-screen instructions.</p>
+<p>Sign in to your AWS account, and launch this Partner Solution, as described under <a href="#_deployment_options">Deployment options</a>. The AWS CloudFormation console opens with a prepopulated template.</p>
 </li>
 <li>
-<p>Create the <a href="https://help.sumologic.com/Manage/Security/Access-Keys%23manage-your-access-keys-on-preferences-page" target="_blank" rel="noopener">access key and access ID</a> from your Sumo Logic account. These are passed as parameters when you launch the Quick Start template.</p>
+<p>Choose the correct AWS Region, and then choose <strong>Next</strong>.</p>
 </li>
 <li>
-<p>Get the organization ID, which you can get from your Sumo Logic account in the <strong>Administration</strong> section under the <strong>Account</strong> tab. You must pass this ID.</p>
+<p>On the <strong>Create stack</strong> page, keep the default setting for the template URL, and then choose <strong>Next</strong>.</p>
+</li>
+<li>
+<p>On the <strong>Specify stack details</strong> page, change the stack name if needed. Review the parameters for the template. Provide values for the parameters that require input. For all other parameters, review the default settings and customize them as necessary. When you finish reviewing and customizing the parameters, choose <strong>Next</strong>.</p>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -1491,103 +1183,26 @@ If you&#8217;re already sending Elastic Load Balancing (ELB) data to Sumo Logic,
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-If you want to use the Threat Intel for AWS app but have not configured data
-collection, see <a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS/Threat_Intel_for_AWS" target="_blank" rel="noopener">Threat Intel for AWS</a>. If you already configured data collection, note
-the relevant Sumo Logic source category for your data.
+Unless you&#8217;re customizing the Partner Solution templates or are instructed otherwise in this guide&#8217;s <strong>Predeployment</strong> section, don&#8217;t change the default settings for the following parameters: <code>QSS3BucketName</code>, <code>QSS3BucketRegion</code>, and <code>QSS3KeyPrefix</code>. Changing the values of these parameters will modify code references that point to the Amazon Simple Storage Service (Amazon S3) bucket name and key prefix. For more information, refer to the <a href="https://fwd.aws/NwqYA?" target="_blank" rel="noopener">AWS Partner Solutions Contributor&#8217;s Guide</a>.
 </td>
 </tr>
 </table>
 </div>
 </li>
-</ol>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_confirm_your_aws_account_configuration">Confirm your AWS account configuration</h3>
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>Sign in to your AWS account at <a href="https://aws.amazon.com" class="bare" target="_blank" rel="noopener">https://aws.amazon.com</a> with an IAM user role that has the necessary permissions. For details, see <a href="#_planning_the_deployment">Planning the deployment</a>, earlier in this guide.</p>
-</li>
-<li>
-<p>Ensure that your AWS account is configured correctly, as discussed in the <a href="#_technical_requirements">Technical requirements</a> section.</p>
-</li>
-</ol>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_launch_the_quick_start">Launch the Quick Start</h3>
-<div class="paragraph">
-<p>Each deployment takes about 60 minutes and may take longer depending on the number of accounts in your organization.</p>
-</div>
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>Sign in to your AWS account, and choose the following option to deploy the Quick Start. (For details, see <a href="#_deployment_options">Deployment options</a> earlier in this guide.)</p>
-<table class="tableblock frame-all grid-all stretch">
-<colgroup>
-<col style="width: 75%;">
-<col style="width: 25%;">
-</colgroup>
-<tbody>
-<tr>
-<td class="tableblock halign-center valign-top"><p class="tableblock"><a href="https://fwd.aws/eW8wV?" target="_blank" rel="noopener">Deploy Sumo Logic for AWS Organizations</a></p></td>
-<td class="tableblock halign-center valign-top"><p class="tableblock"><a href="https://fwd.aws/5aKpD?" target="_blank" rel="noopener">View template</a></p></td>
-</tr>
-</tbody>
-</table>
-</li>
-<li>
-<p>Check the Region displayed in the upper-right corner of the navigation bar, and change it as necessary. This Region—us-east-1 by default—is where the infrastructure for the Sumo Logic app resources is built. For more information, see <a href="#_supported_aws_regions">Supported AWS Regions</a> earlier in this guide.</p>
-</li>
-<li>
-<p>On the <strong>Create stack</strong> page, keep the default setting for the template URL, then choose <strong>Next</strong>.</p>
-</li>
-<li>
-<p>On the <strong>Specify stack details</strong> page, change the stack name if needed. Review the parameters for the template. Provide values for the parameters that require input. For all other parameters, review the default settings and customize them as necessary. When you finish reviewing and customizing the <a href="#_parameter_reference">parameters</a>, choose <strong>Next</strong>.</p>
-</li>
 <li>
 <p>On the <strong>Configure stack options</strong> page, you can <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-resource-tags.html" target="_blank" rel="noopener">specify tags</a> (key-value pairs) for resources in your stack and <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-add-tags.html" target="_blank" rel="noopener">set advanced options</a>. When you finish, choose <strong>Next</strong>.</p>
 </li>
 <li>
-<p>On the <strong>Review</strong> page, review and confirm the template settings. Under <strong>Capabilities</strong>, select the two check boxes to acknowledge that the template creates IAM resources and might require the ability to automatically expand macros.</p>
+<p>On the <strong>Review</strong> page, review and confirm the template settings. Under <strong>Capabilities</strong>, select all of the check boxes to acknowledge that the template creates AWS Identity and Access Management (IAM)  resources that might require the ability to automatically expand macros.</p>
 </li>
 <li>
-<p>Choose <strong>Create stack</strong> to deploy the stack.</p>
+<p>Choose <strong>Create stack</strong>. The stack takes about 60 minutes to deploy.</p>
 </li>
 <li>
-<p>Monitor the status of the stack. When the status is <strong>CREATE_COMPLETE</strong>, the Sumo Logic for AWS Organizations deployment is ready.</p>
+<p>Monitor the stack&#8217;s status, and when the status is <strong>CREATE_COMPLETE</strong>, the Sumo Logic Security Integrations for AWS Organizations deployment is ready.</p>
 </li>
 <li>
-<p>To view the created resources, see the values displayed in the <strong>Outputs</strong> tab for the stack.</p>
-</li>
-</ol>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_test_the_deployment">Test the deployment</h2>
-<div class="sectionbody">
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>After the deployment completes, confirm that you see the main stack, <code>QuickStartApps</code>, in your AWS account. Also confirm that multiple nested stacks were created, as shown in <a href="#output1">Figure 2</a>.</p>
-<div id="output1" class="imageblock">
-<div class="content">
-<a class="image" href="images/SRAQSCFStack.png"><img src="images/SRAQSCFStack.png" alt="Cloudformation Stack" width="80%"></a>
-</div>
-<div class="title">Figure 2. Example output of created resources</div>
-</div>
-</li>
-<li>
-<p>Confirm that the collectors and sources were installed for the apps in your Sumo Logic account. For example, see <a href="#output2">Figure 3</a>.</p>
-<div id="output2" class="imageblock">
-<div class="content">
-<a class="image" href="images/SRAQSCollector.png"><img src="images/SRAQSCollector.png" alt="Sumo Logic Hosted Collector" width="80%"></a>
-</div>
-<div class="title">Figure 3. Example output of collectors and sources</div>
-</div>
+<p>To view the created resources, choose the <strong>Outputs</strong> tab.</p>
 </li>
 </ol>
 </div>
@@ -1596,48 +1211,85 @@ the relevant Sumo Logic source category for your data.
 <div class="sect1">
 <h2 id="_postdeployment_steps">Postdeployment steps</h2>
 <div class="sectionbody">
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>If you use an existing S3 bucket with logs, create an SNS topic (<code>SumoSNSTopic-{StackName}</code>) that subscribes to the Sumo Logic sources. After the deployment completes, add that SNS topic to the S3 bucket events. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/user-guide/enable-event-notifications.html" target="_blank" rel="noopener">Enabling and configuring event notifications using the Amazon S3 console</a>.</p>
-</li>
-<li>
-<p>View the Sumo Logic dashboards. The Sumo Logic apps are added to your Sumo Logic personal account library in a folder named <code>SumoLogic Amazon QuickStart Apps for AWS Orgs &lt;date&gt;</code>, as shown in <a href="#qsappfolder">Figure 4</a>.</p>
+<div class="sect2">
+<h3 id="_if_using_an_existing_s3_bucket">If using an existing S3 bucket</h3>
+<div class="paragraph">
+<p>If you use an existing S3 bucket with logs, create an SNS topic (SumoSNSTopic-{StackName}) that subscribes to the Sumo Logic sources. After the deployment completes, add that SNS topic to the S3 bucket events. For more information, refer to <a href="https://docs.aws.amazon.com/AmazonS3/latest/user-guide/enable-event-notifications.html" target="_blank" rel="noopener">Enabling and configuring event notifications using the Amazon S3 console</a>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_view_the_sumo_logic_dashboards">View the Sumo Logic dashboards</h3>
+<div class="paragraph">
+<p>After the deployment completes, the Sumo Logic apps are added to your Sumo Logic personal-account library in a folder named <code>SumoLogic Amazon QuickStart Apps for AWS Orgs &lt;date&gt;</code>, as shown in <a href="#qsappfolder">Figure 2</a>.</p>
+</div>
 <div id="qsappfolder" class="imageblock">
 <div class="content">
-<a class="image" href="images/SRAQSAppFolder.png"><img src="images/SRAQSAppFolder.png" alt="Sumo Logic Apps Folder" width="80%"></a>
+<a class="image" href="images/SRAQSAppFolder.png"><img src="docs/deployment_guide/images/SRAQSAppFolder.png" alt="Sumo Logic Apps Folder" width="80%"></a>
 </div>
-<div class="title">Figure 4. Top-level Quick Start apps folder</div>
+<div class="title">Figure 2. Top-level Quick Start apps folder</div>
 </div>
-</li>
-<li>
-<p>Under the <code>SumoLogic Amazon QuickStart Apps for AWS Orgs &lt;date&gt;</code> folder, view the subfolders that represent each app, as shown in <a href="#servicefolder">Figure 5</a>.</p>
+<div class="paragraph">
+<p>Under the SumoLogic Amazon QuickStart Apps &lt;date&gt; folder, there are subfolders that represent each app along with the date and timestamp.</p>
+</div>
 <div id="servicefolder" class="imageblock">
 <div class="content">
-<a class="image" href="images/SRAQSApps.png"><img src="images/SRAQSApps.png" alt="Sumo Logic Apps" width="80%"></a>
+<a class="image" href="images/SRAQSApps.png"><img src="docs/deployment_guide/images/SRAQSApps.png" alt="Sumo Logic Apps" width="80%"></a>
 </div>
-<div class="title">Figure 5. Individual service folders</div>
+<div class="title">Figure 3. Individual service folders</div>
 </div>
-</li>
-<li>
-<p>To see any detected threats, open the services dashboard by choosing its folder in the Sumo Logic console. For instance, in the <strong>Amazon GuardDuty</strong> folder, open the <strong>Amazon GuardDuty – Overview</strong> dashboard, as shown in <a href="#dashboard">Figure 6</a>.</p>
+<div class="paragraph">
+<p>To open the services dashboard, choose its folder in the Sumo Logic console. For instance, under the Amazon GuardDuty folder, open the Amazon GuardDuty – Overview dashboard to see detected threats.</p>
+</div>
 <div id="dashboard" class="imageblock">
 <div class="content">
-<a class="image" href="images/dashboard.jpg"><img src="images/dashboard.jpg" alt="dashboard^"></a>
+<a class="image" href="images/dashboard.jpg"><img src="docs/deployment_guide/images/dashboard.jpg" alt="dashboard^"></a>
 </div>
-<div class="title">Figure 6. Amazon GuardDuty dashboard</div>
+<div class="title">Figure 4. Amazon GuardDuty dashboard</div>
 </div>
-</li>
-<li>
-<p>The solution creates a security group that is used by Firewall Manager only as a comparison reference for the security groups that are in scope of the policy. Firewall Manager doesn&#8217;t associate it with any resources in your organization. You can update the security group as per your use case. Refer the <a href="https://docs.aws.amazon.com/waf/latest/developerguide/security-group-policies.html">docs</a> for limitations.</p>
-</li>
-<li>
+</div>
+<div class="sect2">
+<h3 id="_firewall_manager_security_group">Firewall Manager security group</h3>
+<div class="paragraph">
+<p>The deployment creates a security group that is used by Firewall Manager only as a comparison reference for the security groups that are in scope of the policy. Firewall Manager doesn&#8217;t associate it with any resources in your organization. You can update the security group for your use case. For more information, refer to <a href="https://docs.aws.amazon.com/waf/latest/developerguide/security-group-policies.html">Security group policies</a>.</p>
+</div>
+<div class="paragraph">
 <p>Firewall Manager creates a web ACL in each account that&#8217;s managed by Firewall Manager.</p>
-</li>
-<li>
-<p>Monitor your delivery stream to be sure that it has enough throughput to accommodate your organization&#8217;s WAF logs.</p>
-</li>
-</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_kinesis_data_firehose_delivery_stream">Kinesis Data Firehose delivery stream</h3>
+<div class="paragraph">
+<p>Monitor your delivery stream to ensure that it has enough throughput to accommodate your organization&#8217;s WAF logs.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_test_the_deployment">Test the deployment</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_aws_account">AWS account</h3>
+<div class="paragraph">
+<p>After the deployment completes, you see the main stack, QuickStartApps, in addition to multiple nested stacks.</p>
+</div>
+<div id="output1" class="imageblock">
+<div class="content">
+<a class="image" href="images/SRAQSCFStack.png"><img src="docs/deployment_guide/images/SRAQSCFStack.png" alt="Cloudformation Stack" width="80%"></a>
+</div>
+<div class="title">Figure 5. Example output of created resources</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_sumo_logic_account">Sumo Logic account</h3>
+<div class="paragraph">
+<p>Confirm that the AWS CloudFormation template installed the collectors and sources for your Sumo Logic apps.</p>
+</div>
+<div id="output2" class="imageblock">
+<div class="content">
+<a class="image" href="images/SRAQSCollector.png"><img src="docs/deployment_guide/images/SRAQSCollector.png" alt="Sumo Logic Hosted Collector" width="80%"></a>
+</div>
+<div class="title">Figure 6. Example output of collectors and sources</div>
+</div>
 </div>
 </div>
 </div>
@@ -1645,89 +1297,47 @@ the relevant Sumo Logic source category for your data.
 <h2 id="_additional_resources">Additional resources</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="_aws_resources">AWS resources</h3>
-<div class="ulist">
-<ul>
-<li>
-<p><a href="https://aws.amazon.com/getting-started/" target="_blank" rel="noopener">Getting Started with AWS</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/general/latest/gr/" target="_blank" rel="noopener">AWS General Reference</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/general/latest/gr/glos-chap.html" target="_blank" rel="noopener">AWS Glossary</a></p>
-</li>
-</ul>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_aws_services_used_by_the_deployment">AWS services used by the deployment</h3>
-<div class="ulist">
-<ul>
-<li>
-<p><a href="https://docs.aws.amazon.com/cloudformation/" target="_blank" rel="noopener">AWS CloudFormation</a></p>
-</li>
-<li>
-<p><a href="https://aws.amazon.com/cloudwatch/" target="_blank" rel="noopener">Amazon CloudWatch</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/iam/" target="_blank" rel="noopener">AWS IAM</a></p>
-</li>
-<li>
-<p><a href="https://aws.amazon.com/sns/" target="_blank" rel="noopener">Amazon SNS</a></p>
-</li>
-<li>
-<p><a href="https://aws.amazon.com/lambda/" target="_blank" rel="noopener">AWS Lambda</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/guardduty/" target="_blank" rel="noopener">Amazon GuardDuty</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/awscloudtrail/" target="_blank" rel="noopener">AWS CloudTrail</a></p>
-</li>
-<li>
-<p><a href="https://aws.amazon.com/s3/" target="_blank" rel="noopener">Amazon S3</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/securityhub/" target="_blank" rel="noopener">AWS Security Hub</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/waf/" target="_blank" rel="noopener">AWS WAF</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/network-firewall/" target="_blank" rel="noopener">AWS Network Firewall</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/firewall-manager/" target="_blank" rel="noopener">AWS Firewall Manager</a></p>
-</li>
-<li>
-<p><a href="https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html" target="_blank" rel="noopener">Amazon Kinesis Data Firehose</a></p>
-</li>
-</ul>
-</div>
-</div>
-<div class="sect2">
 <h3 id="_sumo_logic_documentation">Sumo Logic documentation</h3>
 <div class="ulist">
 <ul>
 <li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS" target="_blank" rel="noopener">Sumo Logic and AWS apps</a></p>
+<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS" target="_blank" rel="noopener">Sumo Logic Amazon and AWS apps</a></p>
 </li>
 <li>
-<p><a href="https://help.sumologic.com/07Sumo-Logic-Apps/01Amazon_and_AWS" target="_blank" rel="noopener">Sumo Logic Doc Hub</a></p>
-</li>
-<li>
-<p><a href="https://www.sumologic.com/solutions/security-intelligence/" target="_blank" rel="noopener">Sumo Logic Cloud SIEM</a></p>
+<p><a href="https://www.sumologic.com/solutions/cloud-siem-enterprise/" target="_blank" rel="noopener">Sumo Logic Cloud SIEM</a></p>
 </li>
 </ul>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_other_quick_start_reference_deployments">Other Quick Start reference deployments</h3>
+<h3 id="_aws_services">AWS services</h3>
 <div class="ulist">
 <ul>
 <li>
-<p><a href="https://aws.amazon.com/quickstart/" target="_blank" rel="noopener">AWS Quick Start home page</a></p>
+<p><a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html" target="_blank" rel="noopener">AWS Organizations</a></p>
+</li>
+<li>
+<p><a href="https://docs.aws.amazon.com/cloudtrail/index.html">AWS CloudTrail</a></p>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.aws.amazon.com/awscloudtrail/latest/userguide/creating-trail-organization.html">Creating a trail for an organization</a></p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_other_aws_documentation">Other AWS documentation</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/welcome.html" target="_blank" rel="noopener">AWS Security Reference Architecture (AWS SRA)</a></p>
+</li>
+<li>
+<p><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/code-repo.html" target="_blank" rel="noopener">Code repository for AWS SRA examples</a></p>
 </li>
 </ul>
 </div>
@@ -1735,35 +1345,10 @@ the relevant Sumo Logic source category for your data.
 </div>
 </div>
 <div class="sect1">
-<h2 id="_faq">FAQ</h2>
+<h2 id="_troubleshooting">Troubleshooting</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p><strong>Q.</strong> I encountered a <strong>CREATE_FAILED</strong> error when I launched the Quick Start.</p>
-</div>
-<div class="paragraph">
-<p><strong>A.</strong> If AWS CloudFormation fails to create the stack, relaunch the template with <strong>Rollback on failure</strong> set to <strong>Disabled</strong>. This setting is under <strong>Advanced</strong> in the AWS CloudFormation console on the <strong>Configure stack options</strong> page. With this setting, the stack&#8217;s state is retained, and the instance keeps running so that you can troubleshoot the issue. (For Windows, look at the log files in <code>%ProgramFiles%\Amazon\EC2ConfigService</code> and <code>C:\cfn\log</code>.)</p>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-important" title="Important"></i>
-</td>
-<td class="content">
-When you set <strong>Rollback on failure</strong> to <strong>Disabled</strong>, you continue to incur AWS charges for this stack. Delete the stack when you finish troubleshooting.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>For additional information, see <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/troubleshooting.html" target="_blank" rel="noopener">Troubleshooting AWS CloudFormation</a>.</p>
-</div>
-<hr>
-<div class="paragraph">
-<p><strong>Q.</strong> I encountered a size-limitation error when I deployed the AWS CloudFormation templates.</p>
-</div>
-<div class="paragraph">
-<p><strong>A.</strong> Launch the Quick Start templates from the links in this guide or from another S3 bucket. If you deploy the templates from a local copy on your computer or from a location other than an S3 bucket, you might encounter template-size limitations. For more information, see <a href="http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cloudformation-limits.html" target="_blank" rel="noopener">AWS CloudFormation quotas</a>.</p>
+<p>For troubleshooting common Quick Start issues, refer to the <a href="https://fwd.aws/rA69w?" target="_blank" rel="noopener">AWS Quick Start General Information Guide</a> and <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/troubleshooting.html" target="_blank" rel="noopener">Troubleshooting CloudFormation</a>.</p>
 </div>
 </div>
 </div>
@@ -1771,754 +1356,31 @@ When you set <strong>Rollback on failure</strong> to <strong>Disabled</strong>, 
 <h2 id="_customer_responsibility">Customer responsibility</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>After you successfully deploy this Quick Start, confirm that your resources and services are updated and configured — including any required patches — to meet your security and other needs. For more information, see the <a href="https://aws.amazon.com/compliance/shared-responsibility-model/" target="_blank" rel="noopener">AWS Shared Responsibility Model</a>.</p>
+<p>After you deploy a Partner Solution, confirm that your resources and services are updated and configured—including any required patches—to meet your security and other needs. For more information, refer to the <a href="https://aws.amazon.com/compliance/shared-responsibility-model/" target="_blank" rel="noopener">Shared Responsibility Model</a>.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_parameter_reference">Parameter reference</h2>
-<div class="sectionbody">
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-note" title="Note"></i>
-</td>
-<td class="content">
-Unless you are customizing the Quick Start templates for your own deployment projects, keep the default settings for the parameters labeled <strong>Quick Start S3 bucket name</strong>, <strong>Quick Start S3 bucket Region</strong>, and <strong>Quick Start S3 key prefix</strong>. Changing these parameter settings automatically updates code references to point to a new Quick Start location. For more information, see the <a href="https://aws-quickstart.github.io/option1.html" target="_blank" rel="noopener">AWS Quick Start Contributor’s Guide</a>.
-</td>
-</tr>
-</table>
-</div>
-<div class="sect2">
-<h3 id="_parameters_for_deploying_the_quick_start">Parameters for deploying the Quick Start</h3>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 3. Sumo Logic configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic deployment location
-(<code>Section1SumoLogicDeployment</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>us2</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose the geographic location of the deployment of the Sumo Logic apps: au, ca, de, eu, jp, us2, us1, in, or fed.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic access ID
-(<code>Section1SumoLogicAccessID</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Requires input</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter the Sumo Logic console access ID, which you received when you created the access key.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic access key
-(<code>Section1SumoLogicAccessKey</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Requires input</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter your Sumo Logic access key. Retrieve this from your Sumo Logic account.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic organization ID
-(<code>Section1SumoLogicOrganizationId</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Requires input</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter your Sumo Logic organization ID, which you can find in the Sumo Logic console, under Account.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Delete Sumo Logic resources when stack is deleted
-(<code>Section1SumoLogicResourceRemoveOnDeleteStack</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>true</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose "false" if you do not want to remove the collector, sources, and Sumo Logic apps when the stack is deleted.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 4. AWS Organizations configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Security-tooling account ID
-(<code>Section1SecurityToolingAccountId</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Requires input</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter your security-tooling account ID.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Log-archiving account ID
-(<code>Section1LogArchivingAccountId</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Requires input</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter your log-archiving account ID.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Security-tooling and log-archiving account Region
-(<code>Section1ToolingAndLoggingRegion</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>us-east-1</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter your security-tooling and log-archiving account Region if it&#8217;s different from the default.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">AWS Organization root ID
-(<code>Section1OrganizationRootID</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Requires input</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter the ID for your organization root. This string requires r- followed by from 4 to 32 lowercase letters or digits.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 5. GuardDuty app configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo Logic Global Intelligence for Amazon GuardDuty
-(<code>Section2InstallSumoGlobalGuardDutyApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip installation of the app Global Intelligence for Amazon GuardDuty in the Sumo Logic for AWS Quick Start.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo Logic Cloud Security Monitoring and Analytics for Amazon GuardDuty
-(<code>Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip installation of the app Cloud Security Monitoring and Analytics for Amazon GuardDuty in Sumo Logic for AWS Quick Start.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 6. GuardDuty service configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Finding publishing frequency
-(<code>Section2FindingPublishingFrequency</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>FIFTEEN_MINUTES</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Frequency for exporting updated active findings to CloudWatch Events.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">GuardDuty Regions
-(<code>Section2GuardDutyRegions</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>us-east-1,us-east-2</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Comma-delimited list of AWS Regions to enable GuardDuty.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 7. GuardDuty Sumo log source configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create Sumo Logic HTTP logs source
-(<code>Section2GuardDutyCreateHttpLogsSource</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip creation of the Sumo Logic HTTP log source to collect GuardDuty logs.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Forward Data To CloudSIEM
-(<code>Section2EnableForwardDataToCloudSIEM</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; Enabled forward data to CloudSIEM. No &#8594; Skip enable forward.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic HTTP logs source category name
-(<code>Section2GuardDutyHttpLogsSourceCategoryName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>aws/quickstart/guardduty/logs</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Required when Section2GuardDutyCreateHttpLogsSource is set to No. Provide an existing source category name from the GuardDuty logs. This is used for app installation.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 8. CloudTrail service configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">CloudTrail Region in management account
-(<code>Section3CloudTrailRegions</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>us-east-1</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enter the management account Region where organization trails will be created.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install CloudTrail Service in AWS
-(<code>Section3InstallAWSCloudTrail</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip installation of the CloudTrail service on AWS.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 9. CloudTrail app configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo Logic PCI compliance for AWS CloudTrail app
-(<code>Section3InstallPCICloudTrailApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip installation of the app PCI Compliance for AWS CloudTrail.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo Logic CIS AWS Foundations Benchmark app
-(<code>Section3InstallCISFoundationApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip installation of the app CIS AWS Foundations Benchmark.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install AWS CloudTrail - Sumo Cloud Security Monitoring and Analytics app
-(<code>Section3InstallCloudTrailMonitoringAnalyticsApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip installation of the app AWS CloudTrail - Sumo Cloud Security Monitoring and Analytics.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo Global Intelligence for AWS CloudTrail SecOps app
-(<code>Section3InstallCloudTrailSecOpsApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip installation of the app Sumo Global Intelligence for AWS CloudTrail SecOps.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 10. CloudTrail Sumo log source configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create Sumo Logic S3 logs source for CloudTrail
-(<code>Section3CloudTrailCreateS3LogsSource</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose No to skip creation of the Sumo Logic S3 log source to collect CloudTrail logs.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Path expression for logs
-(<code>Section3CloudTrailBucketPathExpression</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>CloudTrail/AWSLogs/*/CloudTrail/*</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">The path expression must match the folder structure for CloudTrail logs (e.g., AWSLogs/*/CloudTrail/*).</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic CloudTrail logs source category name
-(<code>Section3CloudTrailLogsSourceCategoryName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>AWS/Cloudtrail/Logs</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Required when the flag is set to No. Provide the name of an existing Sumo Logic source category that&#8217;s collecting CloudTrail logs. This is also used for Threat Intel for AWS app installation.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Forward Data To CloudSIEM
-(<code>Section3EnableForwardDataToCloudSIEM</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; Enabled forward data to CloudSIEM. No &#8594; Skip enable forward.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 11. CloudTrail S3 bucket configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create an S3 bucket for CloudTrail logs
-(<code>Section3CreateCloudTrailS3Bucket</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>No</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose Yes to create an S3 bucket for CloudTrail logs.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Name of existing S3 bucket that contains the CloudTrail logs
-(<code>Section3CloudTrailExistsS3BucketName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Blank string</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Required when the flag is set to No. Provide the name of an existing S3 bucket that contains CloudTrail logs. The existing bucket must be in same AWS Region as the log-archiving account.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Delivery bucket prefix
-(<code>Section1DeliveryBucketPrefix</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>logs-delivery</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Log delivery S3 bucket prefix.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 12. 4.1 Security Hub Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enable Security Hub for the Regions
-(<code>Section4SecurityHubEnableSecurityHub</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>No</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; Security Hub must be enabled in AWS for AWS Quick Start Solution. No &#8594; Skip enable of the app.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics
-(<code>Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; To Install AWS Security Hub - Cloud Security Monitoring and Analytics in Sumo Logic for AWS Quick Start Solution. No &#8594; Skip Installation of the app.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 13. 4.2 Security Hub Service Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Regions to Enable
-(<code>Section4SecurityHubRegionsToEnable</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>us-east-1,us-east-2</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Comma delimited list of regions to enable Security Hub.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enable CIS AWS Foundations Benchmark v1.2.0
-(<code>Section4SecurityHubEnableCISStandard</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>True</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">CIS AWS Foundations Standard</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enable PCI DSS v3.2.1
-(<code>Section4SecurityHubEnablePCIStandard</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>True</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Payment Card Industry Data Security Standard (PCI DSS)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enable AWS Foundational Security Best Practices v1.0.0
-(<code>Section4SecurityHubEnableSBPStandard</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>True</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Security Best Practices Standard</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 14. 4.3 Security Hub Sumo Log Source configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create Sumo Logic HTTP logs source
-(<code>Section4SecurityHubCreateHttpLogsSource</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes: Create Sumo Logic HTTP log source to collect Security Hub logs. No: Skip creation of the Sumo Logic HTTP log source.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Forward Data To CloudSIEM
-(<code>Section4EnableForwardDataToCloudSIEM</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; Enabled forward data to CloudSIEM. No &#8594; Skip enable forward.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic HTTP logs source category name
-(<code>Section4SecurityHubHttpLogsSourceCategoryName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>aws/quickstart/securityhub/logs</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Required when Security Hub HTTP LogSource is set to No. Provide an existing source category name from the Security Hub logs. This is used for app installation.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 15. 6.1 Firewall Manager Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enable Firewall Manager for the regions
-(<code>Section6EnableFirewallManager</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Choose Yes to enable Firewal Manager for the regions. Choose No if Firewall Manager is already enabled.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Disassociate admin account in Firewall Manager when stack is deleted
-(<code>Section6DisassociateAdminAccountOnDeleteStack</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>false</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">To disassociate admin account in Firewall Manager when stack is deleted, set this parameter to true. Default is false. Disassociate admin account in Firewall Manager will be skipped.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo AWS WAF - Cloud Security Monitoring and Analytics App
-(<code>Section6InstallSumoAWSWAFCloudSecurityMonitoringAndAnalyticsApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; To Install App in Sumo AWS WAF - Cloud Security Monitoring and Analytics for AWS Quick Start Solution. No &#8594; Skip Installation of the app.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Install Sumo AWS Network Firewall
-(<code>Section6InstallSumoAWSNetworkFirewallApp</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; To Install App in Sumo AWS Network Firewall for AWS Quick Start Solution. No &#8594; Skip Installation of the app.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 16. 6.2 Firewall Manager Policy Regions Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Firewall Manager Policy Regions
-(<code>Section6FirewallManagerPolicyRegions</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>us-east-1</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Comma delimited list of regions for Firewall Manager Policy.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 17. 6.3 Firewall Manager Security Group Policy Attributes</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Internal Network CIDR
-(<code>Section6InternalNetCIDR</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>192.168.1.0/24</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">The CIDR block for the Internal Network (include both VPCs and On-Prem if using VPN/DirectConnet) - This is used to detect rules that don&#8217;t align with the IP Space. Use CIDR Format. Example 192.168.1.0/24</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 18. 6.4 Firewall Manager VPC Attributes</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create VPC For Security Group
-(<code>Section6CreateVpcForSG</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>true</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create a new VPC for the Firewall Manager Security Groups</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">New VPC CIDR Block
-(<code>Section6VPCCidrBlock</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>10.0.0.0/28</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">VPC CIDR Block to use for the new VPC. Only used if Create VPC is true.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Existing VPC ID
-(<code>Section6VpcId</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Blank string</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Existing VPC ID for the Firewall Manager Security Groups</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 19. 6.5 Firewall Manager Details - Kinesis Firehose Delivery Stream Source WAF Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create a Kinesis Firehose Delivery Stream Source for WAF
-(<code>Section6CreateDeliveryStreamSource</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes - to create Kinesis Delivery Stream Source for WAF No - to skip creation Kinesis Delivery Stream.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic AWS Kinesis Firehose Logs WAF Source Category Name
-(<code>Section6DeliveryStreamSourceCategoryName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>AWS/WAF/Logs</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Existing - Change to an existing Source Category from Sumo Logic if AWS Kinesis Firehose Source is not created. New - Default will be used if AWS Kinesis Firehose Source is Created.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Amazon Kinesis Data Firehose delivery stream name
-(<code>Section6DeliveryStreamName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Requires input</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 20. 6.6 Firewall Manager Details - S3 Source Network Firewall Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create Sumo Logic Amazon S3 Logs Source for Network Firewall
-(<code>Section6CreateS3Source</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes - to create Sumo Logic Amazon S3 Log Source with provided bucket Name. No - to skip creation of the Sumo Logic Amazon S3 Log Source.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Sumo Logic Amazon S3 Logs Source Category Name for Network Firewall
-(<code>Section6S3SourceCategoryName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>AWS/NFW/Logs</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Existing - Change to an existing Source Category from Sumo Logic if Amazon S3 Source is not created. New - Default will be used if Amazon S3 Source is Created.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 21. 6.7 Firewall Manager - S3 Bucket Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Create AWS S3 Bucket
-(<code>Section6CreateS3Bucket</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes - Create a new S3 bucket in AWS S3. No - Use an existing S3 bucket from AWS S3 which has Network Firewall Logs.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Network Firewall Delivery Bucket Prefix
-(<code>Section6DeliveryBucketPrefix</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>network-firewall-logs-delivery</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Network Firewall Log Delivery S3 bucket prefix.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Name of existing S3 Bucket which contains the Network Firewall Logs
-(<code>Section6NetworkFirewallExistsS3BucketName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code><strong><em>Blank string</em></strong></code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Required when flag is set to No. Provide an existing S3 Bucket name which contains Network Firewall Logs.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 22. 6.8 Firewall Manager Details - Cloud SIEM Configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Forward Data To CloudSIEM
-(<code>Section6EnableForwardDataToCloudSIEM</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Yes</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Yes &#8594; Enabled forward data to CloudSIEM. No &#8594; Skip enable forward.</p></td>
-</tr>
-</tbody>
-</table>
-<table class="tableblock frame-all grid-all stretch">
-<caption class="title">Table 23. AWS Quick Start configuration</caption>
-<colgroup>
-<col style="width: 16%;">
-<col style="width: 11%;">
-<col style="width: 73%;">
-</colgroup>
-<thead>
-<tr>
-<th class="tableblock halign-left valign-top">Parameter label (name)</th>
-<th class="tableblock halign-left valign-top">Default value</th>
-<th class="tableblock halign-left valign-top">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Quick Start S3 bucket name
-(<code>QSS3BucketName</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>aws-quickstart</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See <a href="https://aws-quickstart.github.io/option1.html" class="bare">https://aws-quickstart.github.io/option1.html</a>.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Quick Start S3 key prefix
-(<code>QSS3KeyPrefix</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>quickstart-sumo-logic-cloudsiem/</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). End with a forward slash. See <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html" class="bare">https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html</a> and <a href="https://aws-quickstart.github.io/option1.html" class="bare">https://aws-quickstart.github.io/option1.html</a>.</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Quick Start Version
-(<code>QSVersion</code>)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>1.0</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Version of the Quick Start. Do not change.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_send_us_feedback">Send us feedback</h2>
+<h2 id="_feedback">Feedback</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>If you have feedback about this Quick Start, such as a feature idea or a bug you&#8217;ve found, email <a href="mailto:quickstart@amazon.com">quickstart@amazon.com</a>.</p>
+<p>To submit feature ideas and report bugs, use the <strong>Issues</strong> section of the <a href="https://github.com/aws-ia/cfn-ps-sumo-logic-cloudsiem" target="_blank" rel="noopener">GitHub repository</a> for this Partner Solution. To submit code, refer to the <a href="https://fwd.aws/NwqYA?" target="_blank" rel="noopener">Partner Solution Contributor&#8217;s Guide</a>. To submit feedback on this deployment guide, use the following GitHub links:</p>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_quick_start_reference_deployments">Quick Start reference deployments</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>See the <a href="https://aws.amazon.com/quickstart/" target="_blank" rel="noopener">AWS Quick Start home page</a>.</p>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://github.com/aws-ia/cfn-ps-sumo-logic-cloudsiem/issues/new?labels=documentation,grammar+or+spelling&amp;title=Deployment+guide+feedback&amp;body=Section+heading:%0ADocumentation+issue+description:%0A" target="_blank" rel="noopener">Grammar or spelling</a></p>
+</li>
+<li>
+<p><a href="https://github.com/aws-ia/cfn-ps-sumo-logic-cloudsiem/issues/new?labels=documentation,broken+link&amp;title=Deployment+guide+feedback&amp;body=Section+heading:%0ADocumentation+issue+description:%0A" target="_blank" rel="noopener">Broken link</a></p>
+</li>
+<li>
+<p><a href="https://github.com/aws-ia/cfn-ps-sumo-logic-cloudsiem/issues/new?labels=documentation,inaccurate+content&amp;title=Deployment+guide+feedback&amp;body=Section+heading:%0ADocumentation+issue+description:%0A" target="_blank" rel="noopener">Inaccurate content</a></p>
+</li>
+<li>
+<p><a href="https://github.com/aws-ia/cfn-ps-sumo-logic-cloudsiem/issues/new?labels=documentation,display+and+design&amp;title=Deployment+guide+feedback&amp;body=Section+heading:%0ADocumentation+issue+description:%0A" target="_blank" rel="noopener">Display or design</a></p>
+</li>
+</ul>
 </div>
 </div>
 </div>
@@ -2526,18 +1388,21 @@ Unless you are customizing the Quick Start templates for your own deployment pro
 <h2 id="_notices">Notices</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>This document is provided for informational purposes only. It represents AWS’s current product offerings and practices as of the date of issue of this document, which are subject to change without notice. Customers are responsible for making their own independent assessment of the information in this document and any use of AWS’s products or services, each of which is provided “as is” without warranty of any kind, whether expressed or implied. This document does not create any warranties, representations, contractual commitments, conditions, or assurances from AWS, its affiliates, suppliers, or licensors. The responsibilities and liabilities of AWS to its customers are controlled by AWS agreements, and this document is not part of, nor does it modify, any agreement between AWS and its customers.</p>
+<p>This document is provided for informational purposes only. It represents current AWS product offerings and practices as of the date of issue of this document, which are subject to change without notice. Customers are responsible for making their own independent assessment of the information in this document and any use of AWS products or services, each of which is provided "as is" without warranty of any kind, whether expressed or implied. This document does not create any warranties, representations, contractual commitments, conditions, or assurances from AWS, its affiliates, suppliers, or licensors. The responsibilities and liabilities of AWS to its customers are controlled by AWS agreements, and this document is not part of, nor does it modify, any agreement between AWS and its customers.</p>
 </div>
 <div class="paragraph">
-<p>The software included with this paper is licensed under the Apache License, version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at <a href="http://aws.amazon.com/apache2.0/" target="_blank" rel="noopener">http://aws.amazon.com/apache2.0/</a> or in the accompanying "license" file. This code is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either expressed or implied. See the License for specific language governing permissions and limitations.</p>
+<p>The software included with this paper is licensed under the Apache License, version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at <a href="https://aws.amazon.com/apache2.0/" target="_blank" rel="noopener">https://aws.amazon.com/apache2.0/</a> or in the accompanying "license" file. This code is distributed on an "as is" basis, without warranties or conditions of any kind, either expressed or implied. Refer to the License for specific language governing permissions and limitations.</p>
 </div>
 </div>
 </div>
 </div>
-<p class="footer-text">
-<!-- We can use document attributes: -->
-<!-- Generated with Asciidoctor v2.0.16. -->
-<a href="https://aws.amazon.com/privacy/">Privacy</a> | <a href="https://aws.amazon.com/terms/">Site terms</a> | &copy; 2022, Amazon Web Services, Inc. or its affiliates and Sumo Logic. All rights reserved.
-</p>
+<footer>
+    <p class="footer-text">
+        <!-- We can use document attributes: -->
+        <!-- Generated with Asciidoctor v2.0.20. -->
+        <a href="https://aws.amazon.com/privacy/">Privacy</a> | <a href="https://aws.amazon.com/terms/">Site terms</a> |
+        &copy; {current-year}, Amazon Web Services, Inc. or its affiliates and Sumo Logic. All rights reserved.
+    </p>
+</footer>
 </body>
 </html>
