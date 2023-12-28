@@ -384,3 +384,8 @@ Resources:
         CloudTrailS3Region: !Ref CloudTrailS3Region
         ParentHelperFunctionArn: !Ref ParentHelperFunctionArn
         EnableForwardDataToCloudSIEM: !Ref EnableForwardDataToCloudSIEM
+
+Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName

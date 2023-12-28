@@ -4,7 +4,6 @@ from awsresource import AWSResource
 
 from resourcefactory import ResourceFactory
 
-import securityhubsnsevent
 import awsorgprocess
 helper = CfnResource(json_logging=False, log_level='DEBUG')
 
@@ -64,11 +63,8 @@ def delete(event, context):
 
 
 def handler(event, context):
-    print("Event %s" % event)
     if  event.get("source") == "aws.organizations":
         awsorgprocess.process_event_organizations(event=event)
-    elif event.get("Records") and event["Records"][0]["EventSource"] == "aws:sns":
-        securityhubsnsevent.process_event_sns(event=event)
     else:
         helper(event, context)
 

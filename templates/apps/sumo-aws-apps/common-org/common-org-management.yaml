@@ -281,7 +281,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Path: /
-      Policies:
+      Policies:      
         - PolicyName: firewall-manager-org-policy-iam
           PolicyDocument:
             Version: 2012-10-17

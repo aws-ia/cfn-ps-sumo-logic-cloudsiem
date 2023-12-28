@@ -328,6 +328,20 @@ Resources:
         - ParameterKey: 'OrgPrimaryAccountId'
           ParameterValue: !Ref "AWS::AccountId"
 
+  GuardDutyDeleteDetectorRoleStack:
+    Condition: install_http_logs_source
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/guardduty-org/guardduty-org-delete-detector-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        DeleteDetectorRoleName: !Sub "ddr-${ParentStackName}"
+        OrgPrimaryAccountId: !Ref "AWS::AccountId"
+
   AvailableServiceRegionsCustomResource:
     Condition: install_http_logs_source
     Type: Custom::GetAvailableServiceRegions
@@ -377,6 +391,7 @@ Resources:
     Type: Custom::GuardDuty
     DependsOn:
       - "GuardDutyDeleteDetectorRoleStackset"
+      - "GuardDutyDeleteDetectorRoleStack"
     Condition: install_http_logs_source
     Version: "1.0.1"
     Properties:
@@ -449,6 +464,9 @@ Resources:
       SumoDeployment: !Ref SumoDeployment
 
 Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName
 
   SumoEndpoint:
     Description: GuardDuty HTTP Endpoint
