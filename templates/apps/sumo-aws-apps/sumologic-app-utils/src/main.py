@@ -63,7 +63,6 @@ def delete(event, context):
 
 
 def handler(event, context):
-    print("Event %s" % event)
     if  event.get("source") == "aws.organizations":
         awsorgprocess.process_event_organizations(event=event)
     else:

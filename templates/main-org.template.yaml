@@ -85,6 +85,7 @@ Metadata:
       - Label:
           default: "4.2 Security Hub Service Configuration"
         Parameters:
+          - Section4SecurityHubHomeRegion
           - Section4SecurityHubRegionLinkingMode
           - Section4SecurityHubLinkedRegions
           - Section4SecurityHubSecurityStandards
@@ -220,6 +221,8 @@ Metadata:
         default: "Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics"
       Section4SecurityHubEnableSecurityHub:
         default: Enable Security Hub for the Regions
+      Section4SecurityHubHomeRegion:
+        default: AWS Security Hub home region
       Section4SecurityHubSecurityStandards:
         default: Standards in AWS Security Hub
       Section4SecurityHubRegionLinkingMode:
@@ -570,18 +573,50 @@ Parameters:
       - 'Yes'
       - 'No'
 
+  Section4SecurityHubHomeRegion:
+    Description:
+      "A region aggregator is configured within the Home region to aggregate findings from the configured regions, if more than one region is configured.
+      A parameter is provided to aggregate all configured Security Hub regions including any future regions."
+    Type: String 
+    Default: us-east-1
+    AllowedValues:
+      - 'us-east-1'
+      - 'us-east-2'
+      - 'us-west-1'
+      - 'us-west-2'
+      - 'af-south-1'
+      - 'ap-east-1'
+      - 'ap-south-1'
+      - 'ap-northeast-3'
+      - 'ap-northeast-2'
+      - 'ap-southeast-1'
+      - 'ap-southeast-2'
+      - 'ap-northeast-1'
+      - 'ca-central-1'
+      - 'eu-central-1'
+      - 'eu-west-1'
+      - 'eu-west-2'
+      - 'eu-south-1'
+      - 'eu-west-3'
+      - 'eu-north-1'
+      - 'me-south-1'
+      - 'sa-east-1'
+
   Section4SecurityHubSecurityStandards:
-    Type: String
+    Type: CommaDelimitedList
     Description: 
       "AWS Security Hub currently supports the security standards detailed in this section. 
       Choose a standard to view more details about it and the controls that apply to it. Comma delimited list of standards (e.g. FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0)
       Supports: FSBP_v1.0.0 (AWS Foundational Security Best Practices v1.0.0 standard), CIS_v1.2.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0 standard),
       CIS_v1.4.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0 standard), NIST_v5.0.0 (National Institute of Standards and Technology SP 800-53 Rev. 5)"
-    Default: "FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1"
+    Default: FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1
 
   Section4SecurityHubLinkedRegions:
     Default: us-east-2, us-west-1
-    Description: Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region.
+    Description: 
+      "Comma delimited list of regions.
+      If RegionLinkingMode is ALL_REGIONS_EXCEPT_SPECIFIED, then this is a space-separated list of Regions that do not aggregate findings to the aggregation Region.
+      If RegionLinkingMode is SPECIFIED_REGIONS, then this is a space-separated list of Regions that do aggregate findings to the aggregation Region."
     Type: String
 
   Section4SecurityHubRegionLinkingMode:
@@ -856,7 +891,7 @@ Resources:
         LogArchivingAccountRegion: !Ref Section1ToolingAndLoggingRegion
         OrganizationRootID: !Ref Section1OrganizationRootID
         CreateConfigRecorderRole: !If [ enable_aws_config, 'Yes','No' ]
-        ConfigRegions: !Sub '${Section4SecurityHubLinkedRegions},${Section6FirewallManagerPolicyRegions}'
+        ConfigRegions: !Sub '${Section4SecurityHubLinkedRegions},${Section6FirewallManagerPolicyRegions},${Section4SecurityHubHomeRegion}'
 
       
 #Stack for Firewall Manager
@@ -953,9 +988,10 @@ Resources:
         LinkedRegions: !Ref Section4SecurityHubLinkedRegions
         SecurityAccountId: !Ref Section1SecurityToolingAccountId
         SecurityStandards: !Ref Section4SecurityHubSecurityStandards
-        HttpLogsSourceName: !Sub "aws-quickstart-securityhub-${AWS::Region}"
+        HttpLogsSourceName: !Sub "aws-quickstart-securityhub-${Section4SecurityHubHomeRegion}"
         HttpLogsSourceCategoryName: !Ref Section4SecurityHubHttpLogsSourceCategoryName
         EnableForwardDataToCloudSIEM: !Ref Section4EnableForwardDataToCloudSIEM
+        HomeRegion: !Ref Section4SecurityHubHomeRegion
 
 
 #Stack for GuardDuty Configuration

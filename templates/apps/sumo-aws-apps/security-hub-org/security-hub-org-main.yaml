@@ -24,6 +24,7 @@ Metadata:
         Parameters:
           - SecurityAccountId
           - ConnectionName
+          - HomeRegion          
           - SecurityStandards
           - RegionLinkingMode
           - LinkedRegions
@@ -78,6 +79,8 @@ Metadata:
 
       SecurityAccountId:
         default: Security Account ID
+      HomeRegion:
+        default: AWS Security Hub home region
       SecurityStandards:
         default: Standards in AWS Security Hub
       RegionLinkingMode:
@@ -201,14 +204,43 @@ Parameters:
     MinLength: 12
     MaxLength: 12
 
+  HomeRegion:
+    Description:
+      "A region aggregator is configured within the Home region to aggregate findings from the configured regions, if more than one region is configured.
+      A parameter is provided to aggregate all configured Security Hub regions including any future regions."
+    Type: String 
+    Default: us-east-1
+    AllowedValues:
+      - 'us-east-1'
+      - 'us-east-2'
+      - 'us-west-1'
+      - 'us-west-2'
+      - 'af-south-1'
+      - 'ap-east-1'
+      - 'ap-south-1'
+      - 'ap-northeast-3'
+      - 'ap-northeast-2'
+      - 'ap-southeast-1'
+      - 'ap-southeast-2'
+      - 'ap-northeast-1'
+      - 'ca-central-1'
+      - 'eu-central-1'
+      - 'eu-west-1'
+      - 'eu-west-2'
+      - 'eu-south-1'
+      - 'eu-west-3'
+      - 'eu-north-1'
+      - 'me-south-1'
+      - 'sa-east-1'
+
   SecurityStandards:
-    Type: String
+    Type: CommaDelimitedList
     Description: 
       "AWS Security Hub currently supports the security standards detailed in this section. 
       Choose a standard to view more details about it and the controls that apply to it. Comma delimited list of standards (e.g. FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0)
       Supports: FSBP_v1.0.0 (AWS Foundational Security Best Practices v1.0.0 standard), CIS_v1.2.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0 standard),
       CIS_v1.4.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0 standard), NIST_v5.0.0 (National Institute of Standards and Technology SP 800-53 Rev. 5)"
-    Default: "FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1"
+    Default: FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1
 
   RegionLinkingMode:
     AllowedValues: [SPECIFIED_REGIONS, ALL_REGIONS, ALL_REGIONS_EXCEPT_SPECIFIED ]
@@ -223,7 +255,10 @@ Parameters:
     
   LinkedRegions:
     Default: us-east-2, us-west-1
-    Description: Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region.
+    Description: 
+      "Comma delimited list of regions.
+      If RegionLinkingMode is ALL_REGIONS_EXCEPT_SPECIFIED, then this is a space-separated list of Regions that do not aggregate findings to the aggregation Region.
+      If RegionLinkingMode is SPECIFIED_REGIONS, then this is a space-separated list of Regions that do aggregate findings to the aggregation Region."
     Type: String
 
   QSS3BucketName:
@@ -360,7 +395,7 @@ Resources:
         - 'CAPABILITY_AUTO_EXPAND'
       StackInstancesGroup:
         - Regions:
-          - !Ref 'AWS::Region'
+          - !Ref HomeRegion
           DeploymentTargets:
             Accounts:
               - !Ref SecurityAccountId
@@ -381,7 +416,7 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       accountID: !Ref SecurityAccountId
       roleName: !Ref ExecutionRoleRuleName
-      region: !Ref AWS::Region
+      region: !Ref HomeRegion
       stackName:  !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
       outputKey: 'oSecurityHubSecretAccessKey'
 
@@ -394,7 +429,7 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       accountID: !Ref SecurityAccountId
       roleName: !Ref ExecutionRoleRuleName
-      region: !Ref AWS::Region
+      region: !Ref HomeRegion
       stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
       outputKey: 'oSecurityHubUserKey'
 
@@ -407,7 +442,7 @@ Resources:
       ServiceToken: !Ref ParentHelperFunctionArn
       accountID: !Ref SecurityAccountId
       roleName: !Ref ExecutionRoleRuleName
-      region: !Ref AWS::Region
+      region: !Ref HomeRegion
       stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
       outputKey: 'oSecurityHubForwarderApiUrl'
 
@@ -419,12 +454,12 @@ Resources:
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
       Type: "WebhookDefinition"
-      Name: !Sub '${ConnectionName}-${AWS::Region}'
+      Name: !Sub '${ConnectionName}-${HomeRegion'
       Description: "Webhook Lambda connection for SecurityHub"
       URL: !GetAtt SumoSecurityHubForwarderApiUrl.ARN
       UserName: !GetAtt SumoSecurityHubUserKey.ARN
       Password: !GetAtt SumoSecurityHubSecretAccessKey.ARN
-      Region: !Ref "AWS::Region"
+      Region: !Ref HomeRegion
       ServiceName: 'execute-api'
       WebhookType: 'AWSLambda'
       SumoAccessID: !Ref SumoAccessID
@@ -436,7 +471,7 @@ Resources:
     Condition: install_sumo_security_hub_app
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
-      Region: !Ref "AWS::Region"
+      Region: !Ref HomeRegion
       AppName: "Amazon QuickStart - AWS Security Hub"
       AppId: "246cf87b-99b6-47cb-bde0-3fe1cb76c6b4"
       RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
@@ -452,7 +487,7 @@ Resources:
     Condition: install_sumo_security_hub_cloud_security_monitoring_and_analytics_app  
     Properties:
       ServiceToken: !Ref ParentHelperFunctionArn
-      Region: !Ref "AWS::Region"
+      Region: !Ref HomeRegion
       AppName: "Amazon QuickStart - AWS Security Hub - Cloud Security Monitoring and Analytics"
       AppId: "a0c8257c-b1eb-4dac-8ce9-6d5f2cf09aea"
       RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
@@ -534,7 +569,7 @@ Resources:
       SECURITY_STANDARDS: !Ref SecurityStandards
       ORGANIZATION_ROOT_ID: !Ref OrganizationRootID
       DISABLE_SECURITY_HUB: 'false'
-      HOME_REGION: !Ref AWS::Region
+      HOME_REGION: !Ref HomeRegion
 
 Outputs:
   ParentStackName:
