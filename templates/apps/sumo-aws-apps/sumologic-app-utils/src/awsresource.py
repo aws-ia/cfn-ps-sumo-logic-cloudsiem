@@ -1284,7 +1284,8 @@ class AWSSecurityHub(AWSResource):
             else:
                 for region in list(linked_regions.strip().split(",")):
                     if region.strip() in list_region:
-                        list_linked_region.append(region.strip())
+                        if region.strip()!= home_region:
+                            list_linked_region.append(region.strip())
                 if len(list_linked_region)<1:
                     raise ValueError("Linked Regions for SecurityHub not null")       
         try:
@@ -1522,7 +1523,8 @@ class AWSSecurityHub(AWSResource):
                 else:
                     for region in list(linked_regions.strip().split(",")):
                         if region.strip() in list_region:
-                            list_linked_region.append(region.strip())
+                            if region.strip()!= home_region:
+                                list_linked_region.append(region.strip())
                     if len(list_linked_region)<1:
                         raise ValueError("Linked Regions for SecurityHub not null")
                     
