@@ -36,6 +36,7 @@ tests:
 
       Section3CloudTrailRegion: "us-east-2"
       Section3EnableAWSCloudTrail: "Yes"
+      # Section3CloudTrailExistsS3BucketName: "" not required if Section3CreateCloudTrailS3Bucket: "Yes"
       Section3InstallPCICloudTrailApp: "Yes"
       Section3InstallCISFoundationApp: "Yes"
       Section3InstallCloudTrailMonitoringAnalyticsApp: "Yes"
