@@ -606,7 +606,7 @@ Resources:
         Bucket: !Sub
                 - "${S3Bucket}"
                 - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-        Key: !Sub "${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/sumologic-app-utils/sumo_app_utils.zip"
+        Key: !Sub "${QSS3KeyPrefix}templates/apps/sumo-aws-apps/sumologic-app-utils/sumo_app_utils.zip"
       MemorySize: 512
       Timeout: 900
       DeadLetterQueue:
@@ -652,7 +652,7 @@ Resources:
               OrganizationalUnitIds:
                 - !Ref OrganizationRootID
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-trust-all.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-trust-all.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
 
@@ -679,7 +679,7 @@ Resources:
             Accounts:
               - !Ref SecurityToolingAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-delivery-kms-key.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-delivery-kms-key.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -713,7 +713,7 @@ Resources:
             Accounts:
               - !Ref SecurityToolingAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-configuration-role.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-configuration-role.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -764,7 +764,7 @@ Resources:
             Accounts:
               - !Ref LoggingAccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-delivery-s3-bucket.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-delivery-s3-bucket.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -906,7 +906,7 @@ Resources:
             Accounts:
               - !Ref AWS::AccountId
       TemplateURL: !Sub
-        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}${QSVersion}/templates/apps/sumo-aws-apps/common-org/common-org-global-events.yaml'
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-global-events.yaml'
         - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
           S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
