@@ -1,5 +1,5 @@
 project:
-  name: cfn-ps-sumo-logic-cloudsiem/2
+  name: cfn-ps-sumo-logic-cloudsiem
   shorten_stack_name: true
   s3_regional_buckets: true
   regions:
@@ -16,10 +16,10 @@ tests:
       QSS3BucketName:  "$[taskcat_autobucket_prefix]"
       QSS3BucketRegion: "us-east-2"
       QSVersion: "2"
-      # Section1SumoLogicDeployment: "us1"
-      # Section1SumoLogicAccessID: ""
-      # Section1SumoLogicAccessKey: ""
-      # Section1SumoLogicOrganizationId: ""
+      Section1SumoLogicDeployment: "us2"
+      Section1SumoLogicAccessID: $[taskcat_ssm_/sumologic/Section1SumoLogicAccessID]
+      Section1SumoLogicAccessKey: $[taskcat_ssm_/sumologic/Section1SumoLogicAccessKey]
+      Section1SumoLogicOrganizationId: $[taskcat_ssm_/sumologic/Section1SumoLogicOrganizationId]
       Section1SecurityToolingAccountId: ""
       Section1ToolingAndLoggingRegion: "us-east-2"
       Section1LogArchivingAccountId: ""
