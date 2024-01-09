@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Create an IAM role for deleting the GuardDuty detector. (qs-1sfibuua3)
+Description: Create an IAM role for deleting the GuardDuty detector. (qs-1urq14hsq)
 
 Metadata:
   cfn-lint:

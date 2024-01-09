@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: 'AWS::Serverless-2016-10-31'
-Description: This solution consists of a lambda function which which gets triggered by CloudWatch events with findings as payload which are then ingested to Sumo Logic via S3 source. (qs-1t29c9726)
+Description: This solution consists of a lambda function which which gets triggered by CloudWatch events with findings as payload which are then ingested to Sumo Logic via S3 source. (qs-1urq28kag)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -23,7 +23,7 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:us-east-1:956882708938:applications/sumologic-securityhub-forwarder
-        SemanticVersion: 1.0.7
+        SemanticVersion: 1.0.10
         
   SecurityHubUserKey:
     Type: AWS::IAM::AccessKey
@@ -35,7 +35,7 @@ Resources:
     Type: AWS::IAM::Group
     Properties:
       ManagedPolicyArns:
-      - !Sub arn:${AWS::Partition}:iam::aws:policy/ReadOnlyAccess
+      - !Sub "arn:${AWS::Partition}:iam::aws:policy/ReadOnlyAccess"
       Policies:
         - PolicyName: apigatewayaccess
           PolicyDocument:
@@ -43,7 +43,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: execute-api:Invoke
-                Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/POST/findings  
+                Resource: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/POST/findings"
                     
   SecurityHubUser:
     Type: AWS::IAM::User
@@ -66,7 +66,7 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:us-east-1:956882708938:applications/sumologic-securityhub-connector-aws-org
-        SemanticVersion: 1.0.0
+        SemanticVersion: 1.0.5
       Parameters: 
         SumoEndpoint: !Ref SumoEndpoint  
       

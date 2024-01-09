@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
-Description: Builds a Firewall Manager WAF v2, Network Firewall policy and deploys it . (qs-1t29c971t)
+Description: Builds a Firewall Manager WAF v2, Network Firewall policy and deploys it . (qs-1urq1345n)
 
 Parameters:
   CreateDeliveryStream:
@@ -22,6 +22,9 @@ Parameters:
   DeliveryStreamName:
     Type: String
     Description: "Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name"
+    Default: "sumologic"
+    AllowedPattern: "[a-zA-Z0-9._-]+"
+    MaxLength: 36
 
   SumoLogicKinesisLogsURL:
     Type: String
@@ -35,7 +38,9 @@ Parameters:
 
 Conditions:
   cCreateCFRuleGroup: !Equals [!Ref "AWS::Region", "us-east-1"]
-  create_delivery_stream: !Equals [!Ref CreateDeliveryStream, 'Yes']
+  create_delivery_stream: !And 
+    - !Equals [!Ref CreateDeliveryStream, 'Yes']
+    - !Not [!Equals [!Ref "DeliveryStreamName", ""]]
 
 Resources:
 
@@ -133,7 +138,7 @@ Resources:
           ErrorOutputPrefix: "SumoLogic-Kinesis-Failed-Logs/"
           RoleARN: !GetAtt KinesisRole.Arn
 
-  rFmsRegionalWafDefaultPolicy:
+  rFmsRegionalWafDefaultPolicy:   
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-${ParentStackName}-policy'
@@ -199,7 +204,7 @@ Resources:
                 - ''
             
 
-  rFmsCloudFrontDefaultPolicy:
+  rFmsCloudFrontDefaultPolicy:   
     Type: AWS::FMS::Policy
     Condition: cCreateCFRuleGroup
     Properties:
@@ -262,7 +267,7 @@ Resources:
                     - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
                 - ''
           
-  rFmsRegionalWafWindowsPolicy:
+  rFmsRegionalWafWindowsPolicy:  
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-windows-${ParentStackName}-policy'
@@ -305,7 +310,7 @@ Resources:
                     - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
                 - ''
  
-  rFmsRegionalWafLinuxPolicy:
+  rFmsRegionalWafLinuxPolicy: 
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-linux-${ParentStackName}-policy'
@@ -348,7 +353,7 @@ Resources:
                     - KinesisFirehoseDeliveryStreamArn: !If [create_delivery_stream, !GetAtt KinesisFirehoseDeliveryStream.Arn ,''] 
                 - ''
   
-  rFmsRegionalWafPosixPolicy:
+  rFmsRegionalWafPosixPolicy:   
     Type: AWS::FMS::Policy
     Properties:
       PolicyName: !Sub 'fms-sumo-regional-waf-posix-${ParentStackName}-policy'
@@ -401,7 +406,7 @@ Resources:
       ExcludeResourceTags: false
       ResourceTags:
         - Key: sumo-awsqs-nf-policy
-          Value: nework-firewall
+          Value: network-firewall
       ResourceType: AWS::EC2::VPC
       SecurityServicePolicyData:
         Type: NETWORK_FIREWALL

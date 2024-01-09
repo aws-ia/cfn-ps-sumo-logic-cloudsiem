@@ -72,7 +72,8 @@ class SumoLogic(object):
 
     def put(self, method, params, headers=None, version=DEFAULT_VERSION):
         endpoint = self.get_versioned_endpoint(version)
-        r = self.session.put(endpoint + method, data=json.dumps(params), headers=headers)
+        r = self.session.put(endpoint + method, data=json.dumps(params), headers=headers,timeout=120) # 120 seconds 
+        print("status code:", r.status_code)
         if 400 <= r.status_code < 600:
             r.reason = r.text
         r.raise_for_status()

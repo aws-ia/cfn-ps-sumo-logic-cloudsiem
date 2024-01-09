@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: "Template to setup the AWS CloudTrail, PCI Compliance For AWS CloudTrail, CIS AWS Foundations Benchmark, Sumo Cloud Security Monitoring and Analytics For AWS CloudTrail, Sumo Global Intelligence for AWS CloudTrail SecOps app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu6s)"
+Description: "Template to setup the AWS CloudTrail, PCI Compliance For AWS CloudTrail, CIS AWS Foundations Benchmark, Sumo Cloud Security Monitoring and Analytics For AWS CloudTrail, Sumo Global Intelligence for AWS CloudTrail SecOps app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq0spnu)"
 
 Metadata:
   cfn-lint:
@@ -196,7 +196,7 @@ Resources:
       AppId: "924d7e2a-a14a-4b11-8c91-133241be2a51"
       RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
       AppSources:
-        CloudtrailLogSrc: !Sub "_sourceCategory=${CloudTrailLogsSourceCategoryName}"
+        logsrc: !Sub "_sourceCategory=${CloudTrailLogsSourceCategoryName}"
       SumoAccessID: !Ref SumoAccessID
       SumoAccessKey: !Ref SumoAccessKey
       SumoDeployment: !Ref SumoDeployment

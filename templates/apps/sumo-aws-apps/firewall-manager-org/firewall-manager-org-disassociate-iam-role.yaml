@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 ########################################################################
 AWSTemplateFormatVersion: 2010-09-09
-Description: Create an IAM role to disassociate the administrator account (qs-1t29c96s5)
+Description: Create an IAM role to disassociate the administrator account (qs-1urq10qd6)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -45,12 +45,6 @@ Resources:
   FMSDisassociateRole: 
     Type: AWS::IAM::Role
     Metadata:
-      cfn-lint:
-        config:
-          ignore_checks:
-            - EIAMPolicyWildcardResource 
-          ignore_reasons:
-            EIAMPolicyWildcardResource: Need this # Parameter is not sentence case
       cfn_nag:
         rules_to_suppress:
           - id: W11
@@ -86,9 +80,14 @@ Resources:
                 Sid: AllowFMSDisassociateAdminAccount
 
               - Action:
-                  - organizations:DescribeAccount
                   - organizations:DescribeOrganization
                   - organizations:ListAccounts
                 Effect: Allow
                 Resource: "*"
                 Sid: OrganizationAccess
+
+              - Action:
+                  - organizations:DescribeAccount
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:organizations::*:account/*/*
+                Sid: OrganizationDescribeAccount
