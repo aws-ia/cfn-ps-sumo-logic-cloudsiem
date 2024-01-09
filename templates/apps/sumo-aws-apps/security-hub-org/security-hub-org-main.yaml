@@ -470,7 +470,7 @@ Resources:
       AppId: "246cf87b-99b6-47cb-bde0-3fe1cb76c6b4"
       RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
       AppSources:
-        findingSrc:
+        securityHubSrc:
           !Sub "_sourceCategory=${HttpLogsSourceCategoryName}"
       SumoAccessID: !Ref SumoAccessID
       SumoAccessKey: !Ref SumoAccessKey
