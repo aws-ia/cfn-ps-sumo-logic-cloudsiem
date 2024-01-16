@@ -1,5 +1,5 @@
 
-.Sumo Logic configuration
+.1.1 Sumo Logic configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Sumo Logic deployment location
@@ -9,7 +9,7 @@
 (`Section1SumoLogicOrganizationId`)|`**__Requires input__**`|Enter your Sumo Logic organization ID, which you can find in the Sumo Logic console, under Account.|Delete Sumo Logic resources when stack is deleted
 (`Section1SumoLogicResourceRemoveOnDeleteStack`)|`true`|Choose "false" if you do not want to remove the collector, sources, and Sumo Logic apps when the stack is deleted.
 |===
-.AWS Organizations configuration
+.1.2 AWS Organizations configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Security-tooling account ID
@@ -19,14 +19,14 @@
 (`Section1OrganizationRootID`)|`**__Requires input__**`|Enter the ID for your organization root. This string requires r- followed by from 4 to 32 lowercase letters or digits.
 
 |===
-.GuardDuty app configuration
+.2.1 GuardDuty app configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Install Sumo Logic Global Intelligence for Amazon GuardDuty
 (`Section2InstallSumoGlobalGuardDutyApp`)|`Yes`|Choose No to skip installation of the app Global Intelligence for Amazon GuardDuty in the Sumo Logic for AWS Quick Start.|Install Sumo Logic Cloud Security Monitoring and Analytics for Amazon GuardDuty
 (`Section2InstallSumoCloudSecurityMonitoringandAnalyticsGuardDutyApp`)|`Yes`|Choose No to skip installation of the app Cloud Security Monitoring and Analytics for Amazon GuardDuty in Sumo Logic for AWS Quick Start.
 |===
-.GuardDuty service configuration
+.2.2 GuardDuty service configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Finding publishing frequency
@@ -34,7 +34,7 @@
 (`Section2AdditionalConfigurationFeatures`)|`**__Blank string__**`|Comma delimited list of features to enable. Leave blank to enable all features.|GuardDuty Regions
 (`Section2GuardDutyRegions`)|`us-east-1,us-east-2`|Comma-delimited list of AWS Regions to enable GuardDuty.
 |===
-.GuardDuty Sumo log source configuration
+.2.3 GuardDuty Sumo log source configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Create Sumo Logic HTTP logs source
@@ -42,7 +42,7 @@
 (`Section2EnableForwardDataToCloudSIEM`)|`Yes`|Yes -> Enabled forward data to CloudSIEM. No -> Skip enable forward.|Sumo Logic HTTP logs source category name
 (`Section2GuardDutyHttpLogsSourceCategoryName`)|`aws/quickstart/guardduty/logs`|Required when Section2GuardDutyCreateHttpLogsSource is set to No. Provide an existing source category name from the GuardDuty logs. This is used for app installation.
 |===
-.CloudTrail service configuration
+.3.1 CloudTrail service configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|CloudTrail Region in management account
@@ -50,7 +50,7 @@
 (`Section3EnableAWSCloudTrail`)|`Yes`|Choose No to skip enable of the CloudTrail Org on AWS.|Disassociate admin account in CloudTrail Org when stack is deleted
 (`Section3DisassociateAdminAccountOnDeleteStack`)|`false`|To disassociate admin account in CloudTrail Org when stack is deleted, set this parameter to true. Default is false. Disassociate admin account in CloudTrail Org will be skipped.
 |===
-.CloudTrail app configuration
+.3.2 CloudTrail app configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Install Sumo Logic PCI compliance for AWS CloudTrail app
@@ -59,20 +59,20 @@
 (`Section3InstallCloudTrailMonitoringAnalyticsApp`)|`Yes`|Choose No to skip installation of the app AWS CloudTrail - Sumo Cloud Security Monitoring and Analytics.|Install Sumo Global Intelligence for AWS CloudTrail SecOps app
 (`Section3InstallCloudTrailSecOpsApp`)|`Yes`|Choose No to skip installation of the app Sumo Global Intelligence for AWS CloudTrail SecOps.
 |===
-.CloudTrail Sumo log source configuration
+.3.3 CloudTrail Sumo log source configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Create Sumo Logic S3 logs source for CloudTrail
 (`Section3CloudTrailCreateS3LogsSource`)|`Yes`|Choose No to skip creation of the Sumo Logic S3 log source to collect CloudTrail logs.|Path expression for logs
 (`Section3CloudTrailBucketPathExpression`)|`CloudTrail/AWSLogs/*`|The path expression must match the folder structure for CloudTrail logs (e.g., AWSLogs/*/CloudTrail/*).|Sumo Logic CloudTrail logs source category name
-(`Section3CloudTrailLogsSourceCategoryName`)|`AWS/Cloudtrail/Logs`|Required when the flag is set to No. Provide the name of an existing Sumo Logic source category that's collecting CloudTrail logs. This is also used for Threat Intel for AWS app installation.|Forward Data To CloudSIEM
+(`Section3CloudTrailLogsSourceCategoryName`)|`aws/quickstart/cloudtrail/logs`|Required when the flag is set to No. Provide the name of an existing Sumo Logic source category that's collecting CloudTrail logs. This is also used for Threat Intel for AWS app installation.|Forward Data To CloudSIEM
 (`Section3EnableForwardDataToCloudSIEM`)|`Yes`|Yes -> Enabled forward data to CloudSIEM. No -> Skip enable forward.
 |===
-.CloudTrail S3 bucket configuration
+.3.4 CloudTrail S3 bucket configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Create an S3 bucket for CloudTrail logs
-(`Section3CreateCloudTrailS3Bucket`)|`No`|Choose Yes to create an S3 bucket for CloudTrail logs.|Name of existing S3 bucket that contains the CloudTrail logs
+(`Section3CreateCloudTrailS3Bucket`)|`Yes`|Choose Yes to create an S3 bucket for CloudTrail logs.|Name of existing S3 bucket that contains the CloudTrail logs
 (`Section3CloudTrailExistsS3BucketName`)|`**__Blank string__**`|Required when the flag is set to No. Provide the name of an existing S3 bucket that contains CloudTrail logs. The existing bucket must be in same AWS Region as the log-archiving account.|Delivery bucket prefix
 (`Section1DeliveryBucketPrefix`)|`logs-delivery`|Log delivery S3 bucket prefix.
 
@@ -81,7 +81,7 @@
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Enable Security Hub for the Regions
-(`Section4SecurityHubEnableSecurityHub`)|`No`|Yes -> Security Hub must be enabled in AWS for AWS Quick Start Solution. No -> Skip enable of the app.|Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics
+(`Section4SecurityHubEnableSecurityHub`)|`Yes`|Yes -> Security Hub must be enabled in AWS for AWS Quick Start Solution. No -> Skip enable of the app.|Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics
 (`Section4SecurityHubInstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp`)|`Yes`|Yes -> To Install AWS Security Hub - Cloud Security Monitoring and Analytics in Sumo Logic for AWS Quick Start Solution. No -> Skip Installation of the app.
 |===
 .4.2 Security Hub Service Configuration
@@ -145,7 +145,7 @@
 |===
 |Parameter label (name) |Default value|Description|Create Sumo Logic Amazon S3 Logs Source for Network Firewall
 (`Section6CreateS3Source`)|`Yes`|Yes - to create Sumo Logic Amazon S3 Log Source with provided bucket Name. No - to skip creation of the Sumo Logic Amazon S3 Log Source.|Sumo Logic Amazon S3 Logs Source Category Name for Network Firewall
-(`Section6S3SourceCategoryName`)|`AWS/NFW/Logs`|Existing - Change to an existing Source Category from Sumo Logic if Amazon S3 Source is not created. New - Default will be used if Amazon S3 Source is Created.
+(`Section6S3SourceCategoryName`)|`aws/quickstart/nfw/logs`|Existing - Change to an existing Source Category from Sumo Logic if Amazon S3 Source is not created. New - Default will be used if Amazon S3 Source is Created.
 |===
 .6.7 Firewall Manager - S3 Bucket Configuration
 [width="100%",cols="16%,11%,73%",options="header",]
