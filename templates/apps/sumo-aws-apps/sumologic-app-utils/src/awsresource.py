@@ -843,7 +843,7 @@ class AWSConfig(AWSResource):
         account_session = self.assume_role(config_assume_role_name, f"sumo-aws-config-recorder-check-{self.ID}", account_id)
 
         for region in regions:
-            session_config = account_session.client("config", region_name=region, config=self.BOTO3_CONFIG)
+            session_config: ConfigServiceClient = account_session.client("config", region_name=region, config=self.BOTO3_CONFIG)
             resource_groups_client = account_session.client('resource-groups',region_name=region, config=self.BOTO3_CONFIG)
             config_recorder_response = session_config.describe_configuration_recorder_status()
             logger.debug(f'config recorder response:{config_recorder_response}')
@@ -947,15 +947,54 @@ class AWSConfig(AWSResource):
                                 bucket_name = channel["s3BucketName"] if "s3BucketName" in channel else None
                                 break
                         if bucket_name==None:
-                            response = session_config.put_delivery_channel(
-                                DeliveryChannel={
-                                    "name":"default",
-                                    "s3BucketName": f"{ConfigBucket}",
-                                    "configSnapshotDeliveryProperties": {
-                                        "deliveryFrequency":f"{Frequency}"
+                            try:
+                                response = session_config.put_delivery_channel(
+                                    DeliveryChannel={
+                                        "name":"default",
+                                        "s3BucketName": f"{ConfigBucket}",
+                                        "configSnapshotDeliveryProperties": {
+                                            "deliveryFrequency":f"{Frequency}"
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            except session_config.exceptions.InsufficientDeliveryPolicyException as error:
+                                if AllSupported:
+                                    ConfigurationRecorder={
+                                        "name":'default',
+                                        "roleARN": f"{RoleARN}" ,
+                                        "recordingGroup":{
+                                            "allSupported": AllSupported,
+                                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes
+                                        }
+                                    }
+                                else:
+                                    ConfigurationRecorder={
+                                        "name":'default',
+                                        "roleARN": f"{RoleARN}" ,
+                                        "recordingGroup":{
+                                            "allSupported": AllSupported,
+                                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes,
+                                            "resourceTypes": [
+                                                    ResourceTypes
+                                            ]
+                                        }
+                                    } 
+
+                                response = session_config.put_configuration_recorder(
+                                    ConfigurationRecorder = ConfigurationRecorder                 
+                                )                                
+                                response = session_config.put_delivery_channel(
+                                    DeliveryChannel={
+                                        "name":"default",
+                                        "s3BucketName": f"{ConfigBucket}",
+                                        "configSnapshotDeliveryProperties": {
+                                            "deliveryFrequency":f"{Frequency}"
+                                        }
+                                    }
+                                )
+                            except ClientError as error:
+                                logging.error(f"AWS Config error: {error}")
+                                raise
                             resource_groups_response = resource_groups_client.tag(
                                 Arn=f"{resource_group_arn}",
                                 Tags={
