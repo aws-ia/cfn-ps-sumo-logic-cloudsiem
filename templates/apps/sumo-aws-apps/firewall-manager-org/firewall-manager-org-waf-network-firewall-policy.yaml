@@ -406,7 +406,7 @@ Resources:
       ExcludeResourceTags: false
       ResourceTags:
         - Key: sumo-awsqs-nf-policy
-          Value: nework-firewall
+          Value: network-firewall
       ResourceType: AWS::EC2::VPC
       SecurityServicePolicyData:
         Type: NETWORK_FIREWALL

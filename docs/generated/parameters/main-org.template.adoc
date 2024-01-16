@@ -87,11 +87,13 @@
 .4.2 Security Hub Service Configuration
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
-|Parameter label (name) |Default value|Description|AWS Security Hub aggregation region
-(`Section4SecurityHubAggregationRegion`)|`us-east-1`|A region aggregator is configured within the Home region to aggregate findings from the configured regions, if more than one region is configured. A parameter is provided to aggregate all configured Security Hub regions including any future regions.|Region Linking Mode
-(`Section4SecurityHubRegionLinkingMode`)|`SPECIFIED_REGIONS`|If RegionLinkedMode is ALL_REGIONS, then Security Hub aggregates data from all Regions. Security Hub also aggregates data from new Regions as they are supported and you opt into them. If RegionLinkingMode is SPECIFIED_REGIONS, then enter comma separated list of regions from where Security Hub aggregates findings to the aggregation Region. Security Hub does not aggregate data automatically from new Regions.|Linked Regions
-(`Section4SecurityHubLinkedRegions`)|`us-east-2, us-west-1`|Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region. Required if the RegionLinkedMode is SPECIFIED_REGIONS.|Standards in AWS Security Hub
-(`Section4SecurityHubSecurityStandards`)|`FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1`|AWS Security Hub currently supports the security standards detailed in this section. Choose a standard to view more details about it and the controls that apply to it. Comma delimited list of standards (e.g. FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0) Supports: FSBP_v1.0.0 (AWS Foundational Security Best Practices v1.0.0 standard), CIS_v1.2.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0 standard), CIS_v1.4.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0 standard), NIST_v5.0.0 (National Institute of Standards and Technology SP 800-53 Rev. 5)
+|Parameter label (name) |Default value|Description|Regions to Enable
+(`Section4SecurityHubRegionsToEnable`)|`us-east-1,us-east-2`|Comma delimited list of regions to enable Security Hub.|Region Linking Mode
+(`Section4SecurityHubRegionLinkingMode`)|`SPECIFIED_REGIONS`|Indicates whether to aggregate findings from all of the available Regions in the current partition. Also determines whether to automatically aggregate findings from new Regions as Security Hub supports them and you opt into them.|Linked Regions
+(`Section4SecurityHubLinkedRegions`)|`us-east-2, us-west-1`|Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region.|Enable CIS AWS Foundations Benchmark v1.2.0
+(`Section4SecurityHubEnableCISStandard`)|`true`|CIS AWS Foundations Standard|Enable PCI DSS v3.2.1
+(`Section4SecurityHubEnablePCIStandard`)|`true`|Payment Card Industry Data Security Standard (PCI DSS)|Enable AWS Foundational Security Best Practices v1.0.0
+(`Section4SecurityHubEnableSBPStandard`)|`true`|Security Best Practices Standard
 |===
 .4.3 Security Hub Sumo Log Source configuration
 [width="100%",cols="16%,11%,73%",options="header",]
@@ -135,7 +137,7 @@
 |===
 |Parameter label (name) |Default value|Description|Create a Kinesis Firehose Delivery Stream Source for WAF
 (`Section6CreateDeliveryStreamSource`)|`Yes`|Yes - to create Kinesis Delivery Stream Source for WAF No - to skip creation Kinesis Delivery Stream.|Sumo Logic AWS Kinesis Firehose Logs WAF Source Category Name
-(`Section6DeliveryStreamSourceCategoryName`)|`aws/quickstart/waf/logs`|Existing - Change to an existing Source Category from Sumo Logic if AWS Kinesis Firehose Source is not created. New - Default will be used if AWS Kinesis Firehose Source is Created.|Amazon Kinesis Data Firehose delivery stream name
+(`Section6DeliveryStreamSourceCategoryName`)|`AWS/WAF/Logs`|Existing - Change to an existing Source Category from Sumo Logic if AWS Kinesis Firehose Source is not created. New - Default will be used if AWS Kinesis Firehose Source is Created.|Amazon Kinesis Data Firehose delivery stream name
 (`Section6DeliveryStreamName`)|`sumologic`|Amazon Kinesis Data Firehose (Kinesis Data Firehose) delivery stream Name
 |===
 .6.6 Firewall Manager Details - S3 Source Network Firewall Configuration
@@ -164,8 +166,8 @@
 [width="100%",cols="16%,11%,73%",options="header",]
 |===
 |Parameter label (name) |Default value|Description|Quick Start S3 bucket name
-(`QSS3BucketName`)|`aws-ia`|Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See https://aws-quickstart.github.io/option1.html.|Quick Start S3 key prefix
-(`QSS3KeyPrefix`)|`cfn-ps-sumo-logic-cloudsiem/`|S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). End with a forward slash. See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html and https://aws-quickstart.github.io/option1.html.|Quick Start S3 bucket Region
+(`QSS3BucketName`)|`aws-quickstart`|Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See https://aws-quickstart.github.io/option1.html.|Quick Start S3 key prefix
+(`QSS3KeyPrefix`)|`quickstart-sumo-logic-cloudsiem/`|S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). End with a forward slash. See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html and https://aws-quickstart.github.io/option1.html.|Quick Start S3 bucket Region
 (`QSS3BucketRegion`)|`us-east-1`|The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.|Quick Start Version
-(`QSVersion`)|`2`|Version of the Quick Start. Do not change.
+(`QSVersion`)|`1.1`|Version of the Quick Start. Do not change.
 |===

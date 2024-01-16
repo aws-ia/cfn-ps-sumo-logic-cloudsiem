@@ -13,7 +13,7 @@ BUCKET := $(BUCKET_PREFIX)-$(AWS_REGION)
 S3_KEY_PREFIX := cfn-ps-sumo-logic-cloudsiem
 
 # S3 Location
-S3_TEMPLATES := s3://$(BUCKET)/$(S3_KEY_PREFIX)/$(CF_VERSION)/templates
+S3_TEMPLATES := s3://$(BUCKET)/$(S3_KEY_PREFIX)/templates
 
 # Sync options (Add --exclude '*.zip' if you don't want to upload lambda)
 AWS_PROFILE = prod
