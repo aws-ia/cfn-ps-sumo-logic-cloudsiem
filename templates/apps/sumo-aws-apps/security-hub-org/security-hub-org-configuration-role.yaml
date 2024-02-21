@@ -87,26 +87,52 @@ Resources:
                 - !Sub arn:${AWS::Partition}:iam::${ManagementAccountId}:root
       Path: '/'
       Policies:
-        - PolicyName: !Sub 'sra-securityhub-org-policy-organizations-${ParentStackName}'
+        - PolicyName: !Sub 'sra-securitybub-service-role-policy-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Sid: OrganizationsListAccounts
-                Effect: Allow
-                Action: organizations:ListAccounts
-                Resource: '*'
-
-        - PolicyName: !Sub 'sra-securityhub-org-policy-config-${ParentStackName}'
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Sid: AllowConfigDescribeActions
+              - Sid: SecurityHubServiceRolePermissions
                 Effect: Allow
                 Action:
-                  - config:DescribeConfigurationRecorderStatus
+                  - cloudtrail:DescribeTrails
+                  - cloudwatch:DescribeAlarmsForMetric
                   - config:DescribeConfigurationRecorders
+                  - config:DescribeConfigurationRecorderStatus
+                  - config:BatchGetResourceConfig
+                  - config:SelectResourceConfig
+                  - iam:GenerateCredentialReport
+                  - organizations:ListAccounts
+                  - config:PutEvaluations
+                  - tag:GetResources
+                  - iam:GetCredentialReport
+                  - organizations:DescribeOrganization
+                  - organizations:ListAWSServiceAccessForOrganization
                 Resource: '*'
-
+              - Sid: SecurityHubServiceRoleConfigPermissions
+                Effect: Allow
+                Action:
+                  - config:PutConfigRule
+                  - config:DeleteConfigRule
+                  - config:GetComplianceDetailsByConfigRule
+                Resource: !Sub 'arn:${AWS::Partition}:config:*:*:config-rule/aws-service-rule/*securityhub*'
+              - Sid: SecurityHubServiceRoleOrganizationsPermissions
+                Effect: Allow
+                Action:
+                  - cloudtrail:GetTrailStatus
+                  - cloudtrail:GetEventSelectors
+                  - cloudwatch:DescribeAlarms                
+                  - logs:DescribeMetricFilters
+                  - sns:ListSubscriptionsByTopic                
+                  - config:DescribeConfigRules
+                  - config:DescribeConfigRuleEvaluationStatus                
+                  - organizations:DescribeAccount                
+                  - organizations:ListChildren                
+                  - organizations:DescribeOrganizationalUnit                
+                  - organizations:ListDelegatedAdministrators
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    organizations:ServicePrincipal: securityhub.amazonaws.com                                                                                                                                              
         - PolicyName: !Sub 'sra-securityhub-org-policy-securityhub-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
@@ -136,6 +162,18 @@ Resources:
                   - securityhub:StartConfigurationPolicyDisassociation
                   - securityhub:ListConfigurationPolicies
                   - securityhub:CreateConfigurationPolicy
+                  - securityhub:BatchUpdateStandardsControlAssociations
+                  - securityhub:BatchGetSecurityControls
+                  - securityhub:BatchGetStandardsControlAssociations
+                  - securityhub:DescribeHub
+                  - securityhub:DescribeOrganizationConfiguration
+                  - securityhub:DescribeStandards
+                  - securityhub:DescribeStandardsControls
+                  - securityhub:DisassociateFromAdministratorAccount
+                  - securityhub:ListStandardsControlAssociations
+                  - securityhub:ListSecurityControlDefinitions
+                  - securityhub:UpdateSecurityControl
+                  - securityhub:UpdateStandardsControl                   
                 Resource:
                   - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
                   - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
