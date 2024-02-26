@@ -873,6 +873,8 @@ p.footer-text a{color:#d7d8d8}
 <li><a href="#_if_using_an_existing_s3_bucket">If using an existing S3 bucket</a></li>
 <li><a href="#_view_the_sumo_logic_dashboards">View the Sumo Logic dashboards</a></li>
 <li><a href="#_firewall_manager_security_group">Firewall Manager security group</a></li>
+<li><a href="#_aws_firewall_manager_managed_network_firewall_policies">AWS Firewall Manager​ managed Network Firewall policies</a></li>
+<li><a href="#_aws_firewall_manager_managed_waf_policies">AWS Firewall Manager​ managed WAF policies</a></li>
 <li><a href="#_kinesis_data_firehose_delivery_stream">Kinesis Data Firehose delivery stream</a></li>
 </ul>
 </li>
@@ -1257,6 +1259,267 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 </div>
 </div>
 <div class="sect2">
+<h3 id="_aws_firewall_manager_managed_network_firewall_policies">AWS Firewall Manager​ managed Network Firewall policies</h3>
+<div class="paragraph">
+<p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/network-firewall-policies.html">Firewall Manager Network Firewall Policies</a> allow Firewall Manager to manage AWS Network Firewall firewalls for your Amazon Virtual Private Cloud VPCs across your organization in AWS Organizations. For each account and VPC that&#8217;s within policy scope, Firewall Manager creates a Network Firewall firewall and deploys firewall endpoints to VPC subnets, to filter network traffic.</p>
+</div>
+<div class="paragraph">
+<p>To narrow the scope of your policy, you can tag your VPCs with <strong>key: sumo-awsqs-nf-policy</strong> and <strong>value: network-firewall</strong>. For more information about tagging your resources, see <a href="https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html">Working with Tag Editor</a>.</p>
+</div>
+<div id="awsvpcresourcetags" class="imageblock">
+<div class="content">
+<a class="image" href="images/aws-vpc-networkfirewall-20240226110602.png"><img src="docs/deployment_guide/images/aws-vpc-networkfirewall-20240226110602.png" alt="AWS VPC Resource Tags^"></a>
+</div>
+<div class="title">Figure 5. VPC Resource Tags</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_aws_firewall_manager_managed_waf_policies">AWS Firewall Manager​ managed WAF policies</h3>
+<div class="paragraph">
+<p><a href="https://docs.aws.amazon.com/waf/latest/developerguide/waf-policies.html">Firewall Manager WAF Policies</a> allow Firewall Manager to centrally mandate the application of AWS WAF Rule sets and Web ACLs to endpoints (ELBs, CloudFront Distributions, and API Gateway) in the environment.</p>
+</div>
+<div class="paragraph">
+<p>The solution enforces the policies based on resource tags. For more information about tags, see <a href="https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html">Working with Tag Editor</a>.</p>
+</div>
+<div class="paragraph">
+<p>The following WAF Policies list includes the resource tags which needs to be added for supported resource types to enable AWS Managed rule sets:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>FMS Regional WAF Default Policy</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Resource Types</p>
+<div class="ulist">
+<ul>
+<li>
+<p>ELBv2</p>
+</li>
+<li>
+<p>API Gateway</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>AWS Managed Rule sets</p>
+<div class="ulist">
+<ul>
+<li>
+<p>AWS Core Ruleset</p>
+</li>
+<li>
+<p>AWS SQL Database Ruleset</p>
+</li>
+<li>
+<p>AWS IP Reputation List</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Resource Tag</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Key: sumo-awsqs-default-policy</p>
+</li>
+<li>
+<p>Value: true</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>FMS CloudFront Default Policy</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Resource Types</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Cloudfront Distribution</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>AWS Managed Rule sets</p>
+<div class="ulist">
+<ul>
+<li>
+<p>AWS Core Ruleset</p>
+</li>
+<li>
+<p>AWS SQL Database Ruleset</p>
+</li>
+<li>
+<p>AWS IP Reputation List</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Resource Tag</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Key: sumo-awsqs-default-policy</p>
+</li>
+<li>
+<p>Value: true</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>FMS Regional WAF Windows Policy</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Resource Types</p>
+<div class="ulist">
+<ul>
+<li>
+<p>ELBv2</p>
+</li>
+<li>
+<p>API Gateway</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>AWS Managed Rule sets</p>
+<div class="ulist">
+<ul>
+<li>
+<p>AWS Windows Operating System Ruleset</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Resource Tag</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Key: sumo-awsqs-windows-policy</p>
+</li>
+<li>
+<p>Value: windows</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>FMS Regional WAF Linux Policy</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Resource Types</p>
+<div class="ulist">
+<ul>
+<li>
+<p>ELBv2</p>
+</li>
+<li>
+<p>API Gateway</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>AWS Managed Rule sets</p>
+<div class="ulist">
+<ul>
+<li>
+<p>AWS Linux Operating System Ruleset</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Resource Tag</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Key: sumo-awsqs-linux-policy</p>
+</li>
+<li>
+<p>Value: linux</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>FMS Regional WAF Posix Policy</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Resource Types</p>
+<div class="ulist">
+<ul>
+<li>
+<p>ELBv2</p>
+</li>
+<li>
+<p>API Gateway</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>AWS Managed Rule sets</p>
+<div class="ulist">
+<ul>
+<li>
+<p>AWS Posix Operating System Ruleset</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Resource Tag</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Key: sumo-awsqs-posix-policy</p>
+</li>
+<li>
+<p>Value: posix</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+</ol>
+</div>
+<div id="awswafresourcetags" class="imageblock">
+<div class="content">
+<a class="image" href="images/aws-waf-20240226110602.png"><img src="docs/deployment_guide/images/aws-waf-20240226110602.png" alt="AWS WAF Resource Tags^"></a>
+</div>
+<div class="title">Figure 6. WAF Resource Tags</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_kinesis_data_firehose_delivery_stream">Kinesis Data Firehose delivery stream</h3>
 <div class="paragraph">
 <p>Monitor your delivery stream to ensure that it has enough throughput to accommodate your organization&#8217;s WAF logs.</p>
@@ -1276,7 +1539,7 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 <div class="content">
 <a class="image" href="images/SRAQSCFStack.png"><img src="docs/deployment_guide/images/SRAQSCFStack.png" alt="Cloudformation Stack" width="80%"></a>
 </div>
-<div class="title">Figure 5. Example output of created resources</div>
+<div class="title">Figure 7. Example output of created resources</div>
 </div>
 </div>
 <div class="sect2">
@@ -1288,7 +1551,7 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 <div class="content">
 <a class="image" href="images/SRAQSCollector.png"><img src="docs/deployment_guide/images/SRAQSCollector.png" alt="Sumo Logic Hosted Collector" width="80%"></a>
 </div>
-<div class="title">Figure 6. Example output of collectors and sources</div>
+<div class="title">Figure 8. Example output of collectors and sources</div>
 </div>
 </div>
 </div>

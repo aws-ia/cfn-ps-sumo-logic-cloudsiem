@@ -20,10 +20,10 @@ tests:
       Section1SumoLogicAccessID: $[taskcat_ssm_/sumologic/Section1SumoLogicAccessID]
       Section1SumoLogicAccessKey: $[taskcat_ssm_/sumologic/Section1SumoLogicAccessKey]
       Section1SumoLogicOrganizationId: $[taskcat_ssm_/sumologic/Section1SumoLogicOrganizationId]
-      Section1SecurityToolingAccountId: ""
+      Section1SecurityToolingAccountId: $[taskcat_ssm_/sumologic/Section1SecurityToolingAccountId]
       Section1ToolingAndLoggingRegion: "us-east-1"
-      Section1LogArchivingAccountId: ""
-      Section1OrganizationRootID: ""
+      Section1LogArchivingAccountId: $[taskcat_ssm_/sumologic/Section1LogArchivingAccountId]
+      Section1OrganizationRootID: $[taskcat_ssm_/sumologic/Section1OrganizationRootID]
       Section1DeliveryBucketPrefix: logs-delivery
       Section1SumoLogicResourceRemoveOnDeleteStack: "true"
 

@@ -35,6 +35,80 @@ The deployment creates a security group that is used by Firewall Manager only as
 
 Firewall Manager creates a web ACL in each account that's managed by Firewall Manager.
 
+=== AWS Firewall Manager​ managed Network Firewall policies
+
+https://docs.aws.amazon.com/waf/latest/developerguide/network-firewall-policies.html[Firewall Manager Network Firewall Policies] allow Firewall Manager to manage AWS Network Firewall firewalls for your Amazon Virtual Private Cloud VPCs across your organization in AWS Organizations. For each account and VPC that's within policy scope, Firewall Manager creates a Network Firewall firewall and deploys firewall endpoints to VPC subnets, to filter network traffic.
+
+To narrow the scope of your policy, you can tag your VPCs with *key: sumo-awsqs-nf-policy* and *value: network-firewall*. For more information about tagging your resources, see https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html[Working with Tag Editor].
+
+[#awsvpcresourcetags]
+.VPC Resource Tags
+[link=images/aws-vpc-networkfirewall-20240226110602.png]
+image::../docs/deployment_guide/images/aws-vpc-networkfirewall-20240226110602.png[AWS VPC Resource Tags^]
+
+=== AWS Firewall Manager​ managed WAF policies
+
+https://docs.aws.amazon.com/waf/latest/developerguide/waf-policies.html[Firewall Manager WAF Policies] allow Firewall Manager to centrally mandate the application of AWS WAF Rule sets and Web ACLs to endpoints (ELBs, CloudFront Distributions, and API Gateway) in the environment.
+
+The solution enforces the policies based on resource tags. For more information about tags, see https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html[Working with Tag Editor].
+
+The following WAF Policies list includes the resource tags which needs to be added for supported resource types to enable AWS Managed rule sets:
+
+1. FMS Regional WAF Default Policy
+
+* Resource Types
+    ** ELBv2
+    ** API Gateway
+* AWS Managed Rule sets
+    ** AWS Core Ruleset
+    ** AWS SQL Database Ruleset
+    ** AWS IP Reputation List
+* Resource Tag
+    ** Key: sumo-awsqs-default-policy
+    ** Value: true
+2. FMS CloudFront Default Policy
+* Resource Types
+    ** Cloudfront Distribution
+* AWS Managed Rule sets
+    ** AWS Core Ruleset
+    ** AWS SQL Database Ruleset
+    ** AWS IP Reputation List
+* Resource Tag
+    ** Key: sumo-awsqs-default-policy
+    ** Value: true
+3. FMS Regional WAF Windows Policy
+* Resource Types
+    ** ELBv2
+    ** API Gateway
+* AWS Managed Rule sets
+    ** AWS Windows Operating System Ruleset
+* Resource Tag
+    ** Key: sumo-awsqs-windows-policy
+    ** Value: windows
+4. FMS Regional WAF Linux Policy
+* Resource Types
+    ** ELBv2
+    ** API Gateway
+* AWS Managed Rule sets
+    ** AWS Linux Operating System Ruleset
+* Resource Tag
+    ** Key: sumo-awsqs-linux-policy
+    ** Value: linux
+5. FMS Regional WAF Posix Policy
+* Resource Types
+    ** ELBv2
+    ** API Gateway
+* AWS Managed Rule sets
+    ** AWS Posix Operating System Ruleset
+* Resource Tag
+    ** Key: sumo-awsqs-posix-policy
+    ** Value: posix
+
+[#awswafresourcetags]
+.WAF Resource Tags
+[link=images/aws-waf-20240226110602.png]
+image::../docs/deployment_guide/images/aws-waf-20240226110602.png[AWS WAF Resource Tags^]
+
 === Kinesis Data Firehose delivery stream
 
 Monitor your delivery stream to ensure that it has enough throughput to accommodate your organization's WAF logs.
