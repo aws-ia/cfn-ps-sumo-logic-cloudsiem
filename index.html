@@ -873,6 +873,8 @@ p.footer-text a{color:#d7d8d8}
 <li><a href="#_if_using_an_existing_s3_bucket">If using an existing S3 bucket</a></li>
 <li><a href="#_view_the_sumo_logic_dashboards">View the Sumo Logic dashboards</a></li>
 <li><a href="#_firewall_manager_security_group">Firewall Manager security group</a></li>
+<li><a href="#_aws_firewall_manager_aws_network_firewall_policies">AWS Firewall Manager AWS Network Firewall policies</a></li>
+<li><a href="#_aws_firewall_manager_aws_waf_policies">AWS Firewall Manager​ AWS WAF policies</a></li>
 <li><a href="#_kinesis_data_firehose_delivery_stream">Kinesis Data Firehose delivery stream</a></li>
 </ul>
 </li>
@@ -1257,6 +1259,53 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 </div>
 </div>
 <div class="sect2">
+<h3 id="_aws_firewall_manager_aws_network_firewall_policies">AWS Firewall Manager AWS Network Firewall policies</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>The Resource type for a Network Firewall policy is always VPC</p>
+</li>
+<li>
+<p>Resources allows you to narrow the scope of your policy by specifying resource tags for inclusion. To use tagging, you need to first tag your resources. In Your VPCs, you use Resource tags with <strong>key</strong>: <strong><em>sumo-awsqs-nf-policy</em></strong> and <strong>value</strong>: <strong><em>network-firewall</em></strong>. For more information about tagging your resources, see <a href="https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html">Working with Tag Editor</a></p>
+</li>
+</ul>
+</div>
+<div id="awsvpcresourcetags" class="imageblock">
+<div class="content">
+<a class="image" href="images/aws-vpc-networkfirewall-20240226110602.png"><img src="docs/deployment_guide/images/aws-vpc-networkfirewall-20240226110602.png" alt="AWS VPC Resource Tags^"></a>
+</div>
+<div class="title">Figure 5. VPC Resource Tags</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_aws_firewall_manager_aws_waf_policies">AWS Firewall Manager​ AWS WAF policies</h3>
+<div class="paragraph">
+<p>For Policy tags, you can add any identifying tags that you want for the Firewall Manager AWS WAF policy. For more information about tags, see <a href="https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html">Working with Tag Editor</a>.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>In your Application Load Balancer and API Gateway Stage for rule groups: AWS Core rule set, AWS SQL database, AWS Amazon IP reputation list, you use Resource tags with <strong>key</strong>: <strong><em>sumo-awsqs-default-policy</em></strong> and <strong>value</strong>: <strong><em>true</em></strong></p>
+</li>
+<li>
+<p>In your Application Load Balancer and API Gateway Stage for rule groups: AWS Linux operating system, you use Resource tags with <strong>key</strong>: <strong><em>sumo-awsqs-linux-policy</em></strong> and <strong>value</strong>: <strong><em>linux</em></strong></p>
+</li>
+<li>
+<p>In your Application Load Balancer and API Gateway Stage for rule groups: AWS Windows operating system, you use Resource tags with <strong>key</strong>: <strong><em>sumo-awsqs-windows-policy</em></strong> and <strong>value</strong>: <strong><em>windows</em></strong></p>
+</li>
+<li>
+<p>In your Application Load Balancer and API Gateway Stage for rule groups: AWS POSIX operating system, you use Resource tags with <strong>key</strong>: <strong><em>sumo-awsqs-posix-policy</em></strong> and <strong>value</strong>: <strong><em>posix</em></strong></p>
+</li>
+</ul>
+</div>
+<div id="awswafresourcetags" class="imageblock">
+<div class="content">
+<a class="image" href="images/aws-waf-20240226110602.png"><img src="docs/deployment_guide/images/aws-waf-20240226110602.png" alt="AWS WAF Resource Tags^"></a>
+</div>
+<div class="title">Figure 6. WAF Resource Tags</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_kinesis_data_firehose_delivery_stream">Kinesis Data Firehose delivery stream</h3>
 <div class="paragraph">
 <p>Monitor your delivery stream to ensure that it has enough throughput to accommodate your organization&#8217;s WAF logs.</p>
@@ -1276,7 +1325,7 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 <div class="content">
 <a class="image" href="images/SRAQSCFStack.png"><img src="docs/deployment_guide/images/SRAQSCFStack.png" alt="Cloudformation Stack" width="80%"></a>
 </div>
-<div class="title">Figure 5. Example output of created resources</div>
+<div class="title">Figure 7. Example output of created resources</div>
 </div>
 </div>
 <div class="sect2">
@@ -1288,7 +1337,7 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 <div class="content">
 <a class="image" href="images/SRAQSCollector.png"><img src="docs/deployment_guide/images/SRAQSCollector.png" alt="Sumo Logic Hosted Collector" width="80%"></a>
 </div>
-<div class="title">Figure 6. Example output of collectors and sources</div>
+<div class="title">Figure 8. Example output of collectors and sources</div>
 </div>
 </div>
 </div>

@@ -35,6 +35,34 @@ The deployment creates a security group that is used by Firewall Manager only as
 
 Firewall Manager creates a web ACL in each account that's managed by Firewall Manager.
 
+=== AWS Firewall Manager AWS Network Firewall policies
+
+* The Resource type for a Network Firewall policy is always VPC
+
+* Resources allows you to narrow the scope of your policy by specifying resource tags for inclusion. To use tagging, you need to first tag your resources. In Your VPCs, you use Resource tags with **key**: **__sumo-awsqs-nf-policy__** and **value**: **__network-firewall__**. For more information about tagging your resources, see https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html[Working with Tag Editor]
+
+[#awsvpcresourcetags]
+.VPC Resource Tags
+[link=images/aws-vpc-networkfirewall-20240226110602.png]
+image::../docs/deployment_guide/images/aws-vpc-networkfirewall-20240226110602.png[AWS VPC Resource Tags^]
+
+=== AWS Firewall Manager​ AWS WAF policies
+
+For Policy tags, you can add any identifying tags that you want for the Firewall Manager AWS WAF policy. For more information about tags, see https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/tag-editor.html[Working with Tag Editor].
+
+* In your Application Load Balancer and API Gateway Stage for rule groups: AWS Core rule set, AWS SQL database, AWS Amazon IP reputation list, you use Resource tags with **key**: **__sumo-awsqs-default-policy__** and **value**: **__true__**
+
+* In your Application Load Balancer and API Gateway Stage for rule groups: AWS Linux operating system, you use Resource tags with **key**: **__sumo-awsqs-linux-policy__** and **value**: **__linux__**
+
+* In your Application Load Balancer and API Gateway Stage for rule groups: AWS Windows operating system, you use Resource tags with **key**: **__sumo-awsqs-windows-policy__** and **value**: **__windows__**
+
+* In your Application Load Balancer and API Gateway Stage for rule groups: AWS POSIX operating system, you use Resource tags with **key**: **__sumo-awsqs-posix-policy__** and **value**: **__posix__**
+
+[#awswafresourcetags]
+.WAF Resource Tags
+[link=images/aws-waf-20240226110602.png]
+image::../docs/deployment_guide/images/aws-waf-20240226110602.png[AWS WAF Resource Tags^]
+
 === Kinesis Data Firehose delivery stream
 
 Monitor your delivery stream to ensure that it has enough throughput to accommodate your organization's WAF logs.
