@@ -58,7 +58,7 @@ The following WAF Policies list includes the resource tags which needs to be add
 
 * Resource Types
     ** ELBv2
-* API Gateway
+    ** API Gateway
 * AWS Managed Rule sets
     ** AWS Core Ruleset
     ** AWS SQL Database Ruleset
@@ -79,7 +79,7 @@ The following WAF Policies list includes the resource tags which needs to be add
 3. FMS Regional WAF Windows Policy
 * Resource Types
     ** ELBv2
-* API Gateway
+    ** API Gateway
 * AWS Managed Rule sets
     ** AWS Core Ruleset
     ** AWS Windows Operating System Ruleset
@@ -89,7 +89,7 @@ The following WAF Policies list includes the resource tags which needs to be add
 4. FMS Regional WAF Linux Policy
 * Resource Types
     ** ELBv2
-* API Gateway
+    ** API Gateway
 * AWS Managed Rule sets
     ** AWS Core Ruleset
     ** AWS Linux Operating System Ruleset
@@ -99,7 +99,7 @@ The following WAF Policies list includes the resource tags which needs to be add
 5. FMS Regional WAF Posix Policy
 * Resource Types
     ** ELBv2
-* API Gateway
+    ** API Gateway
 * AWS Managed Rule sets
     ** AWS Core Ruleset
     ** AWS Posix Operating System Ruleset
