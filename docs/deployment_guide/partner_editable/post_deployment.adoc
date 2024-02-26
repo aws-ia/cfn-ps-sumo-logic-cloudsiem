@@ -64,7 +64,7 @@ The following WAF Policies list includes the resource tags which needs to be add
     ** AWS SQL Database Ruleset
     ** AWS IP Reputation List
 * Resource Tag
-    ** Key: fms-default-policy
+    ** Key: sumo-awsqs-default-policy
     ** Value: true
 2. FMS CloudFront Default Policy
 * Resource Types
@@ -74,37 +74,34 @@ The following WAF Policies list includes the resource tags which needs to be add
     ** AWS SQL Database Ruleset
     ** AWS IP Reputation List
 * Resource Tag
-    ** Key: fms-default-policy
+    ** Key: sumo-awsqs-default-policy
     ** Value: true
 3. FMS Regional WAF Windows Policy
 * Resource Types
     ** ELBv2
     ** API Gateway
 * AWS Managed Rule sets
-    ** AWS Core Ruleset
     ** AWS Windows Operating System Ruleset
 * Resource Tag
-    ** Key: workload-os
+    ** Key: sumo-awsqs-windows-policy
     ** Value: windows
 4. FMS Regional WAF Linux Policy
 * Resource Types
     ** ELBv2
     ** API Gateway
 * AWS Managed Rule sets
-    ** AWS Core Ruleset
     ** AWS Linux Operating System Ruleset
 * Resource Tag
-    ** Key: workload-os
+    ** Key: sumo-awsqs-linux-policy
     ** Value: linux
 5. FMS Regional WAF Posix Policy
 * Resource Types
     ** ELBv2
     ** API Gateway
 * AWS Managed Rule sets
-    ** AWS Core Ruleset
     ** AWS Posix Operating System Ruleset
 * Resource Tag
-    ** Key: workload-os
+    ** Key: sumo-awsqs-posix-policy
     ** Value: posix
 
 [#awswafresourcetags]
