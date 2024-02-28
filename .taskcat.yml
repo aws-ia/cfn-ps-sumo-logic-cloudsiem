@@ -62,7 +62,7 @@ tests:
       Section6InstallSumoAWSNetworkFirewallApp: "Yes"
       Section6FirewallManagerPolicyRegions: "us-east-1"
       Section6CreateDeliveryStreamSource: "Yes"
-      Section6DeliveryStreamName: sumologic-kinesis-$[taskcat_random-string]
+      Section6DeliveryStreamName: sumo-kinesis
       Section6CreateS3Source: "Yes"
       Section6CreateS3Bucket: "Yes"
       Section6DeliveryBucketPrefix: nw-logs-delivery
