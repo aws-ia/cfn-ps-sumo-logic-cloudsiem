@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "This CloudFormation template sets up AWS Cloudtrail Org and Sumo Logic resources for all of the Sumo Logic cloudtrail apps. (qs-1sfibuu78)"
+Description: "This CloudFormation template sets up AWS Cloudtrail Org and Sumo Logic resources for all of the Sumo Logic cloudtrail apps. (qs-1urq0tabq)"
 
 Metadata:
   cfn-lint:
@@ -27,7 +27,7 @@ Metadata:
           default: "1.2 Organization configuration"
         Parameters:
           - ExecutionRoleRuleName
-          - CloudTrailRegions
+          - CloudTrailRegion
 
       - Label:
           default: "2.1 CloudTrail app configuration"
@@ -51,11 +51,13 @@ Metadata:
           - SumoRoleArn
           - ResourcePrefix
           - EnableForwardDataToCloudSIEM
+          - DelegatedAdminAccountId
       - Label:
           default: "AWS Quick Start configuration"
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+          - QSS3BucketRegion
 
       - Label:
           default: "Local Parameters. Do Not Edit the values."
@@ -77,10 +79,12 @@ Metadata:
       # Organization parameters
       ExecutionRoleRuleName:
         default: "Name of Execution Role for Organization"
-      CloudTrailRegions:
-        default: "CloudTrail Regions of Management Account"
-
-
+      CloudTrailRegion:
+        default: "CloudTrail Region of Management Account"
+      DelegatedAdminAccountId:
+        default: "Delegated Admin Account ID"
+      DisassociateAdminAccountOnDeleteStack:
+        default: "Disassociate admin account in CloudTrail Org when stack is deleted"
 
       # CloudTrail apps parameters
       InstallCloudTrailApp:
@@ -111,6 +115,8 @@ Metadata:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
         default: "Quick Start S3 key prefix"
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"        
       ParentStackName:
         default: "If Any, Name of parent Stack"
 
@@ -167,24 +173,38 @@ Parameters:
     Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
     Type: String
     Default: AWSCloudFormationStackSetExecutionRole
-  CloudTrailRegions:
+  CloudTrailRegion:
     Type: String
     Default: us-east-1
-    Description: "Enter multi management account region for CloudTrail"
+    Description: "Enter management account region for CloudTrail"
   CloudTrailS3Region:
     Type: String
     Description: "Region of S3 Log Archiving for CloudTrail"
-
+  DelegatedAdminAccountId:
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: Must be 12 digits
+    Description: Delegated administrator account ID
+    Type: String  
 
   # CloudTrail apps parameters
-  InstallAWSCloudTrail:
+  EnableAWSCloudTrail:
     Type: String
-    Description: "Yes: Install CloudTrail Service on AWS.
-                  No: Skip installation."
+    Description: "Yes: Enable CloudTrail Org on AWS.
+                  No: Skip enable."
     Default: 'No'
     AllowedValues:
       - 'Yes'
       - 'No'
+
+  DisassociateAdminAccountOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: "To disassociate admin account in CloudTrail Org when stack is deleted, set this parameter to true. Default is false.
+                  Disassociate admin account in CloudTrail Org will be skipped."
+    Type: String
+
   InstallCloudTrailApp:
     Type: String
     Description: "Yes: Install Sumo Logic AWS CloudTrail app.
@@ -257,11 +277,13 @@ Parameters:
   ResourcePrefix:
     Description: "Resource prefix for auto deployment"
     Type: String
-    Default: "aws-quickstart"
+    Default: "aws-ia"
+    MaxLength: 38
+
   QSS3BucketName:
     AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
     ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    Default: "aws-quickstart"
+    Default: "aws-ia"
     Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     Type: "String"
   QSS3KeyPrefix:
@@ -270,6 +292,10 @@ Parameters:
     Default: "quickstart-sumo-logic-cloudsiem/"
     Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
     Type: "String"
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String    
   ParentStackName:
     Type: String
     Description: Parent Stack Name. Do Not Edit the value.
@@ -283,7 +309,11 @@ Parameters:
     Default: "1.0"
 
 Conditions:
-  install_cloudtrail_on_aws: !Equals [ !Ref InstallAWSCloudTrail, 'Yes' ]
+  install_cloudtrail_on_aws: !Equals [ !Ref EnableAWSCloudTrail, 'Yes' ]
+  UsingDefaultBucket: !Or 
+    - !Equals [!Ref QSS3BucketName, 'aws-ia']
+    - !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions']
+    - !Equals [!Ref QSS3BucketName, 'tcat-cfn-ps-sumo-logic-cloudsiem'] 
 Resources:
   #Stackset for cloudtrail org
   CloudtrailResoucesStackset:
@@ -304,14 +334,14 @@ Resources:
         - 'CAPABILITY_AUTO_EXPAND'
       StackInstancesGroup:
         - Regions:
-            - !Ref CloudTrailRegions
+            - !Ref CloudTrailRegion
           DeploymentTargets:
             Accounts:
               - !Ref "AWS::AccountId"
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/cloudtrail-org/cloudtrail-org.yaml'
-        - S3Region: !Ref "AWS::Region"
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'pCloudTrailS3BucketName'
           ParameterValue: !Ref CloudTrailLogsBucketName
@@ -319,6 +349,14 @@ Resources:
           ParameterValue: !Ref KMSArn
         - ParameterKey: "ResourcePrefix"
           ParameterValue: !Ref ResourcePrefix
+        - ParameterKey: pDelegatedAdminAccountId
+          ParameterValue: !Ref DelegatedAdminAccountId
+        - ParameterKey: ParentHelperFunctionArn
+          ParameterValue: !Ref ParentHelperFunctionArn
+        - ParameterKey: DisassociateAdminAccountOnDeleteStack
+          ParameterValue: !Ref DisassociateAdminAccountOnDeleteStack          
+
+
   CreateSumoApps:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -327,8 +365,8 @@ Resources:
           Value: !Ref QSVersion
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/cloudtrail-org/cloudtrail-app-sumo.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         SumoDeployment: !Ref SumoLogicDeployment
         SumoAccessID: !Ref SumoLogicAccessID
@@ -349,3 +387,8 @@ Resources:
         CloudTrailS3Region: !Ref CloudTrailS3Region
         ParentHelperFunctionArn: !Ref ParentHelperFunctionArn
         EnableForwardDataToCloudSIEM: !Ref EnableForwardDataToCloudSIEM
+
+Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName

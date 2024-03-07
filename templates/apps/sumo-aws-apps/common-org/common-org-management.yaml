@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: "Template to setup the common AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1sfibuu8p)"
+Description: "Template to setup the common AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq0n814)"
 Metadata:
   cfn-lint:
     config:
@@ -26,6 +26,11 @@ Metadata:
           - OrganizationRootID
           - SecurityToolingAccountRegion
       - Label:
+          default: AWS Config Attributes
+        Parameters:
+          - CreateConfigRecorderRole
+          - ConfigRegions
+      - Label:
           default: Delivery S3 Attributes
         Parameters:
           - DeliveryBucketPrefix
@@ -38,6 +43,7 @@ Metadata:
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+          - QSS3BucketRegion
           - ParentStackName
 
   ParameterLabels:
@@ -63,10 +69,16 @@ Metadata:
         default: "Delete Sumo Logic Resources when stack is deleted"
       CollectorName:
         default: "Name of Sumo Hosted Collector"
+      CreateConfigRecorderRole:
+        default: "Create Config Recorder Role"
+      ConfigRegions:
+        default: "Config regions"
       QSS3BucketName:
         default: "Quick Start S3 bucket name"
       QSS3KeyPrefix:
         default: "Quick Start S3 key prefix"
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"
       ParentStackName:
         default: "If Any, Name of parent Stack"
 Parameters:
@@ -127,6 +139,19 @@ Parameters:
     AllowedValues:
       - 'Yes'
       - 'No'
+  CreateConfigRecorderRole:
+    Type: String
+    Description: "Yes: Create Config Rocorder role.
+                  No: Skip creation of the ConfigRecorder role."
+    Default: 'No'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  ConfigRegions:
+    Type: String
+    Description: Comma delimited list of regions for AWS Config.
+    Default: us-east-1
+
   CloudTrailExistsS3BucketName:
     Type: String
     Description: "Required when flag is set to Yes. Provide an existing S3 Bucket name which contains CloudTrail Logs"
@@ -148,7 +173,7 @@ Parameters:
   QSS3BucketName:
     AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
     ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-    Default: "aws-quickstart"
+    Default: "aws-ia"
     Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
     Type: "String"
   QSS3KeyPrefix:
@@ -157,6 +182,11 @@ Parameters:
     Default: "quickstart-sumo-logic-cloudsiem/"
     Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
     Type: "String"
+    
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String
 
   OrganizationRootID:
     AllowedPattern: '^r-[0-9a-z]{4,32}$'
@@ -175,9 +205,18 @@ Parameters:
     Default: "ParentStackName"
     Description: Parent Stack Name. Do Not Edit the value.
 
+
 Conditions:
   create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'Yes' ]
   not_create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'No' ]
+  UsingDefaultBucket: !Or 
+    - !Equals [!Ref QSS3BucketName, 'aws-ia']
+    - !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions']
+    - !Equals [!Ref QSS3BucketName, 'tcat-cfn-ps-sumo-logic-cloudsiem'] 
+  create_config_recorder_role: !Equals [ !Ref CreateConfigRecorderRole, 'Yes' ]
+  NotGlobalRegionUsEast1: !And
+    - !Not [!Equals [!Ref 'AWS::Region', us-east-1]]
+    - !Equals [ !Ref CreateConfigRecorderRole, 'Yes' ]
 Resources:
 
   rExecutionRole:
@@ -224,19 +263,15 @@ Resources:
                     - 'arn:*:iam::*:role/${ExecutionRoleRuleName}'
                     - ExecutionRoleRuleName: !Select [1, !Split ["/", !GetAtt rExecutionRole.Arn]]
 
-
+#Role for management account
   rSumoLogicHelperRole:
     Metadata:
-      cfn-lint:
-        config:
-          ignore_checks:
-            - EIAMPolicyWildcardResource
-          ignore_reasons:
-            EIAMPolicyWildcardResource: Ignoring wildcard resource
       cfn_nag:
         rules_to_suppress:
           - id: W11
             reason: "IAM role should not allow * resource on its permissions policy"
+          - id: W76
+            reason: "SPCM for IAM policy document is higher than 25"            
     DependsOn:
       - "rAdministrationRole"
     Type: AWS::IAM::Role
@@ -249,8 +284,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Path: /
-      Policies:
-
+      Policies:      
         - PolicyName: firewall-manager-org-policy-iam
           PolicyDocument:
             Version: 2012-10-17
@@ -262,7 +296,7 @@ Resources:
                   StringLike:
                     iam:AWSServiceName: fms.amazonaws.com
                 Effect: Allow
-                Resource: '*'
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/aws-service-role/*"
                 Sid: AllowCreateDeleteServiceLinkedRole
 
               - Action:
@@ -271,6 +305,7 @@ Resources:
                 Effect: Allow
                 Resource: !Sub arn:${AWS::Partition}:iam::aws:policy/aws-service-role/FMSServiceRolePolicy
                 Sid: AllowPolicyActions
+
         - PolicyName: firewall-manager-org-policy-fms
           PolicyDocument:
             Version: 2012-10-17
@@ -283,13 +318,64 @@ Resources:
                 Resource: '*'
                 Sid: AllowFMS
 
-        - PolicyName: !Sub 'securityhub-acct-policy-sns-${ParentStackName}'
+        - PolicyName: !Sub 'securityhub-org-policy-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: NoResource
+                Effect: Allow
+                Action:
+                  - securityhub:DisableOrganizationAdminAccount
+                  - securityhub:EnableOrganizationAdminAccount
+                  - securityhub:ListOrganizationAdminAccounts
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
+
+              - Sid: SecurityHubWithResource
+                Effect: Allow
+                Action:
+                  - securityhub:EnableSecurityHub
+                Resource:
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:hub/default
+                  - !Sub arn:${AWS::Partition}:securityhub:*:${AWS::AccountId}:/accounts
+        
+        - PolicyName: !Sub 'securityhub-org-policy-iam-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AssumeRole
+                Effect: Allow
+                Action: sts:AssumeRole
+                Condition:
+                  StringEquals:
+                    aws:PrincipalOrgId: !Ref OrganizationRootID
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::*:role/*
+
+              - Sid: AllowCreateServiceLinkedRole
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Condition:
+                  StringLike:
+                    iam:AWSServiceName:
+                      - securityhub.amazonaws.com
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub
+
+              - Sid: AllowPolicyActions
+                Effect: Allow
+                Action: iam:PutRolePolicy
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub
+
+        - PolicyName: !Sub 'securityhub-org-policy-sns-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Sid: SNSPublish
                 Effect: Allow
-                Action: sns:Publish
+                Action:
+                  - sns:Publish
+                  - sns:PublishBatch
                 Resource: !Sub arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:*
 
               - Sid: SNSEncryption
@@ -298,14 +384,44 @@ Resources:
                   - kms:GenerateDataKey
                   - kms:Decrypt
                 Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/sns
-        - PolicyName: !Sub 'securityhub-acct-policy-cfn-${ParentStackName}'
+
+        - PolicyName: !Sub 'guardduty-org-policy-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
-                Action: cloudformation:ListStackInstances
-                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stackset/AWSControlTowerBP-*
+                Action:
+                  - s3:GetAccountPublicAccessBlock
+                  - s3:ListAllMyBuckets
+                Resource: "*"
 
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketPolicyStatus
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketAcl
+                  - s3:GetBucketTagging
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:GetEncryptionConfiguration                  
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::*
+
+              - Effect: Allow
+                Action:
+                  - lambda:ListTags
+                  - lambda:GetFunctionConfiguration
+                  - lambda:UpdateFunctionConfiguration
+                Resource:
+                  - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*
+
+              - Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName: 
+                      - malware-protection.guardduty.amazonaws.com
+                      - guardduty.amazonaws.com
         - PolicyName: !Sub 'management-org-policy-logs-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
@@ -320,25 +436,31 @@ Resources:
                 Effect: Allow
                 Resource: !Sub arn:*:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*
                 Sid: CreateLogStreamAndEvents
-
+        
         - PolicyName: !Sub 'management-org-policy-organizations-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
-                  - organizations:AcceptHandshake
-                  - organizations:DescribeAccount
                   - organizations:DescribeOrganization
                   - organizations:ListAWSServiceAccessForOrganization
                   - organizations:ListAccounts
                   - organizations:ListDelegatedAdministrators
+                  - ram:EnableSharingWithAwsOrganization
                 Effect: Allow
                 Resource: "*"
                 Sid: OrganizationsReadAccess
-              - Action: ec2:DescribeRegions
+
+              - Action: organizations:AcceptHandshake
                 Effect: Allow
-                Resource: '*'
-                Sid: EC2ListRegions
+                Resource: 
+                  - !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:handshake/*/*/*                  
+                Sid: OrganizationsAcceptHandshake
+
+              - Action: organizations:DescribeAccount
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:organizations::${AWS::AccountId}:account/*/*
+                Sid: OrganizationsDescribeAccount
 
               - Action: health:DescribeEventAggregates
                 Effect: Allow
@@ -357,12 +479,10 @@ Resources:
                       - cloudtrail.amazonaws.com
                       - config.amazonaws.com
                       - config-multiaccountsetup.amazonaws.com
-                      - auditmanager.amazonaws.com
-                      - macie.amazonaws.com
-                      - storage-lens.s3.amazonaws.com
-                      - stacksets.cloudformation.amazonaws.com
                       - access-analyzer.amazonaws.com
+                      - ram.amazonaws.com
                       - securityhub.amazonaws.com
+                      - malware-protection.guardduty.amazonaws.com
                       - fms.amazonaws.com
                 Effect: Allow
                 Resource: "*"
@@ -389,6 +509,7 @@ Resources:
                   - !Sub arn:*:guardduty:*:${AWS::AccountId}:detector/*
                   - !Sub arn:*:guardduty:*:${AWS::AccountId}:/detector/*
                 Sid: GuardDutyWithResource
+
         - PolicyName: !Sub 'management-org-policy-iam-${ParentStackName}'
           PolicyDocument:
             Version: 2012-10-17
@@ -404,8 +525,15 @@ Resources:
               Effect: Allow
               Condition:
                 StringLike:
-                  iam:AWSServiceName: guardduty.amazonaws.com
-              Resource: !Sub arn:*:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty
+                  iam:AWSServiceName: 
+                    - guardduty.amazonaws.com
+                    - malware-protection.guardduty.amazonaws.com
+                    - cloudtrail.amazonaws.com
+                    - ram.amazonaws.com
+              Resource: 
+                - !Sub arn:*:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/cloudtrail.amazonaws.com/AWSServiceRoleForCloudTrail*
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/ram.amazonaws.com/*
               Sid: AllowCreateDeleteServiceLinkedRole
 
             - Action:
@@ -421,31 +549,82 @@ Resources:
                 - !Sub arn:*:guardduty:*:${AWS::AccountId}:admin/*
                 - !Sub arn:*:iam::*:role/*
               Sid: AssumeRole
+
+        - PolicyName: !Sub 'cloudtrail-org-policy-${ParentStackName}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowCloudTrail
+                Effect: Allow
+                Action:
+                  - cloudtrail:AddTags
+                  - cloudtrail:CreateTrail
+                  - cloudtrail:DeleteTrail
+                  - cloudtrail:GetEventSelectors
+                  - cloudtrail:PutEventSelectors
+                  - cloudtrail:RemoveTags
+                  - cloudtrail:StartLogging
+                  - cloudtrail:StopLogging
+                  - cloudtrail:UpdateTrail
+                Resource: !Sub arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/*
+
+              - Sid: AllowCloudTrailDelegatedAdministrator
+                Effect: Allow
+                Action:
+                  - cloudtrail:RegisterOrganizationDelegatedAdmin
+                  - cloudtrail:DeregisterOrganizationDelegatedAdmin
+                Resource: "*"
+                Condition:
+                  StringEqualsIfExists:
+                    iam:PassedToService:
+                      - cloudtrail.amazonaws.com   
+                      
+              - Sid: AllowPassRoleForCWLogGroupRole
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*'
+                Condition:
+                  StringEqualsIfExists:
+                    iam:PassedToService:
+                      - cloudtrail.amazonaws.com
+                      - config.amazonaws.com
+                      - config-multiaccountsetup.amazonaws.com
+                      - resource-groups.amazonaws.com
+
   rSumoLogicLambdaHelper:
+
     Metadata:
       cfn_nag:
         rules_to_suppress:
           - id: W58
             reason: "Lambda functions require permission to write CloudWatch Logs"
           - id: W89
-            reason: "Lambda functions should be deployed inside a VPC"
+            reason: "Lambda functions should be deployed inside a VPC"          
     Type: 'AWS::Serverless::Function'
     Properties:
       Handler: main.handler
-      Runtime: python3.7
+      Runtime: python3.11
+      FunctionName: !Sub CommonOrgManagement-SumoLogicLambdaHelper-${ParentStackName}
       CodeUri:
         Bucket: !Sub
                 - "${S3Bucket}"
-                - S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+                - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
         Key: !Sub "${QSS3KeyPrefix}templates/apps/sumo-aws-apps/sumologic-app-utils/sumo_app_utils.zip"
       MemorySize: 512
       Timeout: 900
-      ReservedConcurrentExecutions: 1
+      DeadLetterQueue:
+        TargetArn: !Ref AWS::NoValue
+        Type: SQS
+      ReservedConcurrentExecutions: 4
       Role:
         Fn::GetAtt:
           - rSumoLogicHelperRole
           - Arn
-
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref AWS::NoValue
+        SubnetIds:
+          - !Ref AWS::NoValue
 
   OrgTrustAllStackset:
     DependsOn:
@@ -477,8 +656,8 @@ Resources:
                 - !Ref OrganizationRootID
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-trust-all.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
 
   OrgDeliveryKmsKeyStackset:
     DependsOn:
@@ -504,8 +683,8 @@ Resources:
               - !Ref SecurityToolingAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-delivery-kms-key.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'LoggingAccountId'
           ParameterValue: !Ref LoggingAccountId
@@ -538,14 +717,14 @@ Resources:
               - !Ref SecurityToolingAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-configuration-role.yaml'
-        - S3Region: !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'ConfigurationRoleName'
           ParameterValue: !Sub "ConfigurationRole-${ParentStackName}"
         - ParameterKey: 'OrgPrimaryAccountId'
           ParameterValue: !Ref "AWS::AccountId"
-        - ParameterKey: 'OrgPrimaryLambdaRoleName'
+        - ParameterKey: 'GuardDutyOrgLambdaRoleName'
           ParameterValue: !Select [1, !Split ["/", !GetAtt rSumoLogicHelperRole.Arn]]
 
 #Get ARN of Delivery KMS Key
@@ -560,6 +739,12 @@ Resources:
       region: !Ref SecurityToolingAccountRegion
       stackName: !Sub 'CommonOrgDeliveryKmsKey-${ParentStackName}'
       outputKey: oDeliveryKeyArn
+
+  AWSS3RandomID:
+    Type: Custom::AWSS3RandomID
+    Properties:
+      ServiceToken: !GetAtt rSumoLogicLambdaHelper.Arn
+      BUCKET_PREFIX: !Sub '${DeliveryBucketPrefix}-orgs'
 
   OrgDeliveryS3BucketStackset:
     Type: AWS::CloudFormation::StackSet
@@ -583,13 +768,13 @@ Resources:
               - !Ref LoggingAccountId
       TemplateURL: !Sub
         - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-delivery-s3-bucket.yaml'
-        - S3Region:  !Ref 'AWS::Region'
-          S3Bucket: !Sub '${QSS3BucketName}-${AWS::Region}'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         - ParameterKey: 'DeliveryKMSKeyArn'
           ParameterValue: !GetAtt rOrgDeliveryKMSKeyArn.ARN
         - ParameterKey: 'DeliveryBucketPrefix'
-          ParameterValue: !Ref DeliveryBucketPrefix
+          ParameterValue: !GetAtt AWSS3RandomID.BucketPrefixRandomID
         - ParameterKey: "SumoDeployment"
           ParameterValue: !Ref SumoDeployment
         - ParameterKey: "SumoOrganizationId"
@@ -670,12 +855,191 @@ Resources:
       SumoAccessKey: !Ref SumoAccessKey
       SumoDeployment: !Ref SumoDeployment
 
-  # Enable Organization Service Access For CloudTrail
-  rOrgEnableServiceAccess:
-    Type: Custom::AWSOrgEnableServiceAccess
+  OrganizationsRule:
+    Condition: create_config_recorder_role
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${ParentStackName}-org-update
+      Description: Config Trigger on Organizations update
+      EventPattern:
+        source:
+          - aws.organizations
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventSource:
+            - organizations.amazonaws.com
+          eventName:
+            - AcceptHandshake
+            - CreateAccountResult
+            - RemoveAccountFromOrganization
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt rSumoLogicLambdaHelper.Arn
+          Id: !Sub CommonOrgManagement-SumoLogicLambdaHelper-${ParentStackName}
+
+  PermissionForOrganizationsRuleToInvokeLambda:
+    Condition: create_config_recorder_role
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt rSumoLogicLambdaHelper.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt OrganizationsRule.Arn
+
+  ForwardOrganizationsEventsRuleStackset:
+    Condition: NotGlobalRegionUsEast1
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'CommonOrgForwardEventsRule-${ParentStackName}'
+      AdministrationRoleARN: !GetAtt rAdministrationRole.Arn
+      ExecutionRoleName: !Select [1, !Split ["/", !GetAtt rExecutionRole.Arn]]
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions:
+            - us-east-1
+          DeploymentTargets:
+            Accounts:
+              - !Ref AWS::AccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-global-events.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        - ParameterKey: 'HomeRegion'
+          ParameterValue: !Ref AWS::Region
+        - ParameterKey: 'EventRuleRoleName'
+          ParameterValue: !Sub "Global-Events-${ParentStackName}"
+        - ParameterKey: 'ParentStackName'
+          ParameterValue: !Ref ParentStackName
+
+  CrossRegionEventRuleRole:
+    Type: AWS::IAM::Role
+    Condition: NotGlobalRegionUsEast1
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Specific role name provided
+    Properties:
+      RoleName: !Sub "Global-Events-${ParentStackName}"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - events.amazonaws.com
+      Policies:
+        - PolicyName: config-events
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+
+  ConfigRecorderRoleStackset:
+    Condition: create_config_recorder_role
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'CommonOrgConfigRecorderRole-${ParentStackName}'
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      Parameters:
+        - ParameterKey: ConfigRecorderRoleName
+          ParameterValue: !Sub "ConfigRecorderRole-${ParentStackName}"
+        - ParameterKey: BucketName
+          ParameterValue: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName]
+        - ParameterKey: ManagementAccountId
+          ParameterValue: !Ref AWS::AccountId
+        - ParameterKey: ConfigAssumeRoleName
+          ParameterValue: !Sub "Config-Recorder-${ParentStackName}"
+        - ParameterKey: OrgLambdaRoleName
+          ParameterValue: !Select [1, !Split ["/", !GetAtt rSumoLogicHelperRole.Arn]]
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions:
+            - !Ref AWS::Region
+          DeploymentTargets:
+              OrganizationalUnitIds:
+                - !Ref OrganizationRootID
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-configrecorder-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+
+  ConfigRecorderRoleStack:
+    Condition: create_config_recorder_role
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/common-org/common-org-configrecorder-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        ConfigRecorderRoleName: !Sub "ConfigRecorderRole-${ParentStackName}"
+        BucketName: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName]
+        ManagementAccountId: !Ref AWS::AccountId
+        ConfigAssumeRoleName: !Sub "Config-Recorder-${ParentStackName}"
+        OrgLambdaRoleName: !Select [1, !Split ["/", !GetAtt rSumoLogicHelperRole.Arn]]
+
+  #Get AWS Config regions
+  AWSConfigCustomResource:
+    Type: Custom::AWSConfig
+    Condition: create_config_recorder_role
+    DependsOn:
+      - "ConfigRecorderRoleStackset"
+      - "ConfigRecorderRoleStack"
     Properties:
       ServiceToken: !GetAtt rSumoLogicLambdaHelper.Arn
-      servicePrincipal: 'cloudtrail.amazonaws.com'
+      ENABLED_REGIONS: !Ref ConfigRegions
+      CONFIG_ASSUME_ROLE_NAME: !Sub "Config-Recorder-${ParentStackName}"
+      CONFIG_ROLE_NAME: !Sub "ConfigRecorderRole-${ParentStackName}"
+      ALL_SUPPORTED: True
+      INCLUDE_GLOBAL_RESOURCE_TYPES: False
+      RESOURCE_TYPES: ""
+      FREQUENCY: "TwentyFour_Hours"
+      CONFIG_BUCKET: !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName]
+
+  AWSUpdateLambdaVariablesResource:
+    Type: Custom::AWSUpdateLambdaVariables
+    Condition: create_config_recorder_role
+    DependsOn:
+      - "ConfigRecorderRoleStackset"
+      - "ConfigRecorderRoleStack"
+    Properties:
+      ServiceToken: !GetAtt rSumoLogicLambdaHelper.Arn
+      VARIABLES: {"CONFIG_ROLE_NAME": !Sub "ConfigRecorderRole-${ParentStackName}",
+                  "ALL_SUPPORTED": "True",
+                  "INCLUDE_GLOBAL_RESOURCE_TYPES": "True",
+                  "RESOURCE_TYPES": "",
+                  "FREQUENCY": "TwentyFour_Hours",
+                  "CONFIG_BUCKET": !If [create_s3_bucket, !GetAtt rDeliveryS3BucketArn.ARN, !Ref CloudTrailExistsS3BucketName],
+                  "ENABLED_REGIONS": !Sub "${ConfigRegions}",
+                  "CONFIG_ASSUME_ROLE_NAME": !Sub "Config-Recorder-${ParentStackName}"
+                  }
+      FUNCTION_NAME: !GetAtt rSumoLogicLambdaHelper.Arn
+      REGION: !Ref 'AWS::Region'
 
 Outputs:
   StackName:

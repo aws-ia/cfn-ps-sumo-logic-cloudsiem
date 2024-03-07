@@ -1,0 +1,187 @@
+########################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+########################################################################
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create an IAM role for config recorder. (qs-1urq0r0i1)
+
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9001 # Resource names should be PascalCase
+        - W9003 # Parameter is not in a ParameterGroup
+        - W9002 # Parameter is missing ParameterLabel
+  AWS::CloudFormation::Interface:
+    ParameterGroups: 
+      -
+        Label:
+          default: Role Attributes
+        Parameters:
+          - ConfigRecorderRoleName
+          - OrgLambdaRoleName
+      -
+        Label:
+          default: S3 Bucket Attributes
+        Parameters:
+          - BucketName          
+    ParameterLabels:
+      ConfigRecorderRoleName:
+        default: Config Recorder IAM Role Name
+      BucketName:
+        default: "Bucket Name"
+      OrgLambdaRoleName:
+        default: Lambda Role Name
+
+Parameters:
+
+  ConfigRecorderRoleName:
+    AllowedPattern: '^[\w+=,.@-]{1,64}$'
+    ConstraintDescription: Max 64 alphanumeric characters. Also special characters supported [+, =, ., @, -]
+    Description: Config Recorder IAM Role Name
+    Type: String
+    
+  BucketName:
+    Type: String
+    Description: "Bucket name to receive configuration history and configuration snapshot files."
+    Default: ""
+
+  ConfigAssumeRoleName:
+    AllowedPattern: '^[\w+=,.@-]{1,64}$'
+    ConstraintDescription: Max 64 alphanumeric characters. Also special characters supported [+, =, ., @, -].
+    Default: config-recorder-start
+    Description: Event rule role name for putting events on the home region event bus
+    Type: String
+
+  ManagementAccountId:
+    Description: "Management Account Id"
+    Type: String
+
+  OrgLambdaRoleName:
+    AllowedPattern: '^[\w+=,.@-]{1,64}$'
+    ConstraintDescription: Max 64 alphanumeric characters. Also special characters supported [+, =, ., @, -]
+    Default: org-lambda
+    Description: Lambda Role Name
+    Type: String
+
+Resources:
+  ConfigAssumeRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: Actions require * in resource
+          - id: W28
+            reason: Explicit role name provided
+    Properties:    
+      RoleName: !Ref ConfigAssumeRoleName
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:PrincipalArn:
+                  - !Sub arn:${AWS::Partition}:iam::${ManagementAccountId}:role/${OrgLambdaRoleName}
+            Principal:
+              AWS:
+                - !Sub arn:${AWS::Partition}:iam::${ManagementAccountId}:root
+      Path: '/'
+      Policies:
+        - PolicyName: config-policy-iam
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowReadIamActions
+                Effect: Allow
+                Action: 
+                  - iam:GetRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*
+              - Sid: AllowPassRoleForLogGroupRole
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*'
+                Condition:
+                  StringEqualsIfExists:
+                    iam:PassedToService:
+                      - config.amazonaws.com
+                      - config-multiaccountsetup.amazonaws.com
+                      - resource-groups.amazonaws.com
+
+        - PolicyName: config-policy-config
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowConfigActions
+                Effect: Allow
+                Action:
+                  - config:DescribeConfigurationRecorderStatus
+                  - config:DescribeConfigurationRecorders
+                  - config:DeleteDeliveryChannel
+                  - config:PutConfigurationRecorder
+                  - config:DescribeDeliveryChannels
+                  - config:StopConfigurationRecorder
+                  - config:StartConfigurationRecorder
+                  - config:PutDeliveryChannel
+                  - config:DeleteConfigurationRecorder               
+                Resource: '*'
+
+        - PolicyName: resource-groups-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: ResourceGroupsPolicy
+                Effect: Allow
+                Action:
+                - resource-groups:DeleteGroup
+                - resource-groups:CreateGroup
+                - resource-groups:GetGroup
+                - resource-groups:GetTags
+                - resource-groups:ListGroups
+                - resource-groups:Tag            
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:resource-groups:*:${AWS::AccountId}:group/*'
+
+  ConfigRecorderRole:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Resource found with an explicit name, this disallows updates that require replacement of this resource
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref ConfigRecorderRoleName
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - config.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWS_ConfigRole"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetBucketAcl
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref BucketName]]
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref BucketName, /AWSLogs/,
+                                      !Ref 'AWS::AccountId', /*]]
+                Condition:
+                  StringEquals:
+                    s3:x-amz-acl: bucket-owner-full-control
+              - Effect: Allow
+                Action: 
+                  - config:PutConfigurationRecorder
+                  - config:PutDeliveryChannel
+                Resource: !Sub 'arn:${AWS::Partition}:config:*:${AWS::AccountId}:*'        

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: Creates the Delivery S3 bucket. (qs-1sfibuu8c)
+Description: Creates the Delivery S3 bucket. (qs-1urq0p15p)
 
 Metadata:
   cfn-lint:
@@ -113,6 +113,7 @@ Resources:
             reason: "SNS Topic should specify KmsMasterKeyId property"
     Type: "AWS::SNS::Topic"
     Properties:
+      KmsMasterKeyId: !Ref DeliveryKMSKeyArn
       TopicName: !Sub "SumoSNSTopic-${AWS::StackName}"
 
   SumoSNSpolicy:
@@ -129,7 +130,7 @@ Resources:
                 aws:SourceArn:
                   !If
                     - create_s3_bucket
-                    - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs"
+                    - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}"
                     - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}"
             Effect: Allow
             Principal:
@@ -177,8 +178,8 @@ Resources:
                   !If
                     - create_s3_bucket
                     -
-                      - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs/*"
-                      - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs"
+                      - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}/*"
+                      - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}"
                     -
                       - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}/*"
                       - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}"
@@ -206,7 +207,7 @@ Resources:
           - ServerSideEncryptionByDefault:
               KMSMasterKeyID: !Ref DeliveryKMSKeyArn
               SSEAlgorithm: aws:kms
-      BucketName: !Sub ${DeliveryBucketPrefix}-orgs
+      BucketName: !Ref DeliveryBucketPrefix
       NotificationConfiguration:
         TopicConfigurations:
           - Event: s3:ObjectCreated:Put
@@ -251,8 +252,8 @@ Resources:
               !If
                 - create_s3_bucket
                 -
-                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs/*"
-                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs"
+                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}/*"
+                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}"
                 -
                   - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}/*"
                   - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}"
@@ -268,8 +269,8 @@ Resources:
               !If
                 - create_s3_bucket
                 -
-                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs/*"
-                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs"
+                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}/*"
+                  - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}"
                 -
                   - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}/*"
                   - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}"
@@ -291,7 +292,7 @@ Resources:
             Resource:
               !If
                 - create_s3_bucket
-                - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs"
+                - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}"
                 - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}"
             Sid: AWSBucketPermissionsCheck
 
@@ -311,7 +312,7 @@ Resources:
             Resource:
               !If
                 - create_s3_bucket
-                - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}-orgs/*"
+                - !Sub "arn:aws:s3:::${DeliveryBucketPrefix}/*"
                 - !Sub "arn:aws:s3:::${CloudTrailExistsS3BucketName}/*"
             Sid: AWSBucketDelivery
 

@@ -874,7 +874,7 @@ class SumoLogicUpdateFields(SumoResource):
             for source in sources:
                 if source["name"] == source_name:
                     source_id = source["id"]
-            time.sleep(60)
+            time.sleep(120)
             
             sv, etag = self.sumologic_cli.source(collector_id, source_id)
 
@@ -885,12 +885,17 @@ class SumoLogicUpdateFields(SumoResource):
 
             sv['source']['fields'] = new_fields
 
-            resp = self.sumologic_cli.update_source(collector_id, sv, etag)
+            print("collector_id: %s, source_id %s, sv: %s, etag: %s" % (collector_id, source_id, sv,etag))
 
-            data = resp.json()['source']
-            print("updated Fields in Source %s" % data["id"])
+            try:
+                resp = self.sumologic_cli.update_source(collector_id, sv, etag)
+                data = resp.json()['source']
+                print("updated Fields in Source %s" % data["id"])
+            except:
+                print("Can't update fields in source %s, because no response from SumoLogic" % data["id"])
 
             return {"existing_fields": existing_fields}, source_id
+        
         return {"existing_fields": "Not updated"}, "No Id"
 
     # Update the new fields to source.

@@ -4,6 +4,7 @@ from awsresource import AWSResource
 
 from resourcefactory import ResourceFactory
 
+import awsorgprocess
 helper = CfnResource(json_logging=False, log_level='DEBUG')
 
 
@@ -62,7 +63,10 @@ def delete(event, context):
 
 
 def handler(event, context):
-    helper(event, context)
+    if  event.get("source") == "aws.organizations":
+        awsorgprocess.process_event_organizations(event=event)
+    else:
+        helper(event, context)
 
 if __name__ == "__main__":
     event = {}

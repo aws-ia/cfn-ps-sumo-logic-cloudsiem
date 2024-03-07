@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Creates the Delivery KMS Key. (qs-1sfibuu85)
+Description: Creates the Delivery KMS Key. (qs-1urq0pn17)
 
 Metadata:
   cfn-lint:

@@ -13,6 +13,24 @@ from retrying import retry
 from botocore.config import Config
 from time import time as now
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from mypy_boto3_sns import SNSClient
+from mypy_boto3_organizations import OrganizationsClient
+from mypy_boto3_sns.type_defs import PublishBatchResponseTypeDef
+from mypy_boto3_sts.client import STSClient
+from mypy_boto3_guardduty.type_defs import (
+        CreateMembersResponseTypeDef,
+        ListOrganizationAdminAccountsResponseTypeDef,
+        UpdateMemberDetectorsResponseTypeDef,
+    )
+from mypy_boto3_securityhub import GetEnabledStandardsPaginator, ListMembersPaginator, ListOrganizationAdminAccountsPaginator, SecurityHubClient, version
+from mypy_boto3_config import ConfigServiceClient
+from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from mypy_boto3_cloudformation import CloudFormationClient
+from typing import TYPE_CHECKING, Any
+
+from time import sleep
+import uuid
+import math
 
 # Setup Default Logger
 logging.basicConfig(level=logging.DEBUG)
@@ -57,7 +75,55 @@ class AWSTimeToWait(AWSResource):
         return {
             "params": props
         }  
-
+class AWSS3RandomID(AWSResource):
+    def __init__(self, props,  *args, **kwargs):
+        pass
+    def create(self, params, *args, **kwargs):
+        RandomID = str(uuid.uuid4())[0:8]
+        BucketPrefix = params["BUCKET_PREFIX"]
+        BucketPrefixRandomID = BucketPrefix + "-" + RandomID
+        return {"BucketPrefixRandomID": BucketPrefixRandomID}, BucketPrefixRandomID
+        
+    def update(self, params, *args, **kwargs):
+        pass
+    def delete(self, params, *args, **kwargs):
+        pass    
+    def extract_params(self, event):
+        self.EVENT = event
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }
+    
+class AWSUpdateLambdaVariables(AWSResource):  
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["FUNCTION_NAME","REGION", "VARIABLES"]
+        
+    def create(self, params, *args, **kwargs):
+        lambda_client = boto3.client("lambda", region_name=params["REGION"])
+        try:
+            response = lambda_client.update_function_configuration(
+                FunctionName = params["FUNCTION_NAME"],
+                Environment={
+                    'Variables': params["VARIABLES"]
+                }
+            )
+            return {"VariablesId": "VariablesId"}, "VariablesId"
+        except Exception as exc:
+            logger.error(f"Unexpected error: {exc}")
+            raise ValueError("Error update variables")    
+                
+    def update(self, params, *args, **kwargs):
+        pass
+    def delete(self, params, *args, **kwargs):
+        pass           
+    def extract_params(self, event):
+        self.EVENT = event
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }
+             
 class AWSFirewallManagerSetup(AWSResource):
     def __init__(self, props,  *args, **kwargs):
         self.STS_CLIENT = boto3.client("sts")
@@ -82,8 +148,6 @@ class AWSFirewallManagerSetup(AWSResource):
                 aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
                 aws_session_token=response["Credentials"]["SessionToken"],
             )
-
-            logger.debug(f"Assumed session for {aws_account_number}")
 
             return session
         except Exception as exc:
@@ -121,7 +185,6 @@ class AWSFirewallManagerSetup(AWSResource):
                 try:
                     logger.info("Getting admin account status in Firewall Manager")
                     admin_account_status = firewall_manager_client.get_admin_account()
-                    logger.info(f"get admin account status is {admin_account_status['RoleStatus']}")
                     if admin_account_status["RoleStatus"] == "READY":
                         logger.info("Admin account status = READY")
                         break
@@ -211,7 +274,7 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
         :param service_principal: AWS Service Principal
         :return: None
         """
-        logger.info(f"Enabling AWS Service Access for: {service_principal}")
+        #logger.info(f"Enabling AWS Service Access for: {service_principal}")
 
         try:
             self.ORGANIZATIONS_CLIENT.enable_aws_service_access(ServicePrincipal=service_principal)
@@ -225,7 +288,7 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
         :param service_principal: AWS Service Principal
         :return: None
         """
-        logger.info(f"Disabling AWS Service Access for: {service_principal}")
+        logger.debug(f"Disabling AWS Service Access for: {service_principal}")
 
         try:
             self.ORGANIZATIONS_CLIENT.disable_aws_service_access(ServicePrincipal=service_principal)
@@ -239,7 +302,7 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
         :param service_principal: AWS Service Principal
         :return: None
         """
-        logger.info(f"Registering a delegated administrator account for : {service_principal}")
+        logger.debug(f"Registering a delegated administrator account for : {service_principal}")
 
         try:
             # Register the delegated administrator
@@ -249,10 +312,9 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
             # Get the delegated administrators
             delegated_administrators = self.ORGANIZATIONS_CLIENT.list_delegated_administrators(
                 ServicePrincipal=service_principal)
-            logger.info(f"{delegated_administrators}")
 
             if not delegated_administrators:
-                logger.info(f"The delegated administrator {service_principal} was not registered")
+                logger.debug(f"The delegated administrator {service_principal} was not registered")
                 raise ValueError("Error registering the delegated administrator account")
         except self.ORGANIZATIONS_CLIENT.exceptions.AccountAlreadyRegisteredException:
             logger.debug(f"Account: {account_id} already registered for {service_principal}")
@@ -267,7 +329,7 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
         :param service_principal: AWS service principal
         :return: None
         """
-        logger.info(f"Deregister AWS Service Access for: {service_principal}")
+        logger.debug(f"Deregister AWS Service Access for: {service_principal}")
 
         try:
             # Deregister the delegated administrator
@@ -277,10 +339,9 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
             delegated_administrators = self.ORGANIZATIONS_CLIENT.list_delegated_administrators(
                 ServicePrincipal=service_principal)
 
-            logger.debug(str(delegated_administrators))
 
             if not delegated_administrators:
-                logger.info(f"The deregister was successful for the {service_principal} delegated administrator")
+                logger.debug(f"The deregister was successful for the {service_principal} delegated administrator")
         except self.ORGANIZATIONS_CLIENT.exceptions.AccountNotRegisteredException:
             logger.debug(f"Account: {account_id} not registered for {service_principal}")
         except Exception as error:
@@ -385,6 +446,31 @@ class AWSRegisterDelegatedAdministrator(AWSResource):
         return {
             "params": props
         }
+#class for enable sharing with aws organization.
+class AWSOrgEnableSharing(AWSResource):
+    def __init__(self, props,  *args, **kwargs):
+        self.ORG_CLIENT = boto3.client("ram")
+    def create(self, params, *args, **kwargs):
+        try:
+            self.ORG_CLIENT.enable_sharing_with_aws_organization()
+        except ClientError as ce:
+            logger.error(f"Client Error: {str(ce)}")
+            raise
+        except Exception as exc:
+            logger.error(f"Exception: {str(exc)}")
+            raise
+        return {"OrgEnableSharingId": "OrgEnableSharingId"}, "OrgEnableSharingId"
+
+    def update(self, params, *args, **kwargs):
+        pass
+    def delete(self, params, *args, **kwargs):
+        pass
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }
+    
 #class for anable trusted service in org.
 class AWSOrgEnableServiceAccess(AWSResource):
     def __init__(self, props,  *args, **kwargs):
@@ -429,8 +515,74 @@ class AWSCloudTrailOrg(AWSResource):
         self.CLOUDFORMATION_PARAMETERS = ["AWS_PARTITION", "CLOUDTRAIL_NAME", "CLOUDWATCH_LOG_GROUP_ARN",
                              "CLOUDWATCH_LOG_GROUP_ROLE_ARN", "ENABLE_DATA_EVENTS_ONLY", "ENABLE_LAMBDA_DATA_EVENTS",
                              "ENABLE_S3_DATA_EVENTS", "KMS_KEY_ID", "S3_BUCKET_NAME", "S3_KEY_PREFIX", "TAG_KEY1",
-                             "TAG_VALUE1"]  
+                             "TAG_VALUE1","DELEGATED_ADMIN_ACCOUNT_ID","REMOVE_ON_DELETE_STACK"]  
         self.CLOUDTRAIL_CLIENT = boto3.client("cloudtrail")
+        self.ORG_CLIENT = boto3.client("organizations")
+
+    def list_delegated_administrator(self,delegated_admin_account_id: str, service_principal: str) -> None:
+        """Check if the delegated administrator account for the provided service principal exists.
+
+        Args:
+            delegated_admin_account_id: Delegated Administrator Account ID
+            service_principal: AWS Service Principal
+
+        Raises:
+            ValueError: Error registering the delegated administrator account
+        """
+        logger.debug(f"Checking if delegated administrator already registered for: {service_principal}")
+
+        try:
+            delegated_administrators = self.ORG_CLIENT.list_delegated_administrators(ServicePrincipal=service_principal)
+
+            if not delegated_administrators:
+                logger.debug(f"The delegated administrator {service_principal} was not registered")
+                raise ValueError("Error registering the delegated administrator account")
+        except self.ORG_CLIENT.exceptions.AccountAlreadyRegisteredException:
+            logger.debug(f"Account: {delegated_admin_account_id} already registered for {service_principal}")
+
+    def set_delegated_admin(self,delegated_admin_account_id: str) -> None:
+        """Set the delegated admin account.
+
+        Args:
+            delegated_admin_account_id: Admin account ID
+
+        Raises:
+            Exception: raises exception as e
+        """
+        try:
+            delegated_admin_response = self.CLOUDTRAIL_CLIENT.register_organization_delegated_admin(MemberAccountId=delegated_admin_account_id)
+            api_call_details = {"API_Call": "cloudtrail:RegisterOrganizationDelegatedAdmin", "API_Response": delegated_admin_response}
+            logger.debug(api_call_details)
+            logger.debug(f"Delegated admin ({delegated_admin_account_id}) enabled")
+        except self.CLOUDTRAIL_CLIENT.exceptions.AccountRegisteredException:
+            logger.info("Delegated admin already registered")
+        except Exception as e:
+            logger.error(f"Failed to enable delegated admin. {e}")
+            raise
+    def deregister_delegated_administrator(self,delegated_admin_account_id: str, service_principal: str) -> None:
+        """Deregister the delegated administrator account for the provided service principal.
+
+        Args:
+            delegated_admin_account_id: Delegated Administrator Account ID
+            service_principal: AWS Service Principal format: service_name.amazonaws.com
+
+        """
+        logger.debug(f"Deregistering AWS Service Access for: {service_principal}")
+
+        try:
+            delegated_admin_response =self. CLOUDTRAIL_CLIENT.deregister_organization_delegated_admin(DelegatedAdminAccountId=delegated_admin_account_id)
+            api_call_details = {"API_Call": "cloudtrail:DeregisterOrganizationDelegatedAdmin", "API_Response": delegated_admin_response}
+            logger.debug(api_call_details)
+            logger.debug(f"Delegated admin ({delegated_admin_account_id}) deregistered")
+            delegated_administrators = self.ORG_CLIENT.list_delegated_administrators(ServicePrincipal=service_principal)
+
+            logger.debug(str(delegated_administrators))
+
+            if not delegated_administrators:
+                logger.debug(f"The deregister was successful for the {service_principal} delegated administrator")
+        except self.ORG_CLIENT.exceptions.AccountNotRegisteredException:
+            logger.info(f"Account: {delegated_admin_account_id} not registered for {service_principal}")
+
     def get_data_event_config(self,**params) -> dict:
         """
         Creates the CloudTrail event selectors configuration
@@ -468,13 +620,14 @@ class AWSCloudTrailOrg(AWSResource):
             logger.info("Lambda Data Events Added to Event Selectors")
 
         return event_selectors
+    
     def enable_aws_service_access(self,service_principal: str):
         """
         Enables the AWS Service Access for the provided service principal
         :param service_principal: AWS Service Principal format: service_name.amazonaws.com
         :return: None
         """
-        logger.info("Enable AWS Service Access for: " + str(service_principal))
+        logger.debug("Enable AWS Service Access for: " + str(service_principal))
 
         try:
             organizations = boto3.client("organizations")
@@ -485,6 +638,7 @@ class AWSCloudTrailOrg(AWSResource):
         except Exception as exc:
             logger.error(f"Exception: {str(exc)}")
             raise
+
     def get_cloudtrail_parameters(self, is_create: bool, **params) -> dict:
         """
         Dynamically creates a parameter dict for the CloudTrail create_trail and update_trail API calls.
@@ -513,6 +667,7 @@ class AWSCloudTrailOrg(AWSResource):
             cloudtrail_params["CloudWatchLogsRoleArn"] = params["cloudwatch_log_group_role_arn"]
 
         return cloudtrail_params
+    
     def check_parameters(self, event: dict):
         """
         Check event for required parameters in the ResourceProperties
@@ -533,6 +688,7 @@ class AWSCloudTrailOrg(AWSResource):
         except Exception as error:
             logger.error(f"Exception checking parameters {error}")
             raise ValueError("Error checking parameters")
+        
     def create(self, params, *args, **kwargs):
         """
         CloudFormation Create Event. Creates a CloudTrail with the provided parameters
@@ -543,6 +699,9 @@ class AWSCloudTrailOrg(AWSResource):
         logger.info("Create Event")
         try:
             self.enable_aws_service_access(self.AWS_SERVICE_PRINCIPAL)
+            self.list_delegated_administrator(params["DELEGATED_ADMIN_ACCOUNT_ID"], self.AWS_SERVICE_PRINCIPAL)
+            self.set_delegated_admin(params["DELEGATED_ADMIN_ACCOUNT_ID"])
+
             cloudtrail_name = params.get("CLOUDTRAIL_NAME")
 
             self.CLOUDTRAIL_CLIENT.create_trail(
@@ -556,6 +715,7 @@ class AWSCloudTrailOrg(AWSResource):
                                             tag_key1=params.get("TAG_KEY1"),
                                             tag_value1=params.get("TAG_VALUE1")
                                             ))
+            
             logger.info("Created an Organization CloudTrail")
 
             event_selectors = self.get_data_event_config(
@@ -594,7 +754,10 @@ class AWSCloudTrailOrg(AWSResource):
         """
         logger.info("Delete Event")
         try:
+            remove_on_delete_stack=(params.get("REMOVE_ON_DELETE_STACK", "false")).lower() in "true"
             self.CLOUDTRAIL_CLIENT.delete_trail(Name=params.get("CLOUDTRAIL_NAME"))
+            if remove_on_delete_stack:
+                self.deregister_delegated_administrator(params.get("DELEGATED_ADMIN_ACCOUNT_ID", ""), self.AWS_SERVICE_PRINCIPAL)
         except ClientError as ce:
             if ce.response["Error"]["Code"] == "TrailNotFoundException":
                 logger.error(f"Trail Does Not Exist {str(ce)}")
@@ -612,16 +775,970 @@ class AWSCloudTrailOrg(AWSResource):
         props = event.get("ResourceProperties")
         return {
             "params": props
+        }   
+                                                                                  
+class AWSConfig(AWSResource):
+
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["CONFIG_ROLE_NAME", "ALL_SUPPORTED", "INCLUDE_GLOBAL_RESOURCE_TYPES",
+                                    "RESOURCE_TYPES", "FREQUENCY",
+                                    "CONFIG_BUCKET", "ENABLED_REGIONS", "CONFIG_ASSUME_ROLE_NAME"]
+        self.UNEXPECTED = "Unexpected!"
+        self.MAX_THREADS = 20
+        self.ORG_PAGE_SIZE = 20  # Max page size for list_accounts
+        self.ORG_THROTTLE_PERIOD = 0.2        
+        self.BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
+        self.ID = str(uuid.uuid4())[0:8]
+        try:
+
+            MANAGEMENT_ACCOUNT_SESSION = boto3.Session()
+            self.ORG_CLIENT: OrganizationsClient = MANAGEMENT_ACCOUNT_SESSION.client("organizations", config=self.BOTO3_CONFIG)
+            self.RESOURCE_GROUP_CLIENT: OrganizationsClient = MANAGEMENT_ACCOUNT_SESSION.client("resource-groups", config=self.BOTO3_CONFIG)
+
+        except Exception:
+
+            logger.exception(self.UNEXPECTED)
+            raise ValueError("Unexpected error executing Lambda function. Review CloudWatch logs for details.") from None   
+         
+    def assume_role(self, role: str, role_session_name: str, account: str = None, session: boto3.Session = None) -> boto3.Session:
+        if not session:
+            session = boto3.Session()
+        sts_client: STSClient = session.client("sts", config=self.BOTO3_CONFIG)
+        sts_arn = sts_client.get_caller_identity()["Arn"]
+
+        if not account:
+            account = sts_arn.split(":")[4]
+        partition = sts_arn.split(":")[1]
+        role_arn = f"arn:{partition}:iam::{account}:role/{role}"
+
+        response = sts_client.assume_role(RoleArn=role_arn, RoleSessionName=role_session_name)
+
+
+        return boto3.Session(
+            aws_access_key_id=response["Credentials"]["AccessKeyId"],
+            aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
+            aws_session_token=response["Credentials"]["SessionToken"],
+        )
+    
+    def get_all_organization_accounts(self) -> list:
+        """Get all the active AWS Organization accounts.
+        Returns:
+            List of active account IDs
+        """
+        account_ids = []
+        paginator = self.ORG_CLIENT.get_paginator("list_accounts")
+
+        for page in paginator.paginate(PaginationConfig={"PageSize": self.ORG_PAGE_SIZE}):
+            for acct in page["Accounts"]:
+                if acct["Status"] == "ACTIVE":  # Store active accounts in a dict
+                    account_ids.append(acct["Id"])
+            sleep(self.ORG_THROTTLE_PERIOD)
+
+        return account_ids
+                  
+    def create_account_config(self, account_id: str, regions: list, config_assume_role_name: str, RoleARN: str, AllSupported: str,
+                       IncludeGlobalResourceTypes: str, ResourceTypes: str, Frequency: str,
+                       ConfigBucket: str):
+        
+        account_session = self.assume_role(config_assume_role_name, f"sumo-aws-config-recorder-check-{self.ID}", account_id)
+
+        for region in regions:
+            session_config: ConfigServiceClient = account_session.client("config", region_name=region, config=self.BOTO3_CONFIG)
+            resource_groups_client = account_session.client('resource-groups',region_name=region, config=self.BOTO3_CONFIG)
+            config_recorder_response = session_config.describe_configuration_recorder_status()
+            logger.debug(f'config recorder response:{config_recorder_response}')
+
+            try:
+                resource_groups_response = resource_groups_client.get_group(
+                    GroupName="sumologic"
+                )
+                if 'Group' not in resource_groups_response or len(resource_groups_response['Group'])<1:
+                    resource_groups_response = resource_groups_client.create_group(
+                        Name='sumologic',
+                        Description='Group resource create by sumologic auto. pls do not remove or add tag in group',
+                        ResourceQuery={
+                            "Type": "TAG_FILTERS_1_0",
+                            "Query": json.dumps(
+                                {
+                                    "ResourceTypeFilters": ["AWS::AllSupported"],
+                                    "TagFilters": [
+                                        {"Key": "sumologic", "Values": ["©2023 Sumo Logic"]}
+                                    ]
+                                }
+                            )
+                        }
+                    )
+                    resource_group_arn = resource_groups_response['Group']['GroupArn']
+                else:
+                    resource_group_arn = resource_groups_response['Group']['GroupArn']                
+            except Exception:
+                resource_groups_response = resource_groups_client.create_group(
+                    Name='sumologic',
+                    Description='Group resource create by sumologic auto. pls do not remove or add tag in group',
+                    ResourceQuery={
+                        "Type": "TAG_FILTERS_1_0",
+                        "Query": json.dumps(
+                            {
+                                "ResourceTypeFilters": ["AWS::AllSupported"],
+                                "TagFilters": [
+                                    {"Key": "sumologic", "Values": ["©2023 Sumo Logic"]}
+                                ]
+                            }
+                        )
+                    }                    
+                )
+                resource_group_arn = resource_groups_response['Group']['GroupArn']  
+                                                                       
+            if 'ConfigurationRecordersStatus' not in config_recorder_response or \
+                    len(config_recorder_response['ConfigurationRecordersStatus']) < 1:
+                if AllSupported:
+                    ConfigurationRecorder={
+                        "name":'default',
+                        "roleARN": f"{RoleARN}" ,
+                        "recordingGroup":{
+                            "allSupported": AllSupported,
+                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes
+                        }
+                    }
+                else:
+                    ConfigurationRecorder={
+                        "name":'default',
+                        "roleARN": f"{RoleARN}" ,
+                        "recordingGroup":{
+                            "allSupported": AllSupported,
+                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes,
+                            "resourceTypes": [
+                                    ResourceTypes
+                            ]
+                        }
+                    } 
+
+                response = session_config.put_configuration_recorder(
+                    ConfigurationRecorder = ConfigurationRecorder                 
+                )
+
+                response = session_config.put_delivery_channel(
+                    DeliveryChannel={
+                        "name":"default",
+                        "s3BucketName": f"{ConfigBucket}",
+                        "configSnapshotDeliveryProperties": {
+                            "deliveryFrequency":f"{Frequency}"
+                        }
+                    }
+                )
+
+                response = session_config.start_configuration_recorder(
+                    ConfigurationRecorderName="default"
+                )
+
+                resource_groups_response = resource_groups_client.tag(
+                    Arn=f"{resource_group_arn}",
+                    Tags={
+                        'disable-awsconfig-when-remove-cfn':'true'
+                    }
+                )
+            else:
+                for config_recorder in config_recorder_response['ConfigurationRecordersStatus']:
+                    if not config_recorder['recording']:
+                        channels = session_config.describe_delivery_channels()
+                        bucket_name=None
+                        if "DeliveryChannels" in channels:
+                            for channel in channels["DeliveryChannels"]:
+                                bucket_name = channel["s3BucketName"] if "s3BucketName" in channel else None
+                                break
+                        if bucket_name==None:
+                            try:
+                                response = session_config.put_delivery_channel(
+                                    DeliveryChannel={
+                                        "name":"default",
+                                        "s3BucketName": f"{ConfigBucket}",
+                                        "configSnapshotDeliveryProperties": {
+                                            "deliveryFrequency":f"{Frequency}"
+                                        }
+                                    }
+                                )
+                            except session_config.exceptions.InsufficientDeliveryPolicyException as error:
+                                if AllSupported:
+                                    ConfigurationRecorder={
+                                        "name":'default',
+                                        "roleARN": f"{RoleARN}" ,
+                                        "recordingGroup":{
+                                            "allSupported": AllSupported,
+                                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes
+                                        }
+                                    }
+                                else:
+                                    ConfigurationRecorder={
+                                        "name":'default',
+                                        "roleARN": f"{RoleARN}" ,
+                                        "recordingGroup":{
+                                            "allSupported": AllSupported,
+                                            "includeGlobalResourceTypes":IncludeGlobalResourceTypes,
+                                            "resourceTypes": [
+                                                    ResourceTypes
+                                            ]
+                                        }
+                                    } 
+
+                                response = session_config.put_configuration_recorder(
+                                    ConfigurationRecorder = ConfigurationRecorder                 
+                                )                                
+                                response = session_config.put_delivery_channel(
+                                    DeliveryChannel={
+                                        "name":"default",
+                                        "s3BucketName": f"{ConfigBucket}",
+                                        "configSnapshotDeliveryProperties": {
+                                            "deliveryFrequency":f"{Frequency}"
+                                        }
+                                    }
+                                )
+                            except ClientError as error:
+                                logging.error(f"AWS Config error: {error}")
+                                raise
+                            resource_groups_response = resource_groups_client.tag(
+                                Arn=f"{resource_group_arn}",
+                                Tags={
+                                    'remove-s3-in-delivery-channel-when-remove-cfn':'true'
+                                }
+                            )                        
+                        resource_groups_response = resource_groups_client.tag(
+                            Arn=f"{resource_group_arn}",
+                            Tags={
+                                'stop-delivery-channel-when-remove-cfn':'true'
+                            }
+                        )
+                        response = session_config.start_configuration_recorder(
+                            ConfigurationRecorderName="default"
+                        ) 
+    def delete_account_config(self, account_id: str, regions: list, config_assume_role_name: str):
+        
+        account_session = self.assume_role(config_assume_role_name, "sumo-aws-config-recorder-check", account_id)
+
+        for region in regions:
+            session_config = account_session.client("config", region_name=region, config=self.BOTO3_CONFIG)
+            resource_groups_client = account_session.client('resource-groups',region_name=region, config=self.BOTO3_CONFIG)
+            config_recorder_response = session_config.describe_configuration_recorder_status()
+            try:
+                resource_groups_response = resource_groups_client.get_group(
+                    GroupName="sumologic"
+                )
+                if 'Group' in resource_groups_response or len(resource_groups_response['Group'])>=1:
+                    resource_group_arn = resource_groups_response['Group']['GroupArn']
+                    tags_response = resource_groups_client.get_tags(
+                        Arn=f"{resource_group_arn}"
+                    )
+                    if len(tags_response["Tags"])>=1:
+                        if "disable-awsconfig-when-remove-cfn" in tags_response["Tags"]:
+                            if "true" in tags_response["Tags"]["disable-awsconfig-when-remove-cfn"]:
+                                config_recorder_response = session_config.delete_configuration_recorder(
+                                    ConfigurationRecorderName='default'
+                                )
+                        if "remove-s3-in-delivery-channel-when-remove-cfn" in tags_response["Tags"]:
+                            if "true" in tags_response["Tags"]["remove-s3-in-delivery-channel-when-remove-cfn"]:
+                                response = session_config.put_delivery_channel(
+                                    DeliveryChannel={
+                                        "name":f"default",
+                                        "s3BucketName": "",
+                                        "configSnapshotDeliveryProperties": {
+                                            "deliveryFrequency":"TwentyFour_Hours"
+                                        }
+                                    }
+                                )
+                        if "stop-delivery-channel-when-remove-cfn" in tags_response["Tags"]:        
+                            if "true" in tags_response["Tags"]["stop-delivery-channel-when-remove-cfn"]:
+                                response = session_config.stop_configuration_recorder(
+                                    ConfigurationRecorderName="default"
+                                )
+                    response = resource_groups_client.delete_group(GroupName="sumologic") 
+            except Exception as exc: 
+                logger.error(f'Delete config recorder error:{exc}')                
+
+    def is_region_available(self,region):
+
+        regional_sts = boto3.client('sts', region_name=region)
+        try:
+            regional_sts.get_caller_identity()
+            return True
+        except ClientError as error:
+            if "InvalidClientTokenId" in str(error):
+                logger.debug(f"Region: {region} is not available")
+                return False
+            else:
+                logger.error(f"{error}") 
+
+    def get_available_service_regions(self, user_regions: str, aws_service: str) -> list:
+        available_regions = []
+        try:
+            if user_regions.strip():
+                service_regions = [value.strip() for value in user_regions.split(",") if value != '']
+            else:
+                service_regions = boto3.session.Session().get_available_regions(
+                    aws_service
+                )
+        except ClientError as ce:
+            logger.error(f"get_available_service_regions error: {ce}")
+            raise ValueError("Error getting service regions")
+        
+        for region in service_regions:
+            if self.is_region_available(region):
+                available_regions.append(region)
+
+        set_res = set(available_regions)
+        logger.info(f"AVAILABLE REGIONS: {list(set_res)}")
+
+        return list(set_res)
+
+
+    def create(self, params, *args, **kwargs):
+        logger.info("Create Event")
+        try:
+            account_ids = self.get_all_organization_accounts()
+            available_regions = self.get_available_service_regions(params["ENABLED_REGIONS"],"config")
+            AllSupported = (params.get("ALL_SUPPORTED", "false")).lower() in "true"
+            IncludeGlobalResourceTypes = (params.get("INCLUDE_GLOBAL_RESOURCE_TYPES", "false")).lower() in "true" 
+            ResourceTypes = params["RESOURCE_TYPES"]
+            Frequency = params["FREQUENCY"]
+            ConfigBucket = params["CONFIG_BUCKET"]                    
+            if len(available_regions) > 0:
+                for account in account_ids:
+                    RoleARN = f'arn:aws:iam::{account}:role/{params["CONFIG_ROLE_NAME"]}'
+                    self.create_account_config(account, available_regions, params["CONFIG_ASSUME_ROLE_NAME"], RoleARN, 
+                                               AllSupported, IncludeGlobalResourceTypes, ResourceTypes, Frequency, ConfigBucket)
+                    sleep(5)  
+
+            return {'AWSConfigId': "AWSConfigId"}, "AWSConfigId"
+
+        except Exception as error:
+            logger.error(f"Create process error: {error}")
+            raise ValueError("API Exception. Review logs for details.")
+        
+    def update(self, params, *args, **kwargs):
+        logger.info("Update Event")
+        try:
+            account_ids = self.get_all_organization_accounts()
+            available_regions = self.get_available_service_regions(params["ENABLED_REGIONS"],"config")
+            AllSupported = (params.get("ALL_SUPPORTED", "false")).lower() in "true"
+            IncludeGlobalResourceTypes = (params.get("INCLUDE_GLOBAL_RESOURCE_TYPES", "false")).lower() in "true" 
+            ResourceTypes = params["RESOURCE_TYPES"]
+            Frequency = params["FREQUENCY"]
+            ConfigBucket = params["CONFIG_BUCKET"]               
+            if len(available_regions) > 0:
+                results=[]
+                for account in account_ids:
+                    RoleARN = f'arn:aws:iam::{account}:role/{params["CONFIG_ROLE_NAME"]}'
+                    self.create_account_config(account, available_regions, params["CONFIG_ASSUME_ROLE_NAME"], RoleARN, 
+                                               AllSupported, IncludeGlobalResourceTypes, ResourceTypes, Frequency, ConfigBucket)
+                    sleep(5)  
+
+            return {'AWSConfigId': "AWSConfigId"}, "AWSConfigId"
+
+        except Exception as error:
+            logger.error(f"Create process error: {error}")
+            raise ValueError("API Exception. Review logs for details.")
+
+    def delete(self, params, *args, **kwargs):
+        logger.info("Delete Event")
+        try:
+            account_ids = self.get_all_organization_accounts()
+            available_regions = self.get_available_service_regions(params["ENABLED_REGIONS"],"config")
+            if len(available_regions) > 0:
+                for account in account_ids:
+                    self.delete_account_config(account, available_regions, params["CONFIG_ASSUME_ROLE_NAME"])
+                    sleep(5)  
+
+            return {'AWSConfigId': "AWSConfigId"}, "AWSConfigId"
+
+        except Exception as error:
+            logger.error(f"Delete process error: {error}")
+            pass    
+
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        } 
+                        
+class AWSSecurityHub(AWSResource):
+    
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["AWS_PARTITION", "CIS_VERSION", "CONFIGURATION_ROLE_NAME",
+                                    "CONTROL_TOWER_REGIONS_ONLY", "DELEGATED_ADMIN_ACCOUNT_ID", "DISABLE_SECURITY_HUB",
+                                    "ENABLE_CIS_STANDARD", "ENABLE_PCI_STANDARD","ENABLE_SECURITY_BEST_PRACTICES_STANDARD",
+                                    "HOME_REGION","MANAGEMENT_ACCOUNT_ID","PCI_VERSION","REGION_LINKING_MODE",
+                                    "SECURITY_BEST_PRACTICES_VERSION","ENABLED_REGIONS","LINKED_REGIONS"]
+        self.UNEXPECTED = "Unexpected!"
+        self.SERVICE_NAME = "securityhub.amazonaws.com"
+        self.SLEEP_SECONDS = 60
+        self.PRE_DISABLE_SLEEP_SECONDS = 30
+        self.SNS_PUBLISH_BATCH_MAX = 10
+        self.BOTO3_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})        
+        try:
+            self.MANAGEMENT_ACCOUNT_SESSION = boto3.Session()
+            self.ORG_CLIENT: OrganizationsClient = self.MANAGEMENT_ACCOUNT_SESSION.client("organizations", config=self.BOTO3_CONFIG)
+            self.SNS_CLIENT: SNSClient = self.MANAGEMENT_ACCOUNT_SESSION.client("sns", config=self.BOTO3_CONFIG)
+        except Exception:
+            logger.exception(self.UNEXPECTED)
+            raise ValueError("Unexpected error executing Lambda function. Review CloudWatch logs for details.") from None    
+            
+    def assume_role(self,role: str, role_session_name: str, account: str = None, session: boto3.Session = None) -> boto3.Session:
+        """Assumes the provided role in the given account and returns a session.
+
+        Args:
+            role: Role to assume in target account.
+            role_session_name: Identifier for the assumed role session.
+            account: AWS account number. Defaults to None.
+            session: Boto3 session. Defaults to None.
+
+        Returns:
+            Session object for the specified AWS account
+        """
+        if not session:
+            session = boto3.Session()
+        sts_client: STSClient = session.client("sts", config=self.BOTO3_CONFIG)
+        sts_arn = sts_client.get_caller_identity()["Arn"]
+        if not account:
+            account = sts_arn.split(":")[4]
+        partition = sts_arn.split(":")[1]
+        role_arn = f"arn:{partition}:iam::{account}:role/{role}"
+
+        response = sts_client.assume_role(RoleArn=role_arn, RoleSessionName=role_session_name)
+        return boto3.Session(
+            aws_access_key_id=response["Credentials"]["AccessKeyId"],
+            aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
+            aws_session_token=response["Credentials"]["SessionToken"],
+        )
+
+    def deregister_delegated_administrator(self,delegated_admin_account_id: str, service_principal: str = "securityhub.amazonaws.com") -> None:
+        """Deregister the delegated administrator account for the provided service principal within AWS Organizations.
+        Args:
+            delegated_admin_account_id: Delegated Admin Account
+            service_principal: Service Principal
+        """
+        try:
+            self.ORG_CLIENT.deregister_delegated_administrator(AccountId=delegated_admin_account_id, ServicePrincipal=service_principal)
+        except self.ORG_CLIENT.exceptions.AccountNotRegisteredException as error:
+            logger.info(f"Account ({delegated_admin_account_id}) is not a registered delegated administrator: {error}")  
+
+    def is_admin_account_enabled(self,securityhub_client: SecurityHubClient, admin_account_id: str) -> bool:
+        """Is admin account enabled.
+        Args:
+            securityhub_client: SecurityHubClient
+            admin_account_id: Admin Account ID
+        Returns:
+            True or False
+        """
+        paginator: ListOrganizationAdminAccountsPaginator = securityhub_client.get_paginator("list_organization_admin_accounts")
+        for page in paginator.paginate():
+            for admin_account in page["AdminAccounts"]:
+                if admin_account["AccountId"] == admin_account_id and admin_account["Status"] == "ENABLED":
+                    return True
+            sleep(0.2)
+        return False
+
+    def process_organization_admin_account(self,admin_account_id: str, home_region: str ) -> None:  # noqa: CCR001 # NOSONAR
+        """Process the delegated admin account for each region.
+        Args:
+            admin_account_id: Admin account ID
+            home_region: AWS Region
+        Raises:
+            ClientError: boto3 ClientError
+        """
+        securityhub_client: SecurityHubClient = self.MANAGEMENT_ACCOUNT_SESSION.client("securityhub", home_region, config=self.BOTO3_CONFIG)
+        if not self.is_admin_account_enabled(securityhub_client, admin_account_id):
+            for _ in range(10):
+                try:
+                    securityhub_client.enable_organization_admin_account(AdminAccountId=admin_account_id)
+                    break
+                except securityhub_client.exceptions.ResourceConflictException:
+                    logger.debug(f"Delegated admin already enabled in {home_region}")
+                except ClientError as error:
+                    if error.response["Error"]["Code"] != "InvalidInputException":
+                        raise
+                    logger.info(
+                        f"Waiting 10 seconds before retrying the enable organization delegated admin '{admin_account_id}' enabled in {home_region}"
+                    )
+                    sleep(10)
+
+    def get_enabled_standard_identifiers(self, 
+                                 enable_aws_foundational_security_best_practices_v1_0_0: bool = True,
+                                 enable_cis_aws_foundations_benchmark_v1_2_0: bool = True,
+                                 enable_nist_800_53_v5_0_0: bool = True,
+                                 enable_pci_dss_v3_2_1: bool = True,
+                                 enable_cis_aws_foundations_benchmark_v1_4_0: bool = True, home_region: str="us-east-1") -> dict:
+        """Get Standards Dictionary used to process standard configurations.
+        Returns:
+            Dictionary of standards data
+        """
+        EnabledStandardIdentifiers = []
+        if enable_aws_foundational_security_best_practices_v1_0_0:
+            EnabledStandardIdentifiers.append(f"arn:aws:securityhub:{home_region}::standards/aws-foundational-security-best-practices/v/1.0.0")
+        if enable_cis_aws_foundations_benchmark_v1_2_0:
+            EnabledStandardIdentifiers.append(f"arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.2.0")
+        if enable_nist_800_53_v5_0_0:
+            EnabledStandardIdentifiers.append(f"arn:aws:securityhub:{home_region}::standards/nist-800-53/v/5.0.0")
+        if enable_pci_dss_v3_2_1:
+            EnabledStandardIdentifiers.append(f"arn:aws:securityhub:{home_region}::standards/pci-dss/v/3.2.1")
+        if enable_cis_aws_foundations_benchmark_v1_4_0:
+            EnabledStandardIdentifiers.append(f"arn:aws:securityhub:{home_region}::standards/cis-aws-foundations-benchmark/v/1.4.0")
+        return EnabledStandardIdentifiers
+    
+    def configure_delegated_admin_securityhub(self, delegated_admin_account_id: str, home_region: str, configuration_role_name: str, region_linking_mode: str, linked_regions: list, configuration_policy_name: str, RootId: str, standards_user_input: dict,
+    ) -> None:
+        """Configure delegated admin security hub.
+        Args:
+            accounts: list of account details [{"AccountId": "", "Email": ""}]
+            regions: AWS Region List
+            delegated_admin_account_id: Delegated Admin Account ID
+            configuration_role_name: Configuration Role Name
+            region_linking_mode: Region Linking Mode
+            linked_regions: Findings from linked Regions can be viewed in the aggregation Region.
+            home_region: Home Region
+        """
+        # enable security hub organization admin account on Manager Account
+        self.process_organization_admin_account(delegated_admin_account_id, home_region)
+
+        delegated_admin_session = self.assume_role(configuration_role_name, "sra-enable-security-hub", delegated_admin_account_id)
+        securityhub_delegated_admin_region_client: SecurityHubClient = delegated_admin_session.client("securityhub", home_region, config=self.BOTO3_CONFIG)
+
+        enable_aws_foundational_security_best_practices_v1_0_0 = ("FSBP_v1.0.0" in standards_user_input)
+        enable_cis_aws_foundations_benchmark_v1_2_0 = ("CIS_v1.2.0" in standards_user_input)
+        enable_nist_800_53_v5_0_0 = ("NIST_v5.0.0" in standards_user_input)
+        enable_pci_dss_v3_2_1 = ("PCI_DSS_v3.2.1" in standards_user_input)
+        enable_cis_aws_foundations_benchmark_v1_4_0 = ("CIS_v1.4.0" in standards_user_input)
+        EnabledStandardIdentifiers = self.get_enabled_standard_identifiers(
+            enable_aws_foundational_security_best_practices_v1_0_0=enable_aws_foundational_security_best_practices_v1_0_0,
+            enable_cis_aws_foundations_benchmark_v1_2_0=enable_cis_aws_foundations_benchmark_v1_2_0,
+            enable_cis_aws_foundations_benchmark_v1_4_0=enable_cis_aws_foundations_benchmark_v1_4_0,
+            enable_nist_800_53_v5_0_0=enable_nist_800_53_v5_0_0,
+            enable_pci_dss_v3_2_1=enable_pci_dss_v3_2_1,
+            home_region= home_region
+        )
+        list_region = [
+            "us-east-2", "us-east-1", "us-west-1", "us-west-2", "af-south-1", "ap-east-1", "ap-south-1", "ap-south-2", "ap-northeast-3", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-4", "ap-northeast-1", "ca-central-1", "ca-west-1", "cn-north-1", "cn-northwest-1", "eu-central-1", "eu-central-2", "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1", "eu-south-1", "eu-south-2", "il-central-1", "me-south-1", "me-central-1", "sa-east-1", "us-gov-west-1", "us-gov-east-1"
+        ]
+        list_linked_region=[]
+        if (region_linking_mode=="SPECIFIED_REGIONS" or region_linking_mode=="ALL_REGIONS_EXCEPT_SPECIFIED"):
+            if len(linked_regions.strip())<1:
+                raise ValueError("Linked Regions for SecurityHub not null")
+            else:
+                for region in list(linked_regions.strip().split(",")):
+                    if region.strip() in list_region:
+                        if region.strip()!= home_region:
+                            list_linked_region.append(region.strip())
+                if len(list_linked_region)<1:
+                    raise ValueError("Linked Regions for SecurityHub not null")       
+        try:
+            list_finding_aggregators_response = securityhub_delegated_admin_region_client.list_finding_aggregators(
+                MaxResults=50
+            )
+            FindingAggregationRegion=""
+            UpdateFindingAggregatorArn=""
+            for FindingAggregatorArn in list_finding_aggregators_response["FindingAggregators"]:
+
+                FindingAggregationRegion = securityhub_delegated_admin_region_client.get_finding_aggregator(
+                    FindingAggregatorArn=FindingAggregatorArn["FindingAggregatorArn"]
+                )["FindingAggregationRegion"]
+
+                if FindingAggregationRegion == home_region:
+                    UpdateFindingAggregatorArn=FindingAggregatorArn["FindingAggregatorArn"]
+                    break
+
+            if (FindingAggregationRegion == "" or FindingAggregationRegion !=home_region):
+                # Create finding aggregator on Audit Account
+                if region_linking_mode == "ALL_REGIONS":
+                    create_finding_aggregator_response = securityhub_delegated_admin_region_client.create_finding_aggregator(
+                    RegionLinkingMode=region_linking_mode
+                    )                    
+                else:
+                    create_finding_aggregator_response = securityhub_delegated_admin_region_client.create_finding_aggregator(
+                    RegionLinkingMode=region_linking_mode,
+                    Regions=list_linked_region
+                    )
+                api_call_details = {"API_Call": "securityhub:CreateFindingAggregator", "API_Response": create_finding_aggregator_response }
+                logger.debug(api_call_details)                
+            else:
+                # Update finding aggregator on Audit Account
+                if region_linking_mode == "ALL_REGIONS":
+                    update_finding_aggregator_response= securityhub_delegated_admin_region_client.update_finding_aggregator(
+                        FindingAggregatorArn=UpdateFindingAggregatorArn,
+                    RegionLinkingMode=region_linking_mode
+                    )                    
+                else:
+                    update_finding_aggregator_response= securityhub_delegated_admin_region_client.update_finding_aggregator(
+                        FindingAggregatorArn=UpdateFindingAggregatorArn,
+                    RegionLinkingMode=region_linking_mode,
+                    Regions=list_linked_region
+                    )
+                api_call_details = {"API_Call": "securityhub:UpdateFindingAggregator", "API_Response": update_finding_aggregator_response }
+                logger.debug(api_call_details)                 
+        except ClientError as error:
+            logger.debug("finding aggregator already exists")
+
+        # update security hub organization ConfigurationType from local to CENTRAL
+        update_organization_configuration_response  = securityhub_delegated_admin_region_client.update_organization_configuration(
+            AutoEnable=False,
+            AutoEnableStandards="NONE",
+            OrganizationConfiguration = {
+                'ConfigurationType':'CENTRAL'
+            }
+        )
+        api_call_details = {"API_Call": "securityhub:UpdateOrganizationConfiguration", "API_Response": update_organization_configuration_response }
+        logger.debug(api_call_details)
+        logger.info(
+            f"Waiting 10 seconds for SecurityHub organization configuration updated"
+        )
+        sleep(10)
+
+        #Configuration Policy for Security Hub
+        list_configuration_policies_response = securityhub_delegated_admin_region_client.list_configuration_policies(
+            MaxResults=50
+        )
+        api_call_details = {"API_Call": "securityhub:ListConfigurationPolicies", "API_Response": list_configuration_policies_response }
+        logger.debug(api_call_details)
+
+        ConfigurationPolicyArn = ""
+        for ConfigurationPolicySummary in list_configuration_policies_response["ConfigurationPolicySummaries"]:
+            if configuration_policy_name == ConfigurationPolicySummary["Name"]:
+                ConfigurationPolicyArn = ConfigurationPolicySummary["Arn"]
+                break
+        ConfigurationPolicy = {
+            "SecurityHub":
+            {
+                "ServiceEnabled": True,
+                "EnabledStandardIdentifiers": EnabledStandardIdentifiers,
+                "SecurityControlsConfiguration": {"DisabledSecurityControlIdentifiers": [],"SecurityControlCustomParameters": []}
+            }
+        }
+        if ConfigurationPolicyArn=="":
+            # Create Configuration Policy for Security Hub
+            create_security_hub_configuration_policy_response = securityhub_delegated_admin_region_client.create_configuration_policy(
+                Name=configuration_policy_name,
+                Description="Sumologic Configuration policy for all accounts",
+                ConfigurationPolicy=ConfigurationPolicy
+            )
+            api_call_details = {"API_Call": "securityhub:CreateConfigurationPolicy", "API_Response": create_security_hub_configuration_policy_response }
+            logger.debug(api_call_details)
+            security_hub_configuration_policy_arn = create_security_hub_configuration_policy_response["Arn"]
+            logger.info(
+                f"Waiting 10 seconds for SecurityHub Configuration Policy created"
+            )
+        else:
+            # Update Configuration Policy for Security Hub
+            update_security_hub_configuration_policy_response = securityhub_delegated_admin_region_client.update_configuration_policy(
+                Identifier=ConfigurationPolicyArn,
+                ConfigurationPolicy=ConfigurationPolicy
+            )
+            api_call_details = {"API_Call": "securityhub:UpdateConfigurationPolicy", "API_Response": update_security_hub_configuration_policy_response }
+            logger.debug(api_call_details)
+            security_hub_configuration_policy_arn = update_security_hub_configuration_policy_response["Arn"]
+            logger.info(
+                f"Waiting 10 seconds for SecurityHub Configuration Policy updated"
+            )
+        sleep(10)  
+        # Start configuration policy association for Security Hub
+        start_configuration_policy_association_response = securityhub_delegated_admin_region_client.start_configuration_policy_association(
+            ConfigurationPolicyIdentifier= security_hub_configuration_policy_arn,
+            Target={
+                'RootId': RootId
+            }
+
+        )
+        api_call_details = {"API_Call": "securityhub:StartConfigurationPolicyAssociation", "API_Response": start_configuration_policy_association_response }
+        logger.debug(api_call_details)
+        logger.info(f"SecurityHub started Configuration Policy Association in {home_region}")
+
+    def disable_organization_admin_account(self,regions: list) -> None:
+        """Disable the organization admin account.
+
+        Args:
+            regions: AWS Region List
+        """
+        for region in regions:
+            securityhub_client: SecurityHubClient = self.MANAGEMENT_ACCOUNT_SESSION.client("securityhub", region, config=self.BOTO3_CONFIG)
+            paginator: ListOrganizationAdminAccountsPaginator = securityhub_client.get_paginator("list_organization_admin_accounts")
+            for page in paginator.paginate():
+                for admin_account in page["AdminAccounts"]:
+                    if admin_account["Status"] == "ENABLED":
+                        response = securityhub_client.disable_organization_admin_account(AdminAccountId=admin_account["AccountId"])
+                        api_call_details = {"API_Call": "securityhub:DisableOrganizationAdminAccount", "API_Response": response}
+                        logger.debug(api_call_details)
+                        logger.info(f"Admin Account {admin_account['AccountId']} Disabled in {region}")
+                sleep(0.2)
+
+    def deregister_delegated_admin_securityhub(self, delegated_admin_account_id: str, home_region: str, configuration_role_name: str, region_linking_mode: str, linked_regions: list, RootId: str, disable_when_remove: bool) -> None:
+        """Configure delegated admin security hub.
+        Args:
+            accounts: list of account details [{"AccountId": "", "Email": ""}]
+            regions: AWS Region List
+            delegated_admin_account_id: Delegated Admin Account ID
+            configuration_role_name: Configuration Role Name
+            region_linking_mode: Region Linking Mode
+            linked_regions: Findings from linked Regions can be viewed in the aggregation Region.
+            home_region: Home Region
+        """
+        delegated_admin_session = self.assume_role(configuration_role_name, "sra-enable-security-hub", delegated_admin_account_id)
+        securityhub_delegated_admin_region_client: SecurityHubClient = delegated_admin_session.client("securityhub", home_region, config=self.BOTO3_CONFIG)        
+        list_configuration_policies_response = securityhub_delegated_admin_region_client.list_configuration_policies(
+            MaxResults=50
+        )  
+        for ConfigurationPolicySummary in list_configuration_policies_response["ConfigurationPolicySummaries"]:
+            try:
+                start_configuration_policy_disassociation_response=securityhub_delegated_admin_region_client.start_configuration_policy_disassociation(
+                    ConfigurationPolicyIdentifier=ConfigurationPolicySummary["Arn"],
+                    Target={
+                        "RootId":RootId
+                    }
+                )
+                api_call_details = {"API_Call": "securityhub:StartConfigurationPolicyDisassociation", "API_Response": start_configuration_policy_disassociation_response }
+                logger.debug(api_call_details) 
+                logger.info(
+                    f"Waiting 10 seconds for start SecurityHub Configuration Policy Disassociation"
+                )
+                sleep(10)
+            except ClientError as error:
+                logger.debug(
+                    f"Not start {ConfigurationPolicySummary['Arn']} SecurityHub Configuration Policy Disassociation"
+                )                
+            
+            delete_configuration_policy_response=securityhub_delegated_admin_region_client.delete_configuration_policy(
+                Identifier=ConfigurationPolicySummary["Arn"]
+            )
+            api_call_details = {"API_Call": "securityhub:DeleteConfigurationPolicy", "API_Response": delete_configuration_policy_response }
+            logger.debug(api_call_details) 
+            logger.info(
+                f"Delete SecurityHub Configuration Policy"
+            )
+        
+        # update security hub organization ConfigurationType from CENTRAL to LOCAL
+        update_organization_configuration_response  = securityhub_delegated_admin_region_client.update_organization_configuration(
+            OrganizationConfiguration = {
+                'ConfigurationType':'LOCAL'
+            },
+            AutoEnable=True,
+            AutoEnableStandards="NONE"
+        )
+
+        api_call_details = {"API_Call": "securityhub:UpdateOrganizationConfiguration", "API_Response": update_organization_configuration_response }
+        logger.debug(api_call_details)
+        logger.info(
+            f"Waiting 10 seconds for SecurityHub organization configuration updated"
+        )
+        sleep(10)
+
+        # Remove linked regions
+        list_finding_aggregators_response = securityhub_delegated_admin_region_client.list_finding_aggregators(
+            MaxResults=50
+        )
+        FindingAggregationRegion=""
+        UpdateFindingAggregatorArn=""
+        for FindingAggregatorArn in list_finding_aggregators_response["FindingAggregators"]:
+            FindingAggregationRegion = securityhub_delegated_admin_region_client.get_finding_aggregator(
+                FindingAggregatorArn=FindingAggregatorArn["FindingAggregatorArn"]
+            )["FindingAggregationRegion"]
+            if FindingAggregationRegion == home_region:
+                UpdateFindingAggregatorArn=FindingAggregatorArn
+                delete_finding_aggregator_response = securityhub_delegated_admin_region_client.delete_finding_aggregator(
+                    FindingAggregatorArn=UpdateFindingAggregatorArn["FindingAggregatorArn"]
+                )
+                api_call_details = {"API_Call": "securityhub:DeleteFindingAggregator", "API_Response": delete_finding_aggregator_response }
+                logger.debug(api_call_details)
+                logger.info(
+                    f"Waiting 10 seconds for SecurityHub delete finding aggregator deleted"
+                )
+                sleep(10)                                 
+                break   
+
+        self.disable_organization_admin_account([home_region])
+        self.deregister_delegated_administrator(delegated_admin_account_id)
+
+        if disable_when_remove:
+            list_region = [
+                "us-east-2", "us-east-1", "us-west-1", "us-west-2", "af-south-1", "ap-east-1", "ap-south-1", "ap-south-2", "ap-northeast-3", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-4", "ap-northeast-1", "ca-central-1", "ca-west-1", "cn-north-1", "cn-northwest-1", "eu-central-1", "eu-central-2", "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1", "eu-south-1", "eu-south-2", "il-central-1", "me-south-1", "me-central-1", "sa-east-1", "us-gov-west-1", "us-gov-east-1"
+            ]
+            list_linked_region=[]
+            if (region_linking_mode=="SPECIFIED_REGIONS"):
+                if len(linked_regions.strip())<1:
+                    raise ValueError("Linked Regions for SecurityHub not null")
+                else:
+                    for region in list(linked_regions.strip().split(",")):
+                        if region.strip() in list_region:
+                            if region.strip()!= home_region:
+                                list_linked_region.append(region.strip())
+                    if len(list_linked_region)<1:
+                        raise ValueError("Linked Regions for SecurityHub not null")
+                    
+            elif region_linking_mode=="ALL_REGIONS_EXCEPT_SPECIFIED":
+                if len(linked_regions.strip())<1:
+                    raise ValueError("Linked Regions for SecurityHub not null")
+                else:
+                    for region in self.get_available_service_regions("us-east-2,us-east-1,us-west-1,us-west-2,af-south-1,ap-east-1,ap-south-1,ap-south-2,ap-northeast-3,ap-northeast-2,ap-southeast-1,ap-southeast-2,ap-southeast-3,ap-southeast-4,ap-northeast-1,ca-central-1,ca-west-1,cn-north-1,cn-northwest-1,eu-central-1,eu-central-2,eu-west-1,eu-west-2,eu-west-3,eu-north-1,eu-south-1,eu-south-2,il-central-1,me-south-1,me-central-1,sa-east-1,us-gov-west-1,us-gov-east-1","securityhub"):
+                        if region not in list(linked_regions.strip().split(",")):
+                            list_linked_region.append(region)                     
+            else:
+                list_linked_region = self.get_available_service_regions("us-east-2,us-east-1,us-west-1,us-west-2,af-south-1,ap-east-1,ap-south-1,ap-south-2,ap-northeast-3,ap-northeast-2,ap-southeast-1,ap-southeast-2,ap-southeast-3,ap-southeast-4,ap-northeast-1,ca-central-1,ca-west-1,cn-north-1,cn-northwest-1,eu-central-1,eu-central-2,eu-west-1,eu-west-2,eu-west-3,eu-north-1,eu-south-1,eu-south-2,il-central-1,me-south-1,me-central-1,sa-east-1,us-gov-west-1,us-gov-east-1","securityhub")
+            
+            for AccountId in self.get_all_organization_accounts():
+                securityhub_session = self.assume_role(configuration_role_name, "sra-enable-security-hub", AccountId)
+                for region in list_linked_region:
+                    securityhub_region_client: SecurityHubClient = securityhub_session.client("securityhub", region, config=self.BOTO3_CONFIG)
+                    disable_securityhub_response = securityhub_region_client.disable_security_hub()
+                    api_call_details = {"API_Call": "securityhub:DisableSecurityHub", "API_Response": disable_securityhub_response }
+                    logger.debug(api_call_details)   
+
+    def is_region_available(self,region):
+
+        regional_sts = boto3.client('sts', region_name=region)
+        try:
+            regional_sts.get_caller_identity()
+            return True
+        except ClientError as error:
+            if "InvalidClientTokenId" in str(error):
+                logger.debug(f"Region: {region} is not available")
+                return False
+            else:
+                logger.error(f"{error}") 
+
+    def get_available_service_regions(self, user_regions: str, aws_service: str) -> list:
+        available_regions = []
+        try:
+            if user_regions.strip():
+                service_regions = [value.strip() for value in user_regions.split(",") if value != '']
+            else:
+                service_regions = boto3.session.Session().get_available_regions(
+                    aws_service
+                )
+        except ClientError as ce:
+            logger.error(f"get_available_service_regions error: {ce}")
+            raise ValueError("Error getting service regions")
+        
+        for region in service_regions:
+            if self.is_region_available(region):
+                available_regions.append(region)
+
+        set_res = set(available_regions)
+        logger.info(f"AVAILABLE REGIONS: {list(set_res)}")
+
+        return list(set_res)
+    def get_all_organization_accounts(self):
+        accounts = []  # used for create_members
+        try:
+            organizations = boto3.client("organizations")
+            paginator = organizations.get_paginator("list_accounts")
+            for page in paginator.paginate(PaginationConfig={"PageSize": 20}):
+                for acct in page["Accounts"]:
+                    if acct["Status"] == "ACTIVE": 
+                        accounts.append(acct["Id"])
+        except Exception as exc:
+            logger.error(f"get_all_organization_accounts error: {exc}")
+            raise ValueError("Error error getting accounts")
+        return accounts
+    
+    def create(self, params, *args, **kwargs):
+        logger.info("Create Event")
+        self.configure_delegated_admin_securityhub(
+            delegated_admin_account_id=params["DELEGATED_ADMIN_ACCOUNT_ID"],
+            configuration_policy_name=params["CONFIGURATION_POLICY_NAME"],
+            configuration_role_name=params["CONFIGURATION_ROLE_NAME"],
+            region_linking_mode=params["REGION_LINKING_MODE"],
+            linked_regions=params["LINKED_REGIONS"],
+            standards_user_input=params["SECURITY_STANDARDS"],
+            RootId=params["ORGANIZATION_ROOT_ID"],
+            home_region=params["HOME_REGION"]
+        )       
+        return {'SecurityHubResourceId': "SecurityHubResourceId"}, "SecurityHubResourceId"
+
+    def update(self, params, *args, **kwargs):
+        logger.info("Update Event")
+        self.configure_delegated_admin_securityhub(
+            delegated_admin_account_id=params["DELEGATED_ADMIN_ACCOUNT_ID"],
+            configuration_policy_name=params["CONFIGURATION_POLICY_NAME"],
+            configuration_role_name=params["CONFIGURATION_ROLE_NAME"],
+            region_linking_mode=params["REGION_LINKING_MODE"],
+            linked_regions=params["LINKED_REGIONS"],
+            standards_user_input=params["SECURITY_STANDARDS"],
+            RootId=params["ORGANIZATION_ROOT_ID"],
+            home_region=params["HOME_REGION"]
+        )       
+        
+    def delete(self, params, *args, **kwargs):
+        logger.info("Delete Event")
+        self.deregister_delegated_admin_securityhub(
+            delegated_admin_account_id=params["DELEGATED_ADMIN_ACCOUNT_ID"],
+            home_region=params["HOME_REGION"],
+            configuration_role_name=params["CONFIGURATION_ROLE_NAME"],
+            region_linking_mode=params["REGION_LINKING_MODE"],
+            linked_regions=params["LINKED_REGIONS"],
+            RootId=params["ORGANIZATION_ROOT_ID"],
+            disable_when_remove=(params.get("DISABLE_SECURITY_HUB", "false")).lower() in "true" 
+        )        
+
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
         }                                                                                 
 
+class GetAvailableServiceRegions(AWSResource):
+    def __init__(self, props,  *args, **kwargs):
+        self.CLOUDFORMATION_PARAMETERS = ["ENABLED_REGIONS","AWS_SERVICE"]
 
+    def is_region_available(self,region):
+        regional_sts = boto3.client('sts', region_name=region)
+        try:
+            regional_sts.get_caller_identity()
+            return True
+        except ClientError as error:
+            if "InvalidClientTokenId" in str(error):
+                return False
+            else:
+                logger.error(f"{error}")
+
+    def get_available_service_regions(self, user_regions: str, aws_service: str) -> list:
+        available_regions = []
+        try:
+            if user_regions.strip():
+                service_regions = [value.strip() for value in user_regions.split(",") if value != '']
+            else:
+                service_regions = boto3.session.Session().get_available_regions(
+                    aws_service
+                )
+        except ClientError as ce:
+            logger.error(f"get_available_service_regions error: {ce}")
+            raise ValueError("Error getting service regions")
+        
+        for region in service_regions:
+            if self.is_region_available(region):
+                available_regions.append(region)
+
+        return available_regions
+            
+    
+    def create(self, params, *args, **kwargs):
+        available_regions = self.get_available_service_regions(params.get("ENABLED_REGIONS", ""), params.get("AWS_SERVICE", "guardduty"))
+        set_res = set(available_regions)
+        list_regions = (list(set_res))
+        regions = ','.join([str(regions) for regions in list_regions])
+        
+        return {'REGIONS': regions}, regions
+        
+    def update(self, params, *args, **kwargs):
+        pass
+
+    def delete(self,params, *args, **kwargs):
+        pass
+
+    def extract_params(self, event):
+        props = event.get("ResourceProperties")
+        return {
+            "params": props
+        }                 
 class GuardDuty(AWSResource):
 
     def __init__(self, props,  *args, **kwargs):
 
         self.CLOUDFORMATION_PARAMETERS = ["AUTO_ENABLE_S3_LOGS", "AWS_PARTITION", "CONFIGURATION_ROLE_NAME",
                                     "DELEGATED_ADMIN_ACCOUNT_ID", "DELETE_DETECTOR_ROLE_NAME", "ENABLED_REGIONS",
-                                    "FINDING_PUBLISHING_FREQUENCY"]
+                                    "FINDING_PUBLISHING_FREQUENCY", "ENABLE_RDS_LOGIN_ACTIVITY_MONITORING","FEATURES"]
         self.SERVICE_ROLE_NAME = "AWSServiceRoleForAmazonGuardDuty"
         self.SERVICE_NAME = "guardduty.amazonaws.com"
         self.PAGE_SIZE = 20  # Max page size for list_accounts
@@ -629,6 +1746,8 @@ class GuardDuty(AWSResource):
         self.SLEEP_SECONDS = 10
         self.MAX_THREADS = 10
         self.STS_CLIENT = boto3.client('sts')
+        self.CHECK_ACCT_MEMBER_RETRIES = 10
+        self.MAX_RETRY = 5
 
     def get_service_client(self,aws_service: str, aws_region: str, session=None):
         if aws_region:
@@ -650,7 +1769,6 @@ class GuardDuty(AWSResource):
             return True
         except ClientError as error:
             if "InvalidClientTokenId" in str(error):
-                logger.info(f"Region: {region} is not available")
                 return False
             else:
                 logger.error(f"{error}")
@@ -659,13 +1777,11 @@ class GuardDuty(AWSResource):
         available_regions = []
         try:
             if user_regions.strip():
-                logger.info(f"USER REGIONS: {str(user_regions)}")
                 service_regions = [value.strip() for value in user_regions.split(",") if value != '']
             else:
                 service_regions = boto3.session.Session().get_available_regions(
                     aws_service
                 )
-            logger.info(f"SERVICE REGIONS: {service_regions}")
         except ClientError as ce:
             logger.error(f"get_available_service_regions error: {ce}")
             raise ValueError("Error getting service regions")
@@ -674,13 +1790,12 @@ class GuardDuty(AWSResource):
             if self.is_region_available(region):
                 available_regions.append(region)
 
-        logger.info(f"AVAILABLE REGIONS: {available_regions}")
         return available_regions
 
     def get_all_organization_accounts(self,exclude_account_id: str):
         accounts = []  # used for create_members
         account_ids = []  # used for disassociate_members
-
+        
         try:
             organizations = boto3.client("organizations")
             paginator = organizations.get_paginator("list_accounts")
@@ -710,57 +1825,111 @@ class GuardDuty(AWSResource):
                 aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
                 aws_session_token=response["Credentials"]["SessionToken"],
             )
-            logger.debug(f"Assumed session for {aws_account_number}")
 
             return session
         except Exception as exc:
             logger.error(f"Unexpected error: {exc}")
             raise ValueError("Error assuming role")
 
-    def gd_create_members(self,guardduty_client, detector_id: str, accounts: list):
-        try:
-            logger.info("Creating members")
-            create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=accounts)
+    def get_unprocessed_account_details(self,create_members_response: CreateMembersResponseTypeDef, accounts: list) -> list:
+        """Get unprocessed account details.
 
+        Args:
+            create_members_response: CreateMembersResponseTypeDef
+            accounts: list
+
+        Raises:
+            ValueError: Internal Error creating member accounts
+
+        Returns:
+            remaining account list
+        """
+        remaining_accounts = []
+
+        for unprocessed_account in create_members_response["UnprocessedAccounts"]:
+            if "error" in unprocessed_account["Result"]:
+                logger.error(f"{unprocessed_account}")
+                raise ValueError(f"Internal Error creating member accounts: {unprocessed_account['Result']}") from None
+            for account_record in accounts:
+                if account_record["AccountId"] == unprocessed_account["AccountId"]:
+                    remaining_accounts.append(account_record)
+        return remaining_accounts
+        
+    def check_members(self,guardduty_client, detector_id: str, accounts: list) -> list:
+        """Check all accounts in the organization are member accounts.
+
+        Args:
+            guardduty_client: boto3 guardduty client
+            detector_id: detectorId of the delegated admin account
+            accounts: list of accounts in the organization
+
+        Returns:
+            any account in the organization that isn't a member
+        """
+        logger.info("check_members begin")
+        retries = 0
+        missing_members: list = []
+        confirmed_members: list = []
+        while retries < self.CHECK_ACCT_MEMBER_RETRIES:
+            confirmed_members = []
+            missing_members = []
+            member_paginator = guardduty_client.get_paginator("list_members")
+            page_iterator = member_paginator.paginate(DetectorId=detector_id)
+            for page in page_iterator:
+                for member in page["Members"]:
+                    confirmed_members.append(member["AccountId"])
+            for account in accounts:
+                if account["AccountId"] not in confirmed_members:
+                    missing_members.append(account)
+            if len(missing_members) > 0:
+                retries += 1
+                logger.debug(f"sleep for {self.SLEEP_SECONDS} retry number {retries}")
+                sleep(self.SLEEP_SECONDS)
+            else:
+                logger.debug("All accounts in the organization are members")
+                break
+        logger.info("check_members end")
+        return missing_members
+    
+    def create_members(self,guardduty_client, detector_id: str, accounts: list):
+        logger.info("Creating members")
+        create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=accounts)
+        number_of_create_members_calls = math.ceil(len(accounts) / 50)
+        for api_call_number in range(0, number_of_create_members_calls):
+            account_details = accounts[api_call_number * 50 : (api_call_number * 50) + 50]
+            create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=account_details) 
             if "UnprocessedAccounts" in create_members_response and create_members_response["UnprocessedAccounts"]:
                 unprocessed = True
                 retry_count = 0
                 unprocessed_accounts = []
+                logger.debug(f"Sleeping for {self.SLEEP_SECONDS} before retry")                
                 while unprocessed:
                     retry_count += 1
-                    logger.info(f"Unprocessed Accounts: {create_members_response['UnprocessedAccounts']}")
-                    remaining_accounts = []
+                    remaining_accounts = self.get_unprocessed_account_details(create_members_response, accounts)
 
-                    for unprocessed_account in create_members_response["UnprocessedAccounts"]:
-                        account_id = unprocessed_account["AccountId"]
-                        account_info = [account_record for account_record in accounts if
-                                        account_record["AccountId"] == account_id]
-                        remaining_accounts.append(account_info[0])
-
-                    if remaining_accounts:
-                        create_members_response = guardduty_client.create_members(DetectorId=detector_id,
-                                                                                AccountDetails=remaining_accounts)
-                        if "UnprocessedAccounts" in create_members_response \
-                                and create_members_response["UnprocessedAccounts"]:
-                            unprocessed_accounts = create_members_response["UnprocessedAccounts"]
-                            if retry_count == 2:
-                                unprocessed = False
-                        else:
+                if len(remaining_accounts) > 0:
+                    create_members_response = guardduty_client.create_members(DetectorId=detector_id, AccountDetails=remaining_accounts)
+                    if "UnprocessedAccounts" in create_members_response and create_members_response["UnprocessedAccounts"]:
+                        unprocessed_accounts = create_members_response["UnprocessedAccounts"]
+                        if retry_count == self.MAX_RETRY:
                             unprocessed = False
 
                 if unprocessed_accounts:
-                    logger.info(f"Unprocessed Member Accounts: {unprocessed_accounts}")
-                    raise ValueError(f"Unprocessed Member Accounts")
-        except Exception as exc:
-            logger.error(f"{exc}")
-            raise ValueError(f"Error Creating Member Accounts")
+                    raise ValueError(f"Unprocessed Member Accounts while Creating Members")
+            
+        missing_members: list = self.check_members(guardduty_client, detector_id, accounts)
+        if len(missing_members) > 0:
+            logger.info(f"Check members failure: {missing_members}")
+            raise ValueError("Check members failure")        
 
-    def update_member_detectors(self,guardduty_client, detector_id: str, account_ids: list):
+    def update_member_detectors(self,guardduty_client, detector_id: str, account_ids: list, features: str):
         try:
+            
+            features_member_detector = self.generator_feature_member_detector(features=features)
             configuration_params = {
                 "DetectorId": detector_id,
                 "AccountIds": account_ids,
-                "DataSources": {"S3Logs": {"Enable": True}}
+                "Features": features_member_detector
             }
             update_member_response = guardduty_client.update_member_detectors(**configuration_params)
 
@@ -789,34 +1958,91 @@ class GuardDuty(AWSResource):
                             unprocessed = False
 
                 if unprocessed_accounts:
-                    logger.info(f"Update Member Detectors Unprocessed Member Accounts: {unprocessed_accounts}")
+                    logger.debug(f"Update Member Detectors Unprocessed Member Accounts: {unprocessed_accounts}")
                     raise ValueError(f"Unprocessed Member Accounts")
         except Exception as error:
             logger.error(f"update member detectors error: {error}")
             raise ValueError("Error updating member detectors")
 
     def update_guardduty_configuration(self,guardduty_client, auto_enable_s3_logs: bool, detector_id: str,
-                                    finding_publishing_frequency: str, account_ids: list):
+                                    finding_publishing_frequency: str, account_ids: list, features: str):
         try:
-            org_configuration_params = {"DetectorId": detector_id, "AutoEnable": True}
+            features_organization = self.generator_feature_organization(features=features)
+            features_admin_configuration = self.generator_feature_member_detector(features=features)
+            org_configuration_params = {"DetectorId": detector_id, "AutoEnable": True, "Features":features_organization}
             admin_configuration_params = {
                 "DetectorId": detector_id,
                 "FindingPublishingFrequency": finding_publishing_frequency
             }
 
-            if auto_enable_s3_logs:
-                org_configuration_params["DataSources"] = {"S3Logs": {"AutoEnable": True}}
-                admin_configuration_params["DataSources"] = {"S3Logs": {"Enable": True}}
-
+            admin_configuration_params["Features"] = features_admin_configuration
             guardduty_client.update_organization_configuration(**org_configuration_params)
             guardduty_client.update_detector(**admin_configuration_params)
-            self.update_member_detectors(guardduty_client, detector_id, account_ids)
+            self.update_member_detectors(guardduty_client, detector_id, account_ids,features)
         except ClientError as error:
             logger.error(f"update_guardduty_configuration {error}")
             raise ValueError(f"Error updating GuardDuty configuration")
-
+        
+    def generator_feature_member_detector(self,features:str):
+        if len(features.strip())<=0:
+            return [{"Name":"RDS_LOGIN_EVENTS","Status":"ENABLED"},
+                    {"Name":"EKS_AUDIT_LOGS","Status":"ENABLED"},
+                    {"Name":"EBS_MALWARE_PROTECTION","Status":"ENABLED"},
+                    {"Name":"S3_DATA_EVENTS","Status":"ENABLED"}
+                    ]
+        else:
+            tmp = features.split(",")
+            list_feature = [x.strip().upper() for x in tmp ]
+            return_feature = []
+            if "RDS" in list_feature:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","Status":"DISABLED"})
+            if "EKS" in list_feature:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","Status":"DISABLED"})
+            if "MALWAREPROTECTION" in list_feature:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","Status":"DISABLED"})
+            if "S3LOGS" in list_feature:
+                return_feature.append({"Name":"S3_DATA_EVENTS","Status":"ENABLED"})
+            else:
+                return_feature.append({"Name":"S3_DATA_EVENTS","Status":"DISABLED"})
+            return return_feature
+        
+    def generator_feature_organization(self,features:str):
+        if len(features.strip())<=0:
+            return [{"Name":"RDS_LOGIN_EVENTS","AutoEnable":"NEW"},
+                    {"Name":"EKS_AUDIT_LOGS","AutoEnable":"NEW"},
+                    {"Name":"EBS_MALWARE_PROTECTION","AutoEnable":"NEW"},
+                    {"Name":"S3_DATA_EVENTS","AutoEnable":"NEW"}
+                    ]
+        else:
+            tmp = features.split(",")
+            list_feature = [x.strip().upper() for x in tmp ]
+            return_feature = []
+            if "RDS" in list_feature:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"RDS_LOGIN_EVENTS","AutoEnable":"NONE"})
+            if "EKS" in list_feature:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"EKS_AUDIT_LOGS","AutoEnable":"NONE"})
+            if "MALWAREPROTECTION" in list_feature:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"EBS_MALWARE_PROTECTION","AutoEnable":"NONE"})
+            if "S3LOGS" in list_feature:
+                return_feature.append({"Name":"S3_DATA_EVENTS","AutoEnable":"NEW"})
+            else:
+                return_feature.append({"Name":"S3_DATA_EVENTS","AutoEnable":"NONE"}) 
+            return return_feature
+        
     def configure_guardduty(self, session, delegated_account_id: str, auto_enable_s3_logs: bool, available_regions: list,
-                            finding_publishing_frequency: str):
+                            finding_publishing_frequency: str, features: str):
 
         accounts, account_ids = self.get_all_organization_accounts(delegated_account_id)
 
@@ -828,14 +2054,11 @@ class GuardDuty(AWSResource):
 
                 if detectors["DetectorIds"]:
                     detector_id = detectors["DetectorIds"][0]
-                    logger.info(f"DetectorID: {detector_id} Region: {region}")
-                    # Create members for existing Organization accounts
-                    logger.info(f"Members created for existing accounts: {accounts} in {region}")
-                    self.gd_create_members(regional_guardduty, detector_id, accounts)
+                    self.create_members(regional_guardduty, detector_id, accounts)
                     logger.info(f"Waiting {self.SLEEP_SECONDS} seconds")
                     time.sleep(self.SLEEP_SECONDS)
                     self.update_guardduty_configuration(regional_guardduty, auto_enable_s3_logs, detector_id,
-                                                finding_publishing_frequency, account_ids)
+                                                finding_publishing_frequency, account_ids, features)
             except Exception as exc:
                 logger.error(f"configure_guardduty Exception: {exc}")
                 raise ValueError(f"Configure GuardDuty Exception. Review logs for details.")
@@ -847,7 +2070,6 @@ class GuardDuty(AWSResource):
             service_role_exists = True
         except iam.exceptions.NoSuchEntityException:
             service_role_exists = False
-            logger.info(f"{role_name} does not exist")
         except Exception as exc:
             logger.error(f"IAM Get Role Exception: {exc}")
             raise ValueError(f"IAM API Exception. Review logs for details.")
@@ -872,14 +2094,14 @@ class GuardDuty(AWSResource):
                         detectors_exist = True
                     else:
                         detectors_exist = False
-                        logger.info(f"Detector Does Not Exist in {region}")
+                        logger.debug(f"Detector Does Not Exist in {region}")
             except self.botocore.exceptions.ClientError as ce:
                 if "AccessDeniedException" in str(ce):
                     logger.debug(f"Detector not found in {region}")
                     detectors_exist = False
                     break
                 else:
-                    logger.info(f"Unexpected Client Exception for {region}: {ce}")
+                    logger.debug(f"Unexpected Client Exception for {region}: {ce}")
             except Exception as exc:
                 logger.error(f"GuardDuty Exception {region}: {exc}")
                 raise ValueError(f"GuardDuty API Exception: {exc}")
@@ -914,13 +2136,11 @@ class GuardDuty(AWSResource):
 
                 if not response["AdminAccounts"]:
                     enable_admin_account = True
-                    logger.info(f"GuardDuty delegated admin {admin_account_id} enabled in {region}")
                 else:
                     admin_account = [admin_account for admin_account in response["AdminAccounts"]
                                     if admin_account["AdminAccountId"] == admin_account_id]
                     if admin_account:
                         enable_admin_account = False
-                        logger.info(f"GuardDuty delegated admin {admin_account_id} already enabled in {region}")
                     else:
                         enable_admin_account = True
 
@@ -940,7 +2160,6 @@ class GuardDuty(AWSResource):
                     admin_account_id = admin_account["AdminAccountId"]
                     if admin_account["AdminStatus"] == "ENABLED":
                         regional_guardduty.disable_organization_admin_account(AdminAccountId=admin_account_id)
-                        logger.info(f"GuardDuty Admin Account {admin_account_id} Disabled in {region}")
             else:
                 logger.info(f"No GuardDuty Admin Accounts in {region}")
         except ClientError as error:
@@ -955,14 +2174,11 @@ class GuardDuty(AWSResource):
                 for detector_id in detectors["DetectorIds"]:
                     if is_delegated_admin:
                         account_ids = self.get_associated_members(guardduty_client, detector_id)
-                        logger.info(f"Account IDs: {account_ids}")
 
                         if account_ids:
                             guardduty_client.disassociate_members(DetectorId=detector_id, AccountIds=account_ids)
-                            logger.info(f"GuardDuty accounts disassociated in {region}")
 
                             guardduty_client.delete_members(DetectorId=detector_id, AccountIds=account_ids)
-                            logger.info(f"GuardDuty members deleted in {region}")
 
                     guardduty_client.delete_detector(DetectorId=detector_id)
         except ClientError as error:
@@ -982,7 +2198,6 @@ class GuardDuty(AWSResource):
 
             for region in available_regions:
                 try:
-                    logger.info(f"Deleting GuardDuty detector in {account_id} {region}")
                     session_guardduty = self.get_service_client("guardduty", region, session)
                     self.delete_detectors(session_guardduty, region, False)
                 except Exception as exc:
@@ -995,7 +2210,6 @@ class GuardDuty(AWSResource):
     def deregister_delegated_administrator(self, delegated_admin_account_id: str,
                                         service_principal: str = "guardduty.amazonaws.com"):
         try:
-            logger.info(f"Deregistering the delegated admin {delegated_admin_account_id} for {service_principal}")
             organizations_client = self.get_service_client("organizations", "")
             organizations_client.deregister_delegated_administrator(
                 AccountId=delegated_admin_account_id,
@@ -1005,7 +2219,7 @@ class GuardDuty(AWSResource):
             logger.debug(f"Account is not a registered delegated administrator: {error}")
         except Exception as error:
             logger.error(f"Error deregister_delegated_administrator: {error}")
-        #    raise ValueError("Error during deregister delegated administrator")
+ 
 
     def create(self, params, *args, **kwargs):
 
@@ -1039,7 +2253,8 @@ class GuardDuty(AWSResource):
                     params.get("DELEGATED_ADMIN_ACCOUNT_ID", ""),
                     auto_enable_s3_logs,
                     available_regions,
-                    params.get("FINDING_PUBLISHING_FREQUENCY", "FIFTEEN_MINUTES")
+                    params.get("FINDING_PUBLISHING_FREQUENCY", "FIFTEEN_MINUTES"),
+                    params.get("FEATURES","")
                 )
             else:
                 raise ValueError(
@@ -1158,8 +2373,6 @@ class AWSARN(AWSResource):
         'CREATE_COMPLETE']
         )
         all_stacks = response['StackSummaries']
-        print("all_stacks:")
-        print(all_stacks)
         stack_results = []
         for stack in all_stacks:
             if stack_name in stack['StackName']:
@@ -1169,8 +2382,6 @@ class AWSARN(AWSResource):
         response_describe_stacks = client_b.describe_stacks(
             StackName=first_stack['StackName']
         )
-        print("stack_results:")
-        print(stack_results)
         outputs_response = response_describe_stacks['Stacks'][0]['Outputs']
         value_arn = ""
         for op in outputs_response:

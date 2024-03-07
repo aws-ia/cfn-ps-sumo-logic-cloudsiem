@@ -1,0 +1,574 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Template to setup the AWS Security Hub app with AWS and Sumo Logic resources for AWS Quick Start Solution. (qs-1urq26s73)
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Sumo Logic Deployment Configuration"
+        Parameters:
+          - SumoDeployment
+          - SumoAccessID
+          - SumoAccessKey
+          - RemoveSumoResourcesOnDeleteStack
+      - Label:
+          default: "App Details - Collector Configuration"
+        Parameters:
+          - InstallAWSSecurityHubApp
+          - InstallSumoSecurityHubApp
+          - InstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp
+          - CollectorID                    
+      - Label:
+          default: AWS Security Hub Attributes
+        Parameters:
+          - SecurityAccountId
+          - ConnectionName
+          - AggregationRegion          
+          - SecurityStandards
+          - RegionLinkingMode
+          - LinkedRegions
+      - Label:
+          default: "App Details - HTTP Logs Source Configuration"
+        Parameters:
+          - CreateHttpLogsSource
+          - HttpLogsSourceName
+          - HttpLogsSourceCategoryName
+          - EnableForwardDataToCloudSIEM
+      - Label:
+          default: AWS StackSet Attributes
+        Parameters:
+          - AdministrationRoleArn
+          - ExecutionRoleRuleName
+          - OrganizationRootID
+      - Label:
+          default: AWS Stack Attributes
+        Parameters:
+          - SumoLogicHelperRoleARN
+      - Label:
+          default: "AWS Quick Start configuration"
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+          - QSS3BucketRegion
+      - Label:
+          default: "Local Parameters. Do Not Edit the values."
+        Parameters:
+          - ParentHelperFunctionArn
+          - ParentStackName
+
+    ParameterLabels:
+      EnableForwardDataToCloudSIEM:
+        default: "Forward Data To CloudSIEM"
+      SumoDeployment:
+        default: "Sumo Logic Deployment Name"
+      SumoAccessID:
+        default: "Sumo Logic Access ID"
+      SumoAccessKey:
+        default: "Sumo Logic Access Key"
+      RemoveSumoResourcesOnDeleteStack:
+        default: "Delete Sumo Logic Resources when stack is deleted"
+      InstallSumoSecurityHubApp:
+        default: "Install Sumo Logic - AWS Security Hub"
+      InstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp:
+        default: "Install Sumo Logic - AWS Security Hub - Cloud Security Monitoring and Analytics"
+      InstallAWSSecurityHubApp:
+        default: "Install AWS Security Hub"
+      CollectorID:
+        default: "ID of Hosted Collector"
+
+      SecurityAccountId:
+        default: Security Account ID
+      AggregationRegion:
+        default: AWS Security Hub aggregation region
+      SecurityStandards:
+        default: Standards in AWS Security Hub
+      RegionLinkingMode:
+        default: Region Linking Mode
+      LinkedRegions:
+        default: Linked Regions
+      AdministrationRoleArn:
+        default: Arn of Administration Role
+      ExecutionRoleRuleName:
+        default: Execution Role Name
+      OrganizationRootID:
+        default: "AWS Organization root ID"
+      QSS3BucketName:
+        default: "Quick Start S3 bucket name"
+      QSS3KeyPrefix:
+        default: "Quick Start S3 key prefix"
+      ParentHelperFunctionArn:
+        default: "If Any, Arn of parent Helper Function"
+      ParentStackName:
+        default: "If Any, Name of parent Stack"
+      SumoLogicHelperRoleARN:
+        default: "Sumo Logic Helper Role ARN"
+        
+      CreateHttpLogsSource:
+        default: "Create Sumo Logic HTTP Logs Source"
+      HttpLogsSourceName:
+        default: "Sumo Logic HTTP Logs Source Name"
+      HttpLogsSourceCategoryName:
+        default: "Sumo Logic HTTP Logs Source Category Name" 
+      QSS3BucketRegion:
+        default: "Quick Start S3 bucket Region"
+      ConnectionName:
+        default: "Webhook Lambda Connection Name"
+
+Parameters:
+
+  EnableForwardDataToCloudSIEM:
+    Type: String
+    Description: "Yes -> Enabled forward data to CloudSIEM.
+                  No -> Skip enable forward."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  SumoDeployment:
+    Type: String
+    AllowedValues:
+      - au
+      - ca
+      - de
+      - eu
+      - jp
+      - us2
+      - us1
+      - in
+      - fed
+    Description: "Enter au, ca, de, eu, jp, us2, in, fed or us1."
+    AllowedPattern: ".+"
+    Default: "us2"
+
+  SumoAccessID:
+    Type: String
+    Description: "The Sumo Logic Access ID. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access ID can not be empty."
+
+  SumoAccessKey:
+    Type: String
+    Description: "The Sumo Logic Access Key. Used for Sumo Logic API calls."
+    AllowedPattern: ".+"
+    ConstraintDescription: "Sumo Logic Access Key can not be empty."
+    NoEcho: true
+
+  RemoveSumoResourcesOnDeleteStack:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description: "To delete collector, sources and app when stack is deleted, set this parameter to true. Default is false.
+                  Deletes the resources created by the stack. Deletion of updated resources will be skipped."
+    Type: String
+
+  InstallSumoSecurityHubApp:
+    Type: String
+    Description: "Yes -> To Install AWS Security Hub in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'No'
+      - 'Yes'
+
+  InstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp:
+    Type: String
+    Description: "Yes -> To Install AWS Security Hub - Cloud Security Monitoring and Analytics in Sumo Logic for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  InstallAWSSecurityHubApp:
+    Type: String
+    Description: "Yes -> To Install AWS Security Hub in AWS for AWS Quick Start Solution.
+                  No -> Skip Installation of the app."
+    Default: 'No'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+
+  CollectorID:
+    Type: String
+    Description: Change the collector id of Sumo Hosted Collector
+
+  SecurityAccountId:
+    Type: String
+    Description: SecurityHub master AWS account ID.
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: >
+      The Security Account ID must be a 12 character string.
+    MinLength: 12
+    MaxLength: 12
+
+  AggregationRegion:
+    Description:
+      "A region aggregator is configured within the Home region to aggregate findings from the configured regions, if more than one region is configured.
+      A parameter is provided to aggregate all configured Security Hub regions including any future regions."
+    Type: String 
+    Default: us-east-1
+    AllowedValues:
+      - 'us-east-1'
+      - 'us-east-2'
+      - 'us-west-1'
+      - 'us-west-2'
+      - 'af-south-1'
+      - 'ap-east-1'
+      - 'ap-south-1'
+      - 'ap-northeast-3'
+      - 'ap-northeast-2'
+      - 'ap-southeast-1'
+      - 'ap-southeast-2'
+      - 'ap-northeast-1'
+      - 'ca-central-1'
+      - 'eu-central-1'
+      - 'eu-west-1'
+      - 'eu-west-2'
+      - 'eu-south-1'
+      - 'eu-west-3'
+      - 'eu-north-1'
+      - 'me-south-1'
+      - 'sa-east-1'
+
+  SecurityStandards:
+    Type: CommaDelimitedList
+    Description: 
+      "AWS Security Hub currently supports the security standards detailed in this section. 
+      Choose a standard to view more details about it and the controls that apply to it. Comma delimited list of standards (e.g. FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1,NIST_v5.0.0,CIS_v1.4.0)
+      Supports: FSBP_v1.0.0 (AWS Foundational Security Best Practices v1.0.0 standard), CIS_v1.2.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0 standard),
+      CIS_v1.4.0 (Center for Internet Security (CIS) AWS Foundations Benchmark v1.4.0 standard), NIST_v5.0.0 (National Institute of Standards and Technology SP 800-53 Rev. 5)"
+    Default: FSBP_v1.0.0,CIS_v1.2.0,PCI_DSS_v3.2.1
+
+  RegionLinkingMode:
+    AllowedValues: [SPECIFIED_REGIONS, ALL_REGIONS]
+    Default: SPECIFIED_REGIONS
+    Description:
+      "If RegionLinkedMode is ALL_REGIONS, then Security Hub aggregates data from all Regions. Security Hub also aggregates data from new Regions as they are supported and you opt into them.
+      If RegionLinkingMode is SPECIFIED_REGIONS, then enter comma separated list of regions from where Security Hub aggregates findings to the aggregation Region. Security Hub does not aggregate data automatically from new Regions."
+    Type: String
+    
+  LinkedRegions:
+    Default: us-east-2, us-west-1
+    Description: "Comma delimited list of regions. Findings from linked Regions can be viewed in the aggregation Region. Required if the RegionLinkingMode is SPECIFIED_REGIONS."
+    Type: String
+
+  QSS3BucketName:
+    AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
+    ConstraintDescription: "Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Default: "aws-ia"
+    Description: "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
+    Type: "String"
+
+  QSS3KeyPrefix:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    ConstraintDescription: "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Default: "quickstart-sumo-logic-cloudsiem/"
+    Description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
+    Type: "String"
+
+  QSS3BucketRegion:
+    Default: "us-east-1"
+    Description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
+    Type: String
+
+  SumoLogicHelperRoleARN:
+    Description: "Sumo Logic Helper Role ARN"
+    Type: "String"
+
+  QSVersion:
+    Type: String
+    Description: "Version of Quick Start"
+    Default: "1.0"
+
+  ParentHelperFunctionArn:
+    Type: String
+    Description: Parent Stack Name. Do Not Edit the value.
+
+  AdministrationRoleArn:
+    Description: Arn of AWS Administration Role name to enable use of AWS CloudFormation StackSets.
+    Type: String
+
+  ExecutionRoleRuleName:
+    AllowedPattern: "^[0-9a-zA-Z-/]*$"
+    Description: AWS Execution Role name of the administrator account (the account in which StackSets will be created).
+    Type: String
+
+  OrganizationRootID:
+    AllowedPattern: '^r-[0-9a-z]{4,32}$'
+    Description: >
+      The Root ID string requires r- followed by from 4 to 32 lowercase letters or digits.
+    MaxLength: 34
+    Type: String
+
+  ParentStackName:
+    Type: String
+    Description: Parent Stack Name. Do Not Edit the value.
+
+  CreateHttpLogsSource:
+    Type: String
+    Description: "Choose Yes to create Sumo Logic HTTP logs source. Choose No if HTTP Logs source already exist."
+    Default: 'Yes'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  HttpLogsSourceName:
+    Type: String
+    Description: Change the HTTP Source name to be created else default name will be used.
+    Default: AWS-Security-Hub-Source
+  HttpLogsSourceCategoryName:
+    Type: String
+    Description: "Existing - Change to an existing Source Category from Sumo Logic if HTTP Source is not created.\n
+                  New - Change the source category else Default will be used if HTTP Source is Created"
+    Default: AWS/Security/Hub/Logs
+
+  ConnectionName:
+    Type: String
+    Description: "Provide a name for the Webhook Connection for Security Hub Forwarder."
+    Default: "SecurityHubConnection"
+
+Conditions:
+
+  install_aws_security_hub_app: !Equals [!Ref InstallAWSSecurityHubApp, 'Yes']
+  install_sumo_security_hub_app: !Equals [!Ref InstallSumoSecurityHubApp, 'Yes']
+  install_sumo_security_hub_cloud_security_monitoring_and_analytics_app: !Equals [!Ref InstallSumoSecurityHubCloudSecurityMonitoringandAnalyticsApp, 'Yes']
+  install_http_log_source: !Equals [!Ref CreateHttpLogsSource, 'Yes']
+  enable_forward_data_to_cloudsiem: !And
+    - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
+    - !Condition install_http_log_source
+  UsingDefaultBucket: !Or 
+    - !Equals [!Ref QSS3BucketName, 'aws-ia']
+    - !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions']
+    - !Equals [!Ref QSS3BucketName, 'tcat-cfn-ps-sumo-logic-cloudsiem'] 
+
+Resources:
+
+  SumoHTTPSource:
+    Condition: install_http_log_source
+    Type: Custom::HTTPSource
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      SourceName: !Ref HttpLogsSourceName
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      SourceCategory: !Ref HttpLogsSourceCategoryName
+      CollectorId: !Ref CollectorID
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      DateFormat: "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+      DateLocatorRegex: '.*"updatedAt":"(.*)".*'
+
+  SumoUpdateFields:
+    DependsOn:
+        - SumoHTTPSource   
+    Type: Custom::SumoLogicUpdateFields
+    Condition: enable_forward_data_to_cloudsiem
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      CollectorId: !Ref CollectorID
+      SourceName: !Ref HttpLogsSourceName
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+      Fields: {'_siemForward':'True'}
+
+  SecurityHubOrgAuditSumoCollectorStackset:
+    Condition: install_http_log_source
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
+      AdministrationRoleARN: !Ref AdministrationRoleArn
+      ExecutionRoleName: !Ref ExecutionRoleRuleName
+      PermissionModel: SELF_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND'
+      StackInstancesGroup:
+        - Regions:
+          - !Ref AggregationRegion
+          DeploymentTargets:
+            Accounts:
+              - !Ref SecurityAccountId
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-audit-sumo-collector.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        - ParameterKey: 'SumoEndpoint'
+          ParameterValue: !GetAtt SumoHTTPSource.SUMO_ENDPOINT
+
+  SumoSecurityHubSecretAccessKey:
+    Condition: install_http_log_source
+    DependsOn:
+        - SecurityHubOrgAuditSumoCollectorStackset
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AggregationRegion
+      stackName:  !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
+      outputKey: 'oSecurityHubSecretAccessKey'
+
+  SumoSecurityHubUserKey:
+    Condition: install_http_log_source
+    DependsOn:
+        - SecurityHubOrgAuditSumoCollectorStackset
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AggregationRegion
+      stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
+      outputKey: 'oSecurityHubUserKey'
+
+  SumoSecurityHubForwarderApiUrl:
+    Condition: install_http_log_source
+    DependsOn:
+        - SecurityHubOrgAuditSumoCollectorStackset
+    Type: Custom::AWSARN
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      accountID: !Ref SecurityAccountId
+      roleName: !Ref ExecutionRoleRuleName
+      region: !Ref AggregationRegion
+      stackName: !Sub 'SecurityHubOrgAuditSumoCollector-${ParentStackName}'
+      outputKey: 'oSecurityHubForwarderApiUrl'
+
+  SumoConnections:
+    Condition: install_http_log_source
+    DependsOn:
+        - SecurityHubOrgAuditSumoCollectorStackset  
+    Type: Custom::Connections
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      Type: "WebhookDefinition"
+      Name: !Sub '${ConnectionName}-${AggregationRegion}'
+      Description: "Webhook Lambda connection for SecurityHub"
+      URL: !GetAtt SumoSecurityHubForwarderApiUrl.ARN
+      UserName: !GetAtt SumoSecurityHubUserKey.ARN
+      Password: !GetAtt SumoSecurityHubSecretAccessKey.ARN
+      Region: !Ref AggregationRegion
+      ServiceName: 'execute-api'
+      WebhookType: 'AWSLambda'
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  SumoSecurityHubApp:
+    Type: Custom::App
+    Condition: install_sumo_security_hub_app
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      Region: !Ref AggregationRegion
+      AppName: "Amazon QuickStart - AWS Security Hub"
+      AppId: "246cf87b-99b6-47cb-bde0-3fe1cb76c6b4"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        securityHubSrc:
+          !Sub "_sourceCategory=${HttpLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  SumoSecurityHubCloudSecurityMonitoringAndAnalyticsApp:
+    Type: Custom::App
+    Condition: install_sumo_security_hub_cloud_security_monitoring_and_analytics_app  
+    Properties:
+      ServiceToken: !Ref ParentHelperFunctionArn
+      Region: !Ref AggregationRegion
+      AppName: "Amazon QuickStart - AWS Security Hub - Cloud Security Monitoring and Analytics"
+      AppId: "a0c8257c-b1eb-4dac-8ce9-6d5f2cf09aea"
+      RemoveOnDeleteStack: !Ref RemoveSumoResourcesOnDeleteStack
+      AppSources:
+        shlogsrc:
+          !Sub "_sourceCategory=${HttpLogsSourceCategoryName}"
+      SumoAccessID: !Ref SumoAccessID
+      SumoAccessKey: !Ref SumoAccessKey
+      SumoDeployment: !Ref SumoDeployment
+
+  SecurityHubConfigurationIAMRoleStackSet:
+    Condition: install_aws_security_hub_app
+    Type: 'AWS::CloudFormation::StackSet'
+    Properties:
+      Tags:
+        - Key: "version"
+          Value: !Ref QSVersion
+      StackSetName: !Sub 'SecurityHubConfigurationIAMRole-${ParentStackName}'
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - 'CAPABILITY_NAMED_IAM'
+        - 'CAPABILITY_IAM'
+        - 'CAPABILITY_AUTO_EXPAND' 
+      StackInstancesGroup:
+        - Regions:
+            -  !Ref AWS::Region
+          DeploymentTargets:
+              OrganizationalUnitIds: 
+                - !Ref OrganizationRootID
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-configuration-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      AutoDeployment: 
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      Parameters: 
+        - ParameterKey: 'SecurityHubConfigurationRoleName'
+          ParameterValue: !Sub "SHERole-${ParentStackName}"
+        - ParameterKey: 'SecurityHubOrgLambdaRoleName'
+          ParameterValue: !Select [1, !Split ["/", !Ref SumoLogicHelperRoleARN]]
+        - ParameterKey: 'ManagementAccountId'
+          ParameterValue: !Ref "AWS::AccountId"
+        - ParameterKey: 'DelegatedAdminAccountId'
+          ParameterValue: !Ref SecurityAccountId
+        - ParameterKey: 'ParentStackName'
+          ParameterValue: !Ref ParentStackName
+
+  SecurityHubConfigurationIAMRoleStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub
+        - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/apps/sumo-aws-apps/security-hub-org/security-hub-org-configuration-role.yaml'
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        SecurityHubConfigurationRoleName: !Sub "SHERole-${ParentStackName}"
+        SecurityHubOrgLambdaRoleName: !Select [1, !Split ["/", !Ref SumoLogicHelperRoleARN]]
+        DelegatedAdminAccountId: !Ref SecurityAccountId
+        ManagementAccountId: !Ref AWS::AccountId
+        ParentStackName: !Ref ParentStackName
+
+  SecurityHubLambdaCustomResource:
+    Condition: install_aws_security_hub_app
+    DependsOn:
+        - SecurityHubConfigurationIAMRoleStackSet
+        - SecurityHubConfigurationIAMRoleStack
+    Type: Custom::AWSSecurityHub
+    Properties:
+      Version: '1.0'
+      ServiceToken: !Ref ParentHelperFunctionArn
+      CONFIGURATION_ROLE_NAME: !Sub "SHERole-${ParentStackName}"
+      DELEGATED_ADMIN_ACCOUNT_ID: !Ref SecurityAccountId
+      CONFIGURATION_POLICY_NAME: !Sub "Sumologic-SecurityHub-${ParentStackName}"
+      REGION_LINKING_MODE: !Ref RegionLinkingMode
+      LINKED_REGIONS: !Ref LinkedRegions
+      SECURITY_STANDARDS: !Ref SecurityStandards
+      ORGANIZATION_ROOT_ID: !Ref OrganizationRootID
+      DISABLE_SECURITY_HUB: 'false'
+      HOME_REGION: !Ref AggregationRegion
+
+Outputs:
+  ParentStackName:
+    Description: Name of parent Stack
+    Value: !Ref ParentStackName  

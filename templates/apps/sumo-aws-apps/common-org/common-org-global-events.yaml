@@ -1,0 +1,65 @@
+########################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+########################################################################
+AWSTemplateFormatVersion: 2010-09-09
+Description:
+  This template creates an event rule to send organization events to the home region. (qs-1urq0rmde)
+Metadata:
+  SRA:
+    Version: 1.0
+    Order: 3
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: General Properties
+        Parameters:
+          - HomeRegion
+      - Label:
+          default: Event Rule Properties
+        Parameters:
+          - EventRuleRoleName
+
+Parameters:
+  EventRuleRoleName:
+    AllowedPattern: '^[\w+=,.@-]{1,64}$'
+    ConstraintDescription: Max 64 alphanumeric characters. Also special characters supported [+, =, ., @, -].
+    Default: Role-global-events
+    Description: Event rule role name for putting events on the home region event bus
+    Type: String
+
+  HomeRegion:
+    AllowedPattern: '^[a-z0-9-]{1,64}$'
+    ConstraintDescription: AWS Region Example - 'us-east-1'
+    Description: Name of the home region
+    Default: "us-east-1"
+    Type: String
+
+  ParentStackName:
+    Type: String
+    Default: "ParentStackName"
+    Description: Parent Stack Name. Do Not Edit the value.
+
+Resources:
+  rOrganizationsRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${ParentStackName}-forward-org-events
+      Description: SRA Account Alternate Contacts Forward Organizations events to home region.
+      EventPattern:
+        source:
+          - aws.organizations
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventSource:
+            - organizations.amazonaws.com
+          eventName:
+            - AcceptHandshake
+            - CreateAccountResult
+            - RemoveAccountFromOrganization
+      State: ENABLED
+      Targets:
+        - Arn: !Sub arn:${AWS::Partition}:events:${HomeRegion}:${AWS::AccountId}:event-bus/default
+          Id: !Sub ${ParentStackName}-org-events-to-home-region
+          RoleArn: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${EventRuleRoleName}
