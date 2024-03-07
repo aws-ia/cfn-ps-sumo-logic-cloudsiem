@@ -292,7 +292,10 @@ Conditions:
   enable_forward_data_to_cloudsiem: !And
     - !Equals [!Ref EnableForwardDataToCloudSIEM,'Yes']
     - !Condition install_http_logs_source
-  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
+  UsingDefaultBucket: !Or 
+    - !Equals [!Ref QSS3BucketName, 'aws-ia']
+    - !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions']
+    - !Equals [!Ref QSS3BucketName, 'tcat-cfn-ps-sumo-logic-cloudsiem'] 
 
 Resources:
 

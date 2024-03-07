@@ -209,7 +209,10 @@ Parameters:
 Conditions:
   create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'Yes' ]
   not_create_s3_bucket: !Equals [ !Ref CreateS3Bucket, 'No' ]
-  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
+  UsingDefaultBucket: !Or 
+    - !Equals [!Ref QSS3BucketName, 'aws-ia']
+    - !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions']
+    - !Equals [!Ref QSS3BucketName, 'tcat-cfn-ps-sumo-logic-cloudsiem'] 
   create_config_recorder_role: !Equals [ !Ref CreateConfigRecorderRole, 'Yes' ]
   NotGlobalRegionUsEast1: !And
     - !Not [!Equals [!Ref 'AWS::Region', us-east-1]]

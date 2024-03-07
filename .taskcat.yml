@@ -13,7 +13,7 @@ tests:
     - us-east-1
     parameters:
       QSS3KeyPrefix: "cfn-ps-sumo-logic-cloudsiem/"
-      QSS3BucketName:  "$[taskcat_autobucket_prefix]"
+      QSS3BucketName:  "tcat-cfn-ps-sumo-logic-cloudsiem"
       QSS3BucketRegion: "us-east-1"
       QSVersion: "2"
       Section1SumoLogicDeployment: "us2"

@@ -310,7 +310,10 @@ Parameters:
 
 Conditions:
   install_cloudtrail_on_aws: !Equals [ !Ref EnableAWSCloudTrail, 'Yes' ]
-  UsingDefaultBucket: !Or [ !Equals [!Ref QSS3BucketName, 'aws-ia'], !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions'] ]
+  UsingDefaultBucket: !Or 
+    - !Equals [!Ref QSS3BucketName, 'aws-ia']
+    - !Equals [!Ref QSS3BucketName, 'sumologic-aws-security-solutions']
+    - !Equals [!Ref QSS3BucketName, 'tcat-cfn-ps-sumo-logic-cloudsiem'] 
 Resources:
   #Stackset for cloudtrail org
   CloudtrailResoucesStackset:
