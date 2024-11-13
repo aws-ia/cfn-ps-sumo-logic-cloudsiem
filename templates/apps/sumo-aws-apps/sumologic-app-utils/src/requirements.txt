@@ -4,7 +4,7 @@ certifi==2023.5.7
 chardet==5.2.0
 charset-normalizer==3.3.1
 crhelper==2.0.11
-idna==3.4
+idna==3.7
 mypy-boto3-cloudformation==1.28.64
 mypy-boto3-config==1.28.63
 mypy-boto3-iam==1.28.70
